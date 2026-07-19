@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { MAX_PAGES } from "@/lib/ai/config";
 import { parseDocument } from "@/lib/ai/router";
-import { DETECTED_TYPES } from "@/lib/ai/schemas/extraction-v1";
+import { containersOf, DETECTED_TYPES } from "@/lib/ai/schemas/extraction-v2";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 // Parse a document from already-uploaded page images (SSE response).
@@ -24,13 +24,6 @@ function sse(event: string, data: unknown): string {
 
 function bad(message: string, status = 400): Response {
   return Response.json({ error: message }, { status });
-}
-
-function asNumber(v: unknown): number | null {
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-function asString(v: unknown): string | null {
-  return typeof v === "string" && v !== "" ? v : null;
 }
 
 async function persistResult(
@@ -57,22 +50,20 @@ async function persistResult(
     })
     .eq("id", documentId);
 
-  const containers = Array.isArray(extraction.fields.containers)
-    ? (extraction.fields.containers as Record<string, unknown>[])
-    : [];
+  const containers = containersOf(extraction);
   await supabase.from("containers").delete().eq("document_id", documentId);
   if (containers.length > 0) {
     await supabase.from("containers").insert(
       containers.map((c) => ({
         document_id: documentId,
         owner: user.id,
-        container_no: asString(c.container_no),
-        seal_no: asString(c.seal_no),
-        iso_type: asString(c.iso_type),
-        packages: asNumber(c.packages),
-        package_type: asString(c.package_type),
-        gross_kg: asNumber(c.gross_kg),
-        volume_cbm: asNumber(c.volume_cbm),
+        container_no: c.container_no,
+        seal_no: c.seal_no,
+        iso_type: c.iso_type,
+        packages: c.packages,
+        package_type: c.package_type,
+        gross_kg: c.gross_kg,
+        volume_cbm: c.volume_cbm,
         check_digit_valid: null, // validators land in M5
       }))
     );

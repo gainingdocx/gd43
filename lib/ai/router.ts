@@ -12,20 +12,21 @@ import {
   OPENROUTER_BASE_URL,
   PROVIDER_PREFS,
   REQUEST_TIMEOUT_MS,
+  USE_JSON_SCHEMA,
 } from "./config";
 import { tolerantParse, repairJson } from "./json";
-import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v1";
+import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v2";
 import {
   countEmptyCriticalFields,
   EXTRACTION_JSON_SCHEMA,
-  toExtractionV1,
-  type ExtractionV1,
-} from "./schemas/extraction-v1";
+  normalizeModelOutput,
+  type NormalizedExtraction,
+} from "./schemas/extraction-v2";
 
 export type ParseProvider = "openrouter" | "deepinfra";
 
 export interface ParseResult {
-  extraction: ExtractionV1;
+  extraction: NormalizedExtraction;
   model: string;
   provider: ParseProvider;
   escalated: boolean;
@@ -162,8 +163,8 @@ async function callModel(
   return text;
 }
 
-function parseToExtraction(rawText: string): ExtractionV1 {
-  return toExtractionV1(repairJson(rawText));
+function parseToExtraction(rawText: string): NormalizedExtraction {
+  return normalizeModelOutput(repairJson(rawText), PROMPT_VERSION);
 }
 
 export async function parseDocument(
@@ -206,7 +207,7 @@ export async function parseDocument(
     throw new Error("no AI provider configured (OPENROUTER_API_KEY missing)");
   }
 
-  let useJsonSchema = true;
+  let useJsonSchema = USE_JSON_SCHEMA;
   let lastError: unknown = null;
   let winner: { attempt: Attempt; rawText: string } | null = null;
 
@@ -237,7 +238,7 @@ export async function parseDocument(
 
   // Content-quality gate: invalid JSON or ≥3 empty critical fields →
   // one escalation retry (non-stream). Keep the better result.
-  let extraction: ExtractionV1 | null = null;
+  let extraction: NormalizedExtraction | null = null;
   try {
     extraction = parseToExtraction(winner.rawText);
   } catch {
