@@ -8,7 +8,9 @@ import { PARSER_PAGES } from "@/content/parsers";
 import { breadcrumbLd, faqLd, howToLd, JsonLd } from "@/lib/seo/jsonld";
 
 // 6 parser landing pages (BUILD_SPEC §M8), statically generated.
-export const dynamicParams = false;
+// Keep runtime param handling enabled: OpenNext serves these prerendered paths
+// through the Worker and otherwise treats dynamicParams=false as a hard 404.
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return PARSER_PAGES.map((p) => ({ slug: p.slug }));
