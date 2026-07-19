@@ -2,6 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { MAX_PAGES } from "@/lib/ai/config";
 import { parseDocument } from "@/lib/ai/router";
 import { containersOf, DETECTED_TYPES } from "@/lib/ai/schemas/extraction-v2";
+import {
+  containerCheckDigit,
+  duplicates,
+  validateDocument,
+  type ValidationResult,
+} from "@/lib/validators";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 // Parse a document from already-uploaded page images (SSE response).
@@ -26,13 +32,51 @@ function bad(message: string, status = 400): Response {
   return Response.json({ error: message }, { status });
 }
 
+/** Duplicate-ref warn (spec §M5.6): other docs of this owner, same number. */
+async function duplicateWarn(
+  supabase: SupabaseClient,
+  user: User,
+  documentId: string,
+  extraction: Awaited<ReturnType<typeof parseDocument>>["extraction"]
+): Promise<ValidationResult | null> {
+  let kind: "bl_number" | "invoice_no";
+  let value: string | null;
+  if (extraction.detected_type === "bill_of_lading") {
+    kind = "bl_number";
+    value = extraction.fields.bl_number;
+  } else if (extraction.detected_type === "commercial_invoice") {
+    kind = "invoice_no";
+    value = extraction.fields.invoice_no;
+  } else {
+    return null;
+  }
+  if (!value) return null;
+  const { data } = await supabase
+    .from("documents")
+    .select(`id, ref:fields->>${kind}`)
+    .eq("owner", user.id)
+    .neq("id", documentId)
+    .not(`fields->>${kind}`, "is", null)
+    .limit(500);
+  const existing = (data ?? []).map((d) => ({
+    id: d.id as string,
+    value: (d as { ref: string | null }).ref,
+  }));
+  return duplicates(kind, value, existing);
+}
+
 async function persistResult(
   supabase: SupabaseClient,
   user: User,
   documentId: string,
-  result: Awaited<ReturnType<typeof parseDocument>>
-) {
+  result: Awaited<ReturnType<typeof parseDocument>>,
+  validation: ValidationResult[]
+): Promise<ValidationResult[]> {
   const { extraction } = result;
+
+  const dup = await duplicateWarn(supabase, user, documentId, extraction);
+  if (dup) validation = [...validation, dup];
+
   await supabase
     .from("documents")
     .update({
@@ -46,7 +90,7 @@ async function persistResult(
         prompt_version: result.promptVersion,
         escalated: result.escalated,
       },
-      validation: null, // validators land in M5
+      validation,
     })
     .eq("id", documentId);
 
@@ -64,7 +108,9 @@ async function persistResult(
         package_type: c.package_type,
         gross_kg: c.gross_kg,
         volume_cbm: c.volume_cbm,
-        check_digit_valid: null, // validators land in M5
+        check_digit_valid: c.container_no
+          ? containerCheckDigit(c.container_no)
+          : null,
       }))
     );
   }
@@ -79,8 +125,11 @@ async function persistResult(
       provider: result.provider,
       escalated: result.escalated,
       prompt_version: result.promptVersion,
+      validation_fail_count: validation.filter((v) => v.status === "fail").length,
     },
   });
+
+  return validation;
 }
 
 export async function POST(request: Request) {
@@ -186,13 +235,25 @@ export async function POST(request: Request) {
           onStatus: (status) => send("status", { state: status }),
         });
 
+        // Deterministic validation (spec §M3 step 3 / §M5) — server-side,
+        // anonymous parses included; the duplicate check needs an owner.
+        send("status", { state: "validating" });
+        let validation = validateDocument(result.extraction);
+
         if (user && documentId) {
-          await persistResult(supabase, user, documentId, result);
+          validation = await persistResult(
+            supabase,
+            user,
+            documentId,
+            result,
+            validation
+          );
         }
 
         send("done", {
           documentId,
           extraction: result.extraction,
+          validation,
           model: result.model,
           provider: result.provider,
           escalated: result.escalated,
