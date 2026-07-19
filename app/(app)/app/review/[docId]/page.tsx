@@ -19,7 +19,7 @@ export default async function ReviewPage({
 
   const { data: doc } = await supabase
     .from("documents")
-    .select("id, doc_type, status, fields, validation, shipment_id, page_count, storage_path, created_at")
+    .select("id, doc_type, status, fields, validation, shipment_id, page_count, storage_path, share_token, created_at")
     .eq("id", docId)
     .maybeSingle();
   if (!doc) notFound();
@@ -68,6 +68,7 @@ export default async function ReviewPage({
       pageUrls={pageUrls}
       shipmentId={doc.shipment_id}
       shipments={shipments ?? []}
+      shareToken={doc.share_token}
     />
   );
 }

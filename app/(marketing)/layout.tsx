@@ -1,5 +1,5 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Container } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -11,9 +11,14 @@ function Header() {
           href="/"
           className="flex min-h-11 items-center gap-2 font-semibold tracking-tight"
         >
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Container className="size-4" aria-hidden />
-          </span>
+          <Image
+            src="/logo.png"
+            alt=""
+            width={32}
+            height={32}
+            unoptimized
+            className="size-8 rounded-full"
+          />
           <span className="text-lg">GainingDocx</span>
         </Link>
         <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
@@ -48,9 +53,14 @@ function Footer() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="space-y-3 sm:col-span-2">
           <div className="flex items-center gap-2 font-semibold">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-signal text-signal-foreground">
-              <Container className="size-4" aria-hidden />
-            </span>
+            <Image
+              src="/logo.png"
+              alt=""
+              width={32}
+              height={32}
+              unoptimized
+              className="size-8 rounded-full bg-white"
+            />
             <span className="text-lg">GainingDocx</span>
           </div>
           <p className="max-w-sm text-sm text-primary-foreground/70">

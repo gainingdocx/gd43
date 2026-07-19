@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { Container } from "lucide-react";
 
 import { BottomNav } from "@/components/ui/bottom-nav";
 
@@ -23,9 +23,14 @@ export default function AppLayout({
             href="/app"
             className="flex min-h-11 items-center gap-2 font-semibold tracking-tight"
           >
-            <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-              <Container className="size-4" aria-hidden />
-            </span>
+            <Image
+              src="/logo.png"
+              alt=""
+              width={28}
+              height={28}
+              unoptimized
+              className="size-7 rounded-full"
+            />
             GainingDocx
           </Link>
         </div>

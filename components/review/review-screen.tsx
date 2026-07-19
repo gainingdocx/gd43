@@ -25,6 +25,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { coerceEdit, flattenFields, getPath, setPath } from "@/lib/fields/display";
+import { generatableTypes } from "@/lib/generate/map";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { ValidationResult } from "@/lib/validators";
@@ -43,6 +44,28 @@ interface Props {
   pageUrls: string[];
   shipmentId: string | null;
   shipments: ShipmentOption[];
+  shareToken: string | null;
+}
+
+const EXPORT_FORMATS = [
+  ["xlsx", "Excel (.xlsx)"],
+  ["csv", "CSV"],
+  ["json", "JSON"],
+  ["pdf", "PDF summary report"],
+] as const;
+
+const GEN_LABEL: Record<string, string> = {
+  packing_list: "Packing list",
+  commercial_invoice: "Commercial invoice",
+  shipping_instructions: "Shipping instructions",
+};
+
+function newShareToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -71,7 +94,8 @@ export function ReviewScreen(props: Props) {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
-  const [shipmentOpen, setShipmentOpen] = useState(false);
+  const [menu, setMenu] = useState<null | "export" | "generate" | "shipment">(null);
+  const [shareToken, setShareToken] = useState(props.shareToken);
 
   const rows = useMemo(() => flattenFields(props.docType, fields), [props.docType, fields]);
   const byField = useMemo(() => {
@@ -153,8 +177,38 @@ export function ReviewScreen(props: Props) {
       .update({ shipment_id: target })
       .eq("id", props.docId);
     note(error ? "Could not update shipment" : "Shipment updated");
-    setShipmentOpen(false);
+    setMenu(null);
     router.refresh();
+  }
+
+  async function setShare(token: string | null) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("documents")
+      .update({ share_token: token })
+      .eq("id", props.docId);
+    if (error) {
+      note("Could not update the share link");
+      return;
+    }
+    setShareToken(token);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("events").insert({
+        owner: user.id,
+        type: token ? "share_created" : "share_revoked",
+        payload: { document_id: props.docId },
+      });
+    }
+    note(token ? "Share link created" : "Share link revoked");
+  }
+
+  async function copyShare() {
+    if (!shareToken) return;
+    await navigator.clipboard.writeText(`${location.origin}/share/${shareToken}`);
+    note("Link copied");
   }
 
   const pages = (
@@ -306,17 +360,100 @@ export function ReviewScreen(props: Props) {
       {/* Bottom action bar */}
       <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto flex max-w-lg gap-2 px-4 py-2 lg:max-w-4xl">
-          <Button variant="outline" className="flex-1" onClick={() => note("Exports arrive in the next milestone")}>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => setMenu(menu === "export" ? null : "export")}
+          >
             <FileDown className="size-4" aria-hidden /> Export
           </Button>
-          <Button variant="outline" className="flex-1" onClick={() => note("Generation arrives in the next milestone")}>
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => setMenu(menu === "generate" ? null : "generate")}
+          >
             <FilePlus2 className="size-4" aria-hidden /> Generate
           </Button>
-          <Button className="flex-1" onClick={() => setShipmentOpen((v) => !v)}>
+          <Button className="flex-1" onClick={() => setMenu(menu === "shipment" ? null : "shipment")}>
             <Ship className="size-4" aria-hidden /> Shipment
           </Button>
         </div>
-        {shipmentOpen && (
+
+        {menu === "export" && (
+          <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
+            {EXPORT_FORMATS.map(([format, label]) => (
+              <a
+                key={format}
+                href={`/api/export/${props.docId}?format=${format}`}
+                download
+                className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
+              >
+                {label}
+              </a>
+            ))}
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              {shareToken ? (
+                <div className="space-y-1.5">
+                  <p className="truncate text-xs text-muted-foreground">
+                    /share/{shareToken.slice(0, 18)}…
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyShare()}
+                      className="flex-1 rounded-md bg-accent px-2 py-1.5 text-xs font-medium hover:bg-accent/70"
+                    >
+                      Copy share link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void setShare(null)}
+                      className="flex-1 rounded-md px-2 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10"
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void setShare(newShareToken())}
+                  className="w-full text-left text-sm"
+                >
+                  Create public share link
+                  <span className="block text-xs text-muted-foreground">
+                    Read-only, unguessable URL — revoke any time
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {menu === "generate" && (
+          <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
+            {generatableTypes(props.docType).length === 0 ? (
+              <p className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
+                Nothing can be generated from this document type.
+              </p>
+            ) : (
+              generatableTypes(props.docType).map((t) => (
+                <Link
+                  key={t}
+                  href={`/app/generate/${props.docId}?type=${t}`}
+                  className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
+                >
+                  {GEN_LABEL[t]} draft
+                  <span className="block text-xs text-muted-foreground">
+                    Prefilled from this document — edit before download
+                  </span>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
+
+        {menu === "shipment" && (
           <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
             <button
               type="button"
