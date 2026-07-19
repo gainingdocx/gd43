@@ -1,0 +1,9 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ToolCalculator } from "@/components/tools/tool-calculator";
+import { TOOLS } from "@/content/tools";
+import { breadcrumbLd, howToLd, JsonLd } from "@/lib/seo/jsonld";
+export const dynamicParams=false;export function generateStaticParams(){return TOOLS.map((t)=>({slug:t.slug}));}
+export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata>{const{slug}=await params;const t=TOOLS.find((x)=>x.slug===slug);return t?{title:`Free ${t.name}`,description:t.description,alternates:{canonical:`/tools/${slug}`}}:{};}
+export default async function ToolPage({params}:{params:Promise<{slug:string}>}){const{slug}=await params;const t=TOOLS.find((x)=>x.slug===slug);if(!t)notFound();return <><JsonLd data={[breadcrumbLd([{name:"Home",path:"/"},{name:"Tools",path:"/tools"},{name:t.name,path:`/tools/${slug}`}]),howToLd(`How to use the ${t.name}`,["Enter the shipment values shown on your document.","Review the calculated result and assumptions.","Confirm operational limits with your carrier where applicable."])]}/><section className="mx-auto max-w-3xl px-4 py-12 sm:px-6"><nav className="text-xs text-muted-foreground"><Link href="/tools">Tools</Link> / {t.name}</nav><h1 className="mt-3 text-4xl font-bold tracking-tight">{t.name}</h1><p className="mt-4 text-lg text-muted-foreground">{t.intro}</p><div className="mt-8"><ToolCalculator slug={slug}/></div><section className="mt-12 rounded-2xl bg-secondary p-6"><h2 className="text-xl font-bold">How this result is calculated</h2><p className="mt-2 text-sm text-muted-foreground">The calculation uses fixed formulas or published code rules, not AI. Always confirm carrier-specific limits, tariffs and operational requirements before booking cargo.</p></section></section></>;}

@@ -1,0 +1,8 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight, FileSpreadsheet } from "lucide-react";
+import { TEMPLATES } from "@/content/templates";
+import { breadcrumbLd, JsonLd } from "@/lib/seo/jsonld";
+
+export const metadata: Metadata = { title: "Free Shipping Document Templates", description: "Fill, calculate and download six free ocean shipping document templates as PDF, XLSX or DOCX.", alternates: { canonical: "/templates" } };
+export default function TemplatesHub() { return <><JsonLd data={breadcrumbLd([{name:"Home",path:"/"},{name:"Templates",path:"/templates"}])}/><section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20"><p className="text-sm font-bold uppercase tracking-widest text-signal">Free templates</p><h1 className="mt-2 text-4xl font-bold tracking-tight text-primary">Shipping document templates</h1><p className="mt-4 max-w-2xl text-lg text-muted-foreground">Fill each template online, calculate totals and CBM automatically, then download a clean PDF. Blank XLSX and DOCX versions are included.</p><div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{TEMPLATES.map((t)=><Link key={t.slug} href={`/templates/${t.slug}`} className="group rounded-2xl border bg-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><FileSpreadsheet className="size-8 text-signal" aria-hidden/><h2 className="mt-4 text-xl font-bold">{t.name}</h2><p className="mt-2 text-sm text-muted-foreground">{t.description}</p><span className="mt-5 inline-flex items-center gap-1 text-sm font-bold text-primary">Use template <ArrowRight className="size-4 transition group-hover:translate-x-1" aria-hidden/></span></Link>)}</div></section></>; }

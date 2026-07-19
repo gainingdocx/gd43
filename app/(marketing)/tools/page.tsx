@@ -1,0 +1,7 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { ArrowRight, Calculator } from "lucide-react";
+import { TOOLS } from "@/content/tools";
+import { breadcrumbLd, JsonLd } from "@/lib/seo/jsonld";
+export const metadata:Metadata={title:"Free Shipping Calculators & Maritime Tools",description:"Free CBM, container load, ISO 6346, UN/LOCODE and chargeable weight tools. No login required.",alternates:{canonical:"/tools"}};
+export default function ToolsHub(){return <><JsonLd data={breadcrumbLd([{name:"Home",path:"/"},{name:"Tools",path:"/tools"}])}/><section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20"><p className="text-sm font-bold uppercase tracking-widest text-signal">No login required</p><h1 className="mt-2 text-4xl font-bold tracking-tight">Free shipping tools</h1><p className="mt-4 max-w-2xl text-lg text-muted-foreground">Fast, deterministic calculators for daily ocean and air cargo work. Nothing is uploaded.</p><div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{TOOLS.map((t)=><Link key={t.slug} href={`/tools/${t.slug}`} className="group rounded-2xl border bg-card p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><Calculator className="size-8 text-signal"/><h2 className="mt-4 text-xl font-bold">{t.name}</h2><p className="mt-2 text-sm text-muted-foreground">{t.description}</p><span className="mt-5 inline-flex items-center gap-1 text-sm font-bold">Open tool <ArrowRight className="size-4 transition group-hover:translate-x-1"/></span></Link>)}</div></section></>;}

@@ -13,26 +13,38 @@ function Header() {
         >
           <Image
             src="/logo.png"
-            alt=""
-            width={32}
-            height={32}
+            alt="GainingDocx logo"
+            width={48}
+            height={48}
             unoptimized
-            className="size-8 rounded-full"
+            className="size-12 rounded-full drop-shadow-sm"
           />
-          <span className="text-lg">GainingDocx</span>
+          <span className="text-xl">GainingDocx</span>
         </Link>
         <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/tools"
+            className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:flex"
+          >
+            Tools
+          </Link>
+          <Link
+            href="/templates"
+            className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:flex"
+          >
+            Templates
+          </Link>
+          <Link
+            href="/guides"
+            className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:flex"
+          >
+            Guides
+          </Link>
           <Link
             href="/pricing"
             className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Pricing
-          </Link>
-          <Link
-            href="/contact"
-            className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex"
-          >
-            Contact
           </Link>
           <Button
             render={<Link href="/app" />}
@@ -52,16 +64,16 @@ function Footer() {
     <footer className="border-t border-border bg-primary text-primary-foreground">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="space-y-3 sm:col-span-2">
-          <div className="flex items-center gap-2 font-semibold">
+          <div className="flex items-center gap-3 font-semibold">
             <Image
               src="/logo.png"
-              alt=""
-              width={32}
-              height={32}
+              alt="GainingDocx logo"
+              width={48}
+              height={48}
               unoptimized
-              className="size-8 rounded-full bg-white"
+              className="size-12 rounded-full bg-white"
             />
-            <span className="text-lg">GainingDocx</span>
+            <span className="text-xl">GainingDocx</span>
           </div>
           <p className="max-w-sm text-sm text-primary-foreground/70">
             AI parsing and deterministic validation for ocean shipping
@@ -82,6 +94,21 @@ function Footer() {
             <li>
               <Link href="/app" className="inline-flex min-h-11 items-center hover:underline">
                 Parse a document
+              </Link>
+            </li>
+            <li>
+              <Link href="/tools" className="inline-flex min-h-11 items-center hover:underline">
+                Free tools
+              </Link>
+            </li>
+            <li>
+              <Link href="/templates" className="inline-flex min-h-11 items-center hover:underline">
+                Document templates
+              </Link>
+            </li>
+            <li>
+              <Link href="/guides" className="inline-flex min-h-11 items-center hover:underline">
+                Guides
               </Link>
             </li>
           </ul>

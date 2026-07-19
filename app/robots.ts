@@ -7,5 +7,7 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: "/app",
     },
+    sitemap: "https://gainingdocx.com/sitemap.xml",
+    host: "https://gainingdocx.com",
   };
 }

@@ -25,11 +25,11 @@ export default function AppLayout({
           >
             <Image
               src="/logo.png"
-              alt=""
-              width={28}
-              height={28}
+              alt="GainingDocx logo"
+              width={36}
+              height={36}
               unoptimized
-              className="size-7 rounded-full"
+              className="size-9 rounded-full drop-shadow-sm"
             />
             GainingDocx
           </Link>

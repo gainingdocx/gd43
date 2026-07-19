@@ -20,6 +20,15 @@ export const metadata: Metadata = {
   },
   description:
     "Parse Bills of Lading, Commercial Invoices and Packing Lists with AI, validate them with maritime rules, and export clean data in seconds.",
+  openGraph: {
+    siteName: "GainingDocx",
+    type: "website",
+    images: [{ url: "/og.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og.png"],
+  },
 };
 
 export const viewport: Viewport = {

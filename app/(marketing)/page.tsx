@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -88,6 +89,15 @@ export default function HomePage() {
       <section className="border-b border-border bg-gradient-to-b from-background to-secondary/60">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
           <div className="space-y-6">
+            <Image
+              src="/logo.png"
+              alt="GainingDocx — AI shipping document parser"
+              width={112}
+              height={112}
+              unoptimized
+              priority
+              className="size-24 rounded-full shadow-lg ring-4 ring-white sm:size-28"
+            />
             <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
               AI Bill of Lading Parser &amp; Shipping Document Data Extraction
             </h1>

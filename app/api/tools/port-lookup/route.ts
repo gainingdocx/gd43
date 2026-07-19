@@ -1,0 +1,4 @@
+import { NextRequest, NextResponse } from "next/server";
+import data from "@/data/unlocode.json";
+export const dynamic="force-dynamic";
+export function GET(request:NextRequest){const q=(request.nextUrl.searchParams.get("q")??"").trim().toLowerCase();if(q.length<2)return NextResponse.json({results:[]});const ports=data.ports;const exact: {code:string;name:string}[]=[];const partial:{code:string;name:string}[]=[];for(const row of ports){const [code,name]=row;if(!code||!name)continue;const c=code.toLowerCase(),n=name.toLowerCase();if(c===q||n===q)exact.push({code,name});else if(c.includes(q)||n.includes(q))partial.push({code,name});if(exact.length+partial.length>=25)break;}return NextResponse.json({results:[...exact,...partial].slice(0,20)},{headers:{"Cache-Control":"public, max-age=3600"}});}
