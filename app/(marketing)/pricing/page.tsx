@@ -1,0 +1,155 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { CircleCheck } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
+export const metadata: Metadata = {
+  title: "Pricing",
+  description:
+    "Start free with 5 documents a month. Upgrade to Pro for 200 documents, watermark-free exports, document generation and unlimited shipment checks.",
+  alternates: { canonical: "/pricing" },
+};
+
+const plans = [
+  {
+    name: "Free",
+    price: "$0",
+    period: "forever",
+    tagline: "Try the parser on real documents.",
+    features: [
+      "5 documents per month",
+      "AI extraction + full validation",
+      "Excel, CSV & JSON exports (watermarked)",
+      "Works on mobile & desktop",
+    ],
+    cta: "Start free",
+    href: "/app",
+    highlight: false,
+  },
+  {
+    name: "Pro",
+    price: "$19",
+    period: "per month, or $190/year (2 months free)",
+    tagline: "For forwarders and traders who live in documents.",
+    features: [
+      "200 documents per month",
+      "Watermark-free exports",
+      "Generate counterpart documents (CI ⇄ PL, Shipping Instructions)",
+      "Unlimited cross-document Shipment Checks",
+      "Priority support",
+    ],
+    cta: "Get Pro",
+    href: "/app",
+    highlight: true,
+  },
+  {
+    name: "Top-up packs",
+    price: "Pay as you go",
+    period: "one-time packs",
+    tagline: "Busy month? Add documents without changing plans.",
+    features: [
+      "One-time document packs",
+      "Never expire mid-cycle surprises",
+      "Same parsing, validation & exports",
+      "Available on Free and Pro",
+    ],
+    cta: "Contact us",
+    href: "/contact",
+    highlight: false,
+  },
+];
+
+export default function PricingPage() {
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
+      <h1 className="text-center text-4xl font-bold tracking-tight text-primary">
+        Simple pricing that pays for itself in one shipment
+      </h1>
+      <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
+        Every plan includes AI extraction, deterministic maritime validation
+        and structured exports. Prices shown may be adjusted at launch.
+      </p>
+
+      <div className="mt-12 grid gap-6 lg:grid-cols-3">
+        {plans.map((plan) => (
+          <div
+            key={plan.name}
+            className={
+              plan.highlight
+                ? "relative rounded-2xl border-2 border-signal bg-card p-8 shadow-sm"
+                : "rounded-2xl border border-border bg-card p-8"
+            }
+          >
+            {plan.highlight && (
+              <span className="absolute -top-3 left-8 rounded-full bg-signal px-3 py-1 text-xs font-semibold text-signal-foreground">
+                Most popular
+              </span>
+            )}
+            <h2 className="text-lg font-semibold text-primary">{plan.name}</h2>
+            <p className="mt-4 text-4xl font-bold tracking-tight text-primary">
+              {plan.price}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{plan.period}</p>
+            <p className="mt-4 text-sm text-muted-foreground">{plan.tagline}</p>
+            <ul className="mt-6 space-y-3 text-sm">
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-start gap-2">
+                  <CircleCheck
+                    className="mt-0.5 size-4 shrink-0 text-success"
+                    aria-hidden
+                  />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+            <Button
+              render={<Link href={plan.href} />}
+              size="lg"
+              variant={plan.highlight ? "default" : "outline"}
+              className={
+                plan.highlight
+                  ? "mt-8 w-full bg-signal text-signal-foreground hover:bg-signal/90"
+                  : "mt-8 w-full"
+              }
+            >
+              {plan.cta}
+            </Button>
+          </div>
+        ))}
+      </div>
+
+      <div className="mx-auto mt-14 max-w-2xl space-y-6 text-sm text-muted-foreground">
+        <div>
+          <h2 className="font-semibold text-foreground">
+            What counts as a document?
+          </h2>
+          <p className="mt-1">
+            One uploaded file parsed once — regardless of page count (up to 15
+            pages). Re-running validation or exporting never consumes extra
+            documents.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold text-foreground">
+            Can I cancel anytime?
+          </h3>
+          <p className="mt-1">
+            Yes. Subscriptions are handled by Paddle, our merchant of record.
+            Cancel from your account page and you keep Pro until the end of the
+            billing period.
+          </p>
+        </div>
+        <div>
+          <h3 className="font-semibold text-foreground">
+            Do you offer team plans?
+          </h3>
+          <p className="mt-1">
+            Not yet — <Link href="/contact" className="underline">tell us</Link>{" "}
+            about your team and we&apos;ll let you know when they arrive.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

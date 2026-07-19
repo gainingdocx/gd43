@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,9 +13,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GainingDocx",
+  metadataBase: new URL("https://gainingdocx.com"),
+  title: {
+    default: "GainingDocx — AI Shipping Document Parser",
+    template: "%s | GainingDocx",
+  },
   description:
-    "AI Bill of Lading parser and shipping document data extraction.",
+    "Parse Bills of Lading, Commercial Invoices and Packing Lists with AI, validate them with maritime rules, and export clean data in seconds.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B1F3A",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
