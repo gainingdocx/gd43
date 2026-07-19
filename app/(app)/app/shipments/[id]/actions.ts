@@ -11,7 +11,12 @@ import type { NormalizedExtraction } from "@/lib/ai/schemas/shared";
 import { setPath } from "@/lib/fields/display";
 import { coerceCorrection, correctionPath } from "@/lib/shipments/resolve";
 import { createClient } from "@/lib/supabase/server";
-import { crossCheck, type ShipmentDoc } from "@/lib/validators";
+import {
+  crossCheck,
+  validateDocument,
+  type ShipmentDoc,
+  type ValidationResult,
+} from "@/lib/validators";
 
 export async function runShipmentCheck(formData: FormData) {
   const shipmentId = String(formData.get("shipmentId") ?? "");
@@ -97,7 +102,7 @@ export async function resolveDiscrepancy(formData: FormData) {
     if (losingId && winningValue !== null) {
       const { data: losing } = await supabase
         .from("documents")
-        .select("id, doc_type, fields")
+        .select("id, doc_type, fields, validation")
         .eq("id", losingId)
         .maybeSingle();
       const path = losing ? correctionPath(disc.field, losing.doc_type) : null;
@@ -107,7 +112,19 @@ export async function resolveDiscrepancy(formData: FormData) {
           path,
           coerceCorrection(path, winningValue)
         );
-        await supabase.from("documents").update({ fields: next }).eq("id", losingId);
+        const extraction = {
+          detected_type: losing.doc_type,
+          fields: next,
+        } as unknown as NormalizedExtraction;
+        const prior = (losing.validation ?? []) as ValidationResult[];
+        const validation = [
+          ...validateDocument(extraction),
+          ...prior.filter((result) => result.rule === "duplicates"),
+        ];
+        await supabase
+          .from("documents")
+          .update({ fields: next, validation })
+          .eq("id", losingId);
         await supabase.from("events").insert({
           owner: user.id,
           type: "discrepancy_correction",

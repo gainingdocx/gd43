@@ -31,7 +31,8 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
     const page = pdf.addPage([595, 842]);
     const regular = await pdf.embedFont(StandardFonts.Helvetica);
     const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-    page.drawRectangle({ x: 0, y: 772, width: 595, height: 70, color: rgb(0.043, 0.122, 0.227) });
+    page.drawRectangle({ x: 0, y: 772, width: 595, height: 70, color: rgb(0.004, 0.231, 0.702) });
+    page.drawRectangle({ x: 0, y: 768, width: 595, height: 4, color: rgb(0.831, 0.02, 0.02) });
     page.drawText(template.name.toUpperCase(), { x: 42, y: 800, size: 18, font: bold, color: rgb(1, 1, 1) });
     page.drawText("Prepared with GainingDocx — review before use", { x: 42, y: 782, size: 8, font: regular, color: rgb(.8, .85, .92) });
     let y = 744;
@@ -40,16 +41,16 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
       if (!value) continue;
       page.drawText(field.label.toUpperCase(), { x: 42, y, size: 7, font: regular, color: rgb(.3, .36, .45) });
       y -= 12;
-      for (const row of value.split("\n").slice(0, 3)) { page.drawText(row.slice(0, 85), { x: 42, y, size: 10, font: bold, color: rgb(.043, .122, .227) }); y -= 13; }
+      for (const row of value.split("\n").slice(0, 3)) { page.drawText(row.slice(0, 85), { x: 42, y, size: 10, font: bold, color: rgb(.004, .231, .702) }); y -= 13; }
       y -= 7;
     }
     y -= 4;
-    page.drawText("LINES", { x: 42, y, size: 9, font: bold, color: rgb(.043, .122, .227) }); y -= 18;
+    page.drawText("LINES", { x: 42, y, size: 9, font: bold, color: rgb(.004, .231, .702) }); y -= 18;
     lines.filter((line) => line.description.trim()).slice(0, 15).forEach((line, i) => {
       const detail = `${i + 1}. ${line.description.slice(0, 48)}  Qty ${line.quantity || "—"}  Cartons ${line.cartons || "—"}  Gross ${line.grossKg || "—"} kg`;
       page.drawText(detail, { x: 42, y, size: 8, font: regular, color: rgb(.1, .16, .25) }); y -= 15;
     });
-    page.drawText(`Totals: ${money(totals.cartons)} cartons | ${money(totals.netKg)} net kg | ${money(totals.grossKg)} gross kg | ${money(totals.cbm)} CBM | ${money(totals.amount)} value`, { x: 42, y: Math.max(48, y - 12), size: 8, font: bold, color: rgb(.043, .122, .227) });
+    page.drawText(`Totals: ${money(totals.cartons)} cartons | ${money(totals.netKg)} net kg | ${money(totals.grossKg)} gross kg | ${money(totals.cbm)} CBM | ${money(totals.amount)} value`, { x: 42, y: Math.max(48, y - 12), size: 8, font: bold, color: rgb(.004, .231, .702) });
     const bytes = await pdf.save();
     const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${template.slug}.pdf`; a.click(); URL.revokeObjectURL(url);

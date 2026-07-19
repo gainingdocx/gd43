@@ -5,11 +5,11 @@ import { Button } from "@/components/ui/button";
 
 function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 shadow-[0_8px_30px_-24px_rgba(1,59,179,0.7)] backdrop-blur-xl">
+      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href="/"
-          className="flex min-h-11 items-center gap-2 font-semibold tracking-tight"
+          className="flex min-h-11 items-center gap-2.5 font-extrabold tracking-tight text-primary"
         >
           <Image
             src="/logo.png"
@@ -19,7 +19,7 @@ function Header() {
             unoptimized
             className="size-12 rounded-full drop-shadow-sm"
           />
-          <span className="text-xl">GainingDocx</span>
+          <span className="hidden text-xl sm:inline">GainingDocx</span>
         </Link>
         <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
           <Link
@@ -42,7 +42,7 @@ function Header() {
           </Link>
           <Link
             href="/pricing"
-            className="flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            className="hidden min-h-11 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex"
           >
             Pricing
           </Link>

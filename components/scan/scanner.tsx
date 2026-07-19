@@ -266,15 +266,15 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           void addFiles(e.dataTransfer.files);
         }}
         className={cn(
-          "flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors",
-          dragOver ? "border-signal bg-accent" : "border-input bg-card"
+          "flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed px-6 py-12 text-center shadow-[0_18px_55px_-38px_rgba(1,59,179,0.7)] transition-all",
+          dragOver ? "border-signal bg-accent" : "border-input bg-card hover:border-primary/60"
         )}
       >
         <span className="flex size-12 items-center justify-center rounded-full bg-accent text-signal">
           <FileImage className="size-6" aria-hidden />
         </span>
         <div className="space-y-1">
-          <p className="font-semibold">Add document pages</p>
+          <p className="text-lg font-bold text-primary">Add document pages</p>
           <p className="text-sm text-muted-foreground">
             Drop images here, or use the buttons below. Pages are compressed
             on your device before anything is uploaded.

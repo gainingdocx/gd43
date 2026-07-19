@@ -94,14 +94,24 @@ export default async function AccountPage({
     );
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, docs_used_this_month, full_name, company")
-    .eq("id", user.id)
-    .maybeSingle();
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+  const [{ data: profile }, { count: usedCount }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("plan, full_name, company")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("owner", user.id)
+      .gte("created_at", monthStart.toISOString()),
+  ]);
 
   const plan = profile?.plan ?? "free";
-  const used = profile?.docs_used_this_month ?? 0;
+  const used = usedCount ?? 0;
   const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
 
   return (

@@ -16,13 +16,13 @@ import { LOGO_PNG_BASE64 } from "@/lib/brand/logo-data";
 import type { ValidationResult } from "@/lib/validators";
 import { containerRows, docRef, summaryPairs } from "./rows";
 
-export const NAVY = rgb(0.043, 0.122, 0.227); // #0B1F3A
-export const ORANGE = rgb(1, 0.42, 0.173); // #FF6B2C
-export const GREEN = rgb(0.13, 0.55, 0.29);
-export const AMBER = rgb(0.85, 0.6, 0.05);
-export const RED = rgb(0.78, 0.16, 0.16);
-export const GRAY = rgb(0.45, 0.47, 0.5);
-export const LIGHT = rgb(0.94, 0.94, 0.93);
+export const NAVY = rgb(0.004, 0.231, 0.702); // logo blue #013BB3
+export const ORANGE = rgb(0.831, 0.02, 0.02); // logo red #D40505
+export const GREEN = rgb(0.004, 0.231, 0.702);
+export const AMBER = rgb(0.831, 0.02, 0.02);
+export const RED = rgb(0.831, 0.02, 0.02);
+export const GRAY = rgb(0.294, 0.396, 0.576);
+export const LIGHT = rgb(0.91, 0.941, 1);
 
 export const A4: [number, number] = [595.28, 841.89];
 export const MARGIN = 48;

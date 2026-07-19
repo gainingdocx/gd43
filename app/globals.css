@@ -45,6 +45,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-warn: var(--warning);
+  --color-warn-foreground: var(--warning-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -54,103 +56,109 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/*
- * GainingDocx brand tokens.
- * primary  = deep navy #0B1F3A (surfaces, headings, primary buttons)
- * signal   = signal orange #FF6B2C (CTAs, highlights; pair with navy text — white fails AA)
- * background = off-white #F7F7F5
- * accent stays a subtle warm tint: shadcn components use it for hover states.
- */
+/* Logo blue #013BB3; logo red #D40505 is reserved for attention states. */
 :root {
-  --background: #f7f7f5;
-  --foreground: #0b1f3a;
+  --background: #f7faff;
+  --foreground: #102a5c;
   --card: #ffffff;
-  --card-foreground: #0b1f3a;
+  --card-foreground: #102a5c;
   --popover: #ffffff;
-  --popover-foreground: #0b1f3a;
-  --primary: #0b1f3a;
-  --primary-foreground: #f7f7f5;
-  --secondary: #e8edf3;
-  --secondary-foreground: #0b1f3a;
-  --muted: #ecede9;
-  --muted-foreground: #4c5c73;
-  --accent: #fdeee5;
-  --accent-foreground: #0b1f3a;
-  --destructive: #dc2626;
-  --signal: #ff6b2c;
-  --signal-foreground: #0b1f3a;
-  --success: #15803d;
+  --popover-foreground: #102a5c;
+  --primary: #013bb3;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f0ff;
+  --secondary-foreground: #01267c;
+  --muted: #edf3ff;
+  --muted-foreground: #4b6593;
+  --accent: #e5eeff;
+  --accent-foreground: #01267c;
+  --destructive: #d40505;
+  --signal: #d40505;
+  --signal-foreground: #ffffff;
+  --success: #013bb3;
   --success-foreground: #ffffff;
-  --warning: #b45309;
+  --warning: #2b5fc0;
   --warning-foreground: #ffffff;
-  --border: #e2e3df;
-  --input: #d8dad4;
-  --ring: #ff6b2c;
-  --chart-1: #0b1f3a;
-  --chart-2: #ff6b2c;
-  --chart-3: #15803d;
-  --chart-4: #b45309;
-  --chart-5: #4c5c73;
-  --radius: 0.625rem;
+  --border: #cfddf6;
+  --input: #b7caec;
+  --ring: #013bb3;
+  --chart-1: #013bb3;
+  --chart-2: #d40505;
+  --chart-3: #2b5fc0;
+  --chart-4: #8ba8dc;
+  --chart-5: #01267c;
+  --radius: 0.75rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #0b1f3a;
-  --sidebar-primary: #0b1f3a;
-  --sidebar-primary-foreground: #f7f7f5;
-  --sidebar-accent: #fdeee5;
-  --sidebar-accent-foreground: #0b1f3a;
-  --sidebar-border: #e2e3df;
-  --sidebar-ring: #ff6b2c;
+  --sidebar-foreground: #102a5c;
+  --sidebar-primary: #013bb3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5eeff;
+  --sidebar-accent-foreground: #01267c;
+  --sidebar-border: #cfddf6;
+  --sidebar-ring: #013bb3;
 }
 
 .dark {
-  --background: #081426;
-  --foreground: #eef1f5;
-  --card: #0e2038;
-  --card-foreground: #eef1f5;
-  --popover: #0e2038;
-  --popover-foreground: #eef1f5;
-  --primary: #d9e3f0;
-  --primary-foreground: #0b1f3a;
-  --secondary: #1a2f4c;
-  --secondary-foreground: #eef1f5;
-  --muted: #16283f;
-  --muted-foreground: #9aa9bd;
-  --accent: #33261f;
-  --accent-foreground: #ffb28a;
-  --destructive: #f87171;
-  --signal: #ff6b2c;
-  --signal-foreground: #0b1f3a;
-  --success: #4ade80;
-  --success-foreground: #052e16;
-  --warning: #fbbf24;
-  --warning-foreground: #451a03;
-  --border: #ffffff1a;
-  --input: #ffffff26;
-  --ring: #ff6b2c;
-  --chart-1: #d9e3f0;
-  --chart-2: #ff6b2c;
-  --chart-3: #4ade80;
-  --chart-4: #fbbf24;
-  --chart-5: #9aa9bd;
-  --sidebar: #0e2038;
-  --sidebar-foreground: #eef1f5;
-  --sidebar-primary: #d9e3f0;
-  --sidebar-primary-foreground: #0b1f3a;
-  --sidebar-accent: #33261f;
-  --sidebar-accent-foreground: #ffb28a;
-  --sidebar-border: #ffffff1a;
-  --sidebar-ring: #ff6b2c;
+  --background: #071b4e;
+  --foreground: #ffffff;
+  --card: #0b2b73;
+  --card-foreground: #ffffff;
+  --popover: #0b2b73;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #013bb3;
+  --secondary: #143b82;
+  --secondary-foreground: #ffffff;
+  --muted: #12346f;
+  --muted-foreground: #bfd0f2;
+  --accent: #16418f;
+  --accent-foreground: #ffffff;
+  --destructive: #ff5a5a;
+  --signal: #ff5a5a;
+  --signal-foreground: #071b4e;
+  --success: #8bb5ff;
+  --success-foreground: #071b4e;
+  --warning: #8bb5ff;
+  --warning-foreground: #071b4e;
+  --border: #ffffff2b;
+  --input: #ffffff40;
+  --ring: #8bb5ff;
+  --chart-1: #ffffff;
+  --chart-2: #ff5a5a;
+  --chart-3: #8bb5ff;
+  --chart-4: #bfd0f2;
+  --chart-5: #3971d5;
+  --sidebar: #0b2b73;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #013bb3;
+  --sidebar-accent: #16418f;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #ffffff2b;
+  --sidebar-ring: #8bb5ff;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
     -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100vh;
+    font-size: 16px;
+    line-height: 1.6;
+    letter-spacing: -0.006em;
+  }
+  h1, h2, h3 {
+    @apply font-heading;
+    letter-spacing: -0.025em;
+  }
+  ::selection {
+    background: #cfddf6;
+    color: #01267c;
   }
 }

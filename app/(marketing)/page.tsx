@@ -29,7 +29,7 @@ const steps = [
   {
     icon: Upload,
     title: "1. Upload",
-    text: "Snap a photo or drop a PDF of your shipping document — straight from your phone at the port or your desk.",
+    text: "Snap a photo or add clear page images of your shipping document — straight from your phone at the port or your desk.",
   },
   {
     icon: ScanLine,
@@ -57,7 +57,7 @@ const features = [
   {
     icon: GitCompareArrows,
     title: "Cross-document checks",
-    text: "Compare the B/L against the invoice and packing list. Mismatched consignees, containers, ports or totals surface as red and amber discrepancies.",
+    text: "Compare the B/L against the invoice and packing list. Mismatched consignees, containers, ports or totals surface as clear priority and review flags.",
   },
   {
     icon: FileSpreadsheet,
@@ -86,7 +86,7 @@ export default function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="border-b border-border bg-gradient-to-b from-background to-secondary/60">
+      <section className="relative overflow-hidden border-b border-border bg-[radial-gradient(circle_at_85%_10%,var(--secondary),transparent_34%),linear-gradient(to_bottom,var(--background),var(--card))]">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24">
           <div className="space-y-6">
             <Image
@@ -98,10 +98,10 @@ export default function HomePage() {
               priority
               className="size-24 rounded-full shadow-lg ring-4 ring-white sm:size-28"
             />
-            <h1 className="text-4xl font-bold tracking-tight text-primary sm:text-5xl">
+            <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight text-primary sm:text-5xl lg:text-[3.5rem]">
               AI Bill of Lading Parser &amp; Shipping Document Data Extraction
             </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
+            <p className="max-w-xl text-lg leading-8 text-muted-foreground">
               Stop retyping shipping documents. GainingDocx reads Bills of
               Lading, Commercial Invoices and Packing Lists, validates them
               with maritime rules, and hands you clean, structured data.
@@ -130,8 +130,8 @@ export default function HomePage() {
           </div>
 
           {/* Dropzone placeholder — becomes functional in the Scan milestone */}
-          <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-            <div className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed border-input bg-background px-6 py-10 text-center">
+          <div className="rounded-3xl border border-border bg-card p-3 shadow-[0_24px_70px_-36px_rgba(1,59,179,0.65)]">
+            <div className="flex min-h-80 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-input bg-background px-6 py-10 text-center">
               <span className="flex size-14 items-center justify-center rounded-full bg-accent text-signal">
                 <Upload className="size-7" aria-hidden />
               </span>
@@ -140,7 +140,7 @@ export default function HomePage() {
                   Drop your Bill of Lading here
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  PDF, JPG or PNG · up to 15 pages · first document free, no
+                  JPG, PNG or camera capture · up to 15 pages · first document free, no
                   sign-up
                 </p>
               </div>

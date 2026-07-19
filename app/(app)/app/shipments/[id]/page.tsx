@@ -38,7 +38,7 @@ export default async function ShipmentPage({
     .maybeSingle();
   if (!shipment) notFound();
 
-  const [{ data: docs }, { data: discrepancies }] = await Promise.all([
+  const [{ data: docs }, { data: discrepancies }, { data: checks }] = await Promise.all([
     supabase
       .from("documents")
       .select("id, doc_type, status, created_at, fields")
@@ -50,11 +50,21 @@ export default async function ShipmentPage({
       .eq("shipment_id", id)
       .order("severity") // amber < red alphabetically — re-sorted below
       .order("resolved"),
+    supabase
+      .from("events")
+      .select("payload, created_at")
+      .eq("type", "check_run")
+      .contains("payload", { shipment_id: id })
+      .order("created_at", { ascending: false })
+      .limit(1),
   ]);
 
   const docList = docs ?? [];
   const open = (discrepancies ?? []).filter((d) => !d.resolved);
   const resolved = (discrepancies ?? []).filter((d) => d.resolved);
+  const lastCheck = checks?.[0] as
+    | { payload: { findings?: number }; created_at: string }
+    | undefined;
   const openSorted = [...open].sort((a, b) =>
     a.severity === b.severity ? 0 : a.severity === "red" ? -1 : 1
   );
@@ -159,6 +169,15 @@ export default async function ShipmentPage({
           </p>
         )}
       </form>
+
+      {lastCheck && openSorted.length === 0 && (
+        <div className="rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm text-primary">
+          <p className="font-semibold">No open discrepancies</p>
+          <p className="text-xs text-muted-foreground">
+            Last checked {new Date(lastCheck.created_at).toLocaleString()} across the parsed shipment documents.
+          </p>
+        </div>
+      )}
 
       {openSorted.length > 0 && (
         <section className="space-y-2">

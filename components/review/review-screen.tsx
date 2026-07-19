@@ -90,6 +90,7 @@ function chipFor(value: string, results: ValidationResult[]) {
 export function ReviewScreen(props: Props) {
   const router = useRouter();
   const [fields, setFields] = useState(props.fields);
+  const [validation, setValidation] = useState(props.validation);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
@@ -100,7 +101,7 @@ export function ReviewScreen(props: Props) {
   const rows = useMemo(() => flattenFields(props.docType, fields), [props.docType, fields]);
   const byField = useMemo(() => {
     const map = new Map<string, ValidationResult[]>();
-    for (const v of props.validation) {
+    for (const v of validation) {
       const key = v.field.replace(/\.(name|unlocode)$/, "");
       for (const k of [v.field, key]) {
         const list = map.get(k) ?? [];
@@ -109,9 +110,9 @@ export function ReviewScreen(props: Props) {
       }
     }
     return map;
-  }, [props.validation]);
+  }, [validation]);
 
-  const failCount = props.validation.filter((v) => v.status === "fail").length;
+  const failCount = validation.filter((v) => v.status === "fail").length;
 
   function note(msg: string) {
     setToast(msg);
@@ -127,25 +128,20 @@ export function ReviewScreen(props: Props) {
     }
     setSaving(true);
     const next = setPath(fields, path, newValue);
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("documents")
-      .update({ fields: next })
-      .eq("id", props.docId);
-    if (error) {
+    const response = await fetch(`/api/documents/${props.docId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fields: next, path, oldValue, newValue }),
+    });
+    if (!response.ok) {
       note("Could not save — try again");
     } else {
-      setFields(next);
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("events").insert({
-          owner: user.id,
-          type: "field_edited",
-          payload: { document_id: props.docId, field: path, old: oldValue, new: newValue },
-        });
-      }
+      const saved = (await response.json()) as {
+        fields: Record<string, unknown>;
+        validation: ValidationResult[];
+      };
+      setFields(saved.fields);
+      setValidation(saved.validation);
       note("Saved");
       router.refresh();
     }
@@ -235,7 +231,7 @@ export function ReviewScreen(props: Props) {
   );
 
   return (
-    <div className="space-y-5 pb-16">
+    <div data-wide className="space-y-5 pb-16">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-primary">
@@ -278,7 +274,7 @@ export function ReviewScreen(props: Props) {
             const ChipIcon = chip.icon;
             const isEditing = editing === row.path;
             return (
-              <li key={row.path} className="rounded-xl border border-border bg-card px-4 py-3">
+              <li key={row.path} className="rounded-2xl border border-border bg-card px-4 py-3 shadow-[0_10px_35px_-30px_rgba(1,59,179,0.7)] transition-shadow hover:shadow-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">

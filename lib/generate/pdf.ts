@@ -126,7 +126,13 @@ export async function generatedDocPdf(
     const label = `${t.label}:`;
     const lw = fonts.regular.widthOfTextAtSize(label, 9);
     const vw = fonts.bold.widthOfTextAtSize(t.value, 10);
-    page.drawText(label, { x: w - MARGIN - 110 - lw + 100, y, size: 9, font: fonts.regular, color: GRAY });
+    page.drawText(label, {
+      x: w - MARGIN - 115 - lw,
+      y,
+      size: 9,
+      font: fonts.regular,
+      color: GRAY,
+    });
     page.drawText(truncate(fonts.bold, t.value, 10, 100), {
       x: w - MARGIN - vw, y, size: 10, font: fonts.bold, color: NAVY,
     });
