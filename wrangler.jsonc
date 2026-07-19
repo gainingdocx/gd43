@@ -8,6 +8,13 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "workers_dev": true,
+  // Zone routes, not custom domains: the DNS records for apex + www already
+  // exist (proxied), and the custom-domain API refuses to override them.
+  "routes": [
+    { "pattern": "gainingdocx.com/*", "zone_id": "16621fb1a09e0c07252c67660e1590bf" },
+    { "pattern": "www.gainingdocx.com/*", "zone_id": "16621fb1a09e0c07252c67660e1590bf" }
+  ],
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",

@@ -34,16 +34,16 @@ export default function ContactPage() {
             </p>
             <p className="mt-2 font-medium">
               <a
-                href="mailto:support@gainingdocx.com"
+                href="mailto:gainingdocx@gmail.com"
                 className="text-primary underline underline-offset-4"
               >
-                support@gainingdocx.com
+                gainingdocx@gmail.com
               </a>
             </p>
           </div>
         </div>
         <Button
-          render={<a href="mailto:support@gainingdocx.com" />}
+          render={<a href="mailto:gainingdocx@gmail.com" />}
           size="lg"
           className="mt-8 w-full bg-signal text-signal-foreground hover:bg-signal/90 sm:w-auto"
         >
