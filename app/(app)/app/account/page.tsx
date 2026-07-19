@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { DangerZone } from "@/components/account/danger-zone";
 
 import { sendMagicLink, signOut } from "./actions";
 import { GoogleButton } from "./google-button";
@@ -134,9 +135,10 @@ export default async function AccountPage({
         </div>
       </div>
       <div className="rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
-        Billing, data export and account deletion arrive with the monetization
-        milestone.
+        Billing and plan upgrades arrive with the monetization milestone —
+        you&apos;ll manage your subscription here.
       </div>
+      <DangerZone />
       <form action={signOut}>
         <Button type="submit" size="lg" variant="outline" className="w-full">
           Sign out

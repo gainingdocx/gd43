@@ -8,6 +8,7 @@ import {
   validateDocument,
   type ValidationResult,
 } from "@/lib/validators";
+import { decideLink, type DocCandidate } from "@/lib/shipments/link";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 // Parse a document from already-uploaded page images (SSE response).
@@ -22,7 +23,12 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 interface PageRef {
   storagePath?: string;
   url?: string;
+  /** Anonymous flow: compressed page as a data URL (no storage access). */
+  dataUrl?: string;
 }
+
+const ANON_MAX_PAGES = 3;
+const ANON_MAX_DATAURL = 3_000_000; // ~2.2MB of image after base64
 
 function sse(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -63,6 +69,56 @@ async function duplicateWarn(
     value: (d as { ref: string | null }).ref,
   }));
   return duplicates(kind, value, existing);
+}
+
+/** Auto-link the parsed doc to a shipment (spec §M6.4); never re-links. */
+async function autoLink(
+  supabase: SupabaseClient,
+  user: User,
+  documentId: string,
+  extraction: Awaited<ReturnType<typeof parseDocument>>["extraction"]
+) {
+  const { data: current } = await supabase
+    .from("documents")
+    .select("shipment_id")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!current || current.shipment_id !== null) return;
+
+  const [{ data: shipments }, { data: docs }] = await Promise.all([
+    supabase.from("shipments").select("id, bl_number").limit(200),
+    supabase
+      .from("documents")
+      .select(
+        "id, shipment_id, doc_type, invoice_no:fields->>invoice_no, invoice_ref:fields->>invoice_ref"
+      )
+      .neq("id", documentId)
+      .limit(500),
+  ]);
+
+  const decision = decideLink(
+    extraction,
+    shipments ?? [],
+    (docs ?? []) as unknown as DocCandidate[]
+  );
+
+  let shipmentId: string | null = null;
+  if (decision.action === "attach") {
+    shipmentId = decision.shipmentId;
+  } else if (decision.action === "create") {
+    const { data: created } = await supabase
+      .from("shipments")
+      .insert({ owner: user.id, bl_number: decision.bl_number })
+      .select("id")
+      .single();
+    shipmentId = created?.id ?? null;
+  }
+  if (shipmentId) {
+    await supabase
+      .from("documents")
+      .update({ shipment_id: shipmentId })
+      .eq("id", documentId);
+  }
 }
 
 async function persistResult(
@@ -114,6 +170,8 @@ async function persistResult(
       }))
     );
   }
+
+  await autoLink(supabase, user, documentId, extraction);
 
   await supabase.from("events").insert({
     owner: user.id,
@@ -182,8 +240,21 @@ export async function POST(request: Request) {
       /^https:\/\/.{4,2000}$/.test(page.url)
     ) {
       imageUrls.push(page.url);
+    } else if (
+      typeof page?.dataUrl === "string" &&
+      /^data:image\/(jpeg|png|webp);base64,/.test(page.dataUrl)
+    ) {
+      // Anonymous scan flow: no storage access, so compressed pages travel
+      // inline. Tightly capped; signed-in uploads still go direct to storage.
+      if (page.dataUrl.length > ANON_MAX_DATAURL) {
+        return bad("page image too large — compress below ~2MB");
+      }
+      if (pages.length > ANON_MAX_PAGES) {
+        return bad(`inline pages are limited to ${ANON_MAX_PAGES} — sign in for more`);
+      }
+      imageUrls.push(page.dataUrl);
     } else {
-      return bad("each page needs a storagePath or an https url");
+      return bad("each page needs a storagePath, https url or image dataUrl");
     }
   }
 
