@@ -2,8 +2,10 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  LEGACY_PORT_ALIASES,
   looksLikeUnlocode,
   portNameForCode,
+  resolvePortCode,
   unlocode,
   validatePort,
 } from "./unlocode";
@@ -107,13 +109,40 @@ describe("validatePort", () => {
     assert.equal(r[0].status, "pass");
   });
 
-  it("warn (never fail) for codes outside the seaport dataset, e.g. legacy CNSHA", () => {
+  it("legacy codes still in commercial use pass with the current code noted", () => {
     const r = validatePort("port_of_load", {
       name: "SHANGHAI",
       unlocode: "CNSHA",
     });
+    assert.equal(r[0].status, "pass");
+    assert.equal(r[0].expected, "CNSGH");
+    assert.match(r[0].message, /pre-2020 code for Shanghai/);
+  });
+
+  it("every legacy alias resolves to a port in the dataset", () => {
+    for (const [legacy, current] of Object.entries(LEGACY_PORT_ALIASES)) {
+      const r = resolvePortCode(legacy);
+      assert.equal(r?.code, current, legacy);
+      assert.equal(r?.legacy, legacy);
+      assert.ok(portNameForCode(current), current);
+    }
+    assert.equal(resolvePortCode("XXXXX"), null);
+    assert.equal(resolvePortCode("NLRTM")?.legacy, null);
+  });
+
+  it("unlocode() accepts a legacy code directly", () => {
+    assert.equal(unlocode("CNSHA")?.code, "CNSGH");
+    assert.equal(unlocode("cn tao")?.code, "CNQDG");
+  });
+
+  it("warn (never fail) for truly unknown codes, with a name-based suggestion", () => {
+    const r = validatePort("port_of_load", {
+      name: "Rotterdam",
+      unlocode: "XXRTM",
+    });
     assert.equal(r[0].status, "warn");
-    assert.match(r[0].message, /not in our UN\/LOCODE seaport list/);
+    assert.equal(r[0].expected, "NLRTM");
+    assert.match(r[0].message, /matches NLRTM/);
   });
 
   it("fail when code and name contradict, with a suggestion", () => {

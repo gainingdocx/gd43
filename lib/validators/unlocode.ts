@@ -22,6 +22,23 @@ export interface PortMatch {
 
 const PORTS = dataset.ports as [string, string][];
 
+/**
+ * UNECE's 2020-2 release reassigned several major Chinese port codes to
+ * airports/cities and gave the seaports new codes; ocean B/Ls still
+ * overwhelmingly print the old ones. Recognize both. Every target code
+ * verified present in data/unlocode.json (2024-2).
+ */
+export const LEGACY_PORT_ALIASES: Record<string, string> = {
+  CNSHA: "CNSGH", // Shanghai
+  CNNGB: "CNNBG", // Ningbo
+  CNTAO: "CNQDG", // Qingdao
+  CNDLC: "CNDAG", // Dalian
+  CNXMN: "CNXMG", // Xiamen
+  CNTSN: "CNTNG", // Tianjin
+  CNSZX: "CNSZP", // Shenzhen
+  CNCAN: "CNGGZ", // Guangzhou
+};
+
 // Lazy indexes (module-level; built on first lookup).
 let byCode: Map<string, string> | null = null;
 let byName: Map<string, string[]> | null = null;
@@ -100,6 +117,27 @@ export function portNameForCode(code: string): string | null {
   return byCode!.get(code.toUpperCase().replace(/\s+/g, "")) ?? null;
 }
 
+export interface ResolvedPort {
+  /** Current UN/LOCODE (alias target when the input was a legacy code). */
+  code: string;
+  name: string;
+  /** The legacy code the document printed, when it was one. */
+  legacy: string | null;
+}
+
+/** Code lookup that also recognizes well-known legacy codes. */
+export function resolvePortCode(code: string): ResolvedPort | null {
+  const c = code.toUpperCase().replace(/\s+/g, "");
+  const direct = portNameForCode(c);
+  if (direct) return { code: c, name: direct, legacy: null };
+  const alias = LEGACY_PORT_ALIASES[c];
+  if (alias) {
+    const name = portNameForCode(alias);
+    if (name) return { code: alias, name, legacy: c };
+  }
+  return null;
+}
+
 /**
  * Spec entry point: fuzzy port-name lookup. Returns the best match or null
  * when nothing scores ≥ minScore (default 0.75).
@@ -110,11 +148,10 @@ export function unlocode(portName: string, minScore = 0.75): PortMatch | null {
   const raw = portName.trim();
   if (raw === "") return null;
 
-  // Direct code input.
+  // Direct code input (legacy aliases resolve to the current code).
   if (looksLikeUnlocode(raw)) {
-    const code = raw.toUpperCase().replace(/\s+/g, "");
-    const name = byCode!.get(code);
-    if (name) return { code, name, score: 1 };
+    const resolved = resolvePortCode(raw);
+    if (resolved) return { code: resolved.code, name: resolved.name, score: 1 };
   }
 
   const candidates = queryCandidates(raw);
@@ -153,39 +190,44 @@ export function validatePort(
 
   if (port.unlocode) {
     const code = port.unlocode.toUpperCase().replace(/\s+/g, "");
-    const datasetName = portNameForCode(code);
-    if (!datasetName) {
+    const resolved = resolvePortCode(code);
+    if (!resolved) {
+      const suggested = port.name ? unlocode(port.name) : null;
       results.push({
         field: `${field}.unlocode`,
         rule: "unlocode",
         status: "warn",
-        message: `${code} is not in our UN/LOCODE seaport list (2024-2) — it may be an airport/city code or a legacy code still in commercial use`,
+        message: `${code} is not in our UN/LOCODE seaport list (2024-2) — it may be an airport/city code or newer than our dataset${suggested ? `; the port name matches ${suggested.code} (${suggested.name})` : ""}`,
+        expected: suggested?.code,
         actual: code,
       });
-    } else if (port.name && unlocodeNameAgrees(port.name, datasetName)) {
-      results.push({
-        field: `${field}.unlocode`,
-        rule: "unlocode",
-        status: "pass",
-        message: `${code} = ${datasetName} (UN/LOCODE 2024-2)`,
-        actual: code,
-      });
-    } else if (port.name) {
+    } else if (!port.name || unlocodeNameAgrees(port.name, resolved.name)) {
+      results.push(
+        resolved.legacy
+          ? {
+              field: `${field}.unlocode`,
+              rule: "unlocode",
+              status: "pass",
+              message: `${resolved.legacy} is the pre-2020 code for ${resolved.name} — current UN/LOCODE is ${resolved.code}`,
+              expected: resolved.code,
+              actual: resolved.legacy,
+            }
+          : {
+              field: `${field}.unlocode`,
+              rule: "unlocode",
+              status: "pass",
+              message: `${resolved.code} = ${resolved.name} (UN/LOCODE 2024-2)`,
+              actual: resolved.code,
+            }
+      );
+    } else {
       const suggested = unlocode(port.name);
       results.push({
         field: `${field}.unlocode`,
         rule: "unlocode",
         status: "fail",
-        message: `${code} is "${datasetName}" in UN/LOCODE, but the document says "${port.name}"${suggested ? ` (did you mean ${suggested.code}?)` : ""}`,
+        message: `${code} is "${resolved.name}" in UN/LOCODE, but the document says "${port.name}"${suggested ? ` (did you mean ${suggested.code}?)` : ""}`,
         expected: suggested?.code,
-        actual: code,
-      });
-    } else {
-      results.push({
-        field: `${field}.unlocode`,
-        rule: "unlocode",
-        status: "pass",
-        message: `${code} = ${datasetName} (UN/LOCODE 2024-2)`,
         actual: code,
       });
     }
