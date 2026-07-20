@@ -16,6 +16,7 @@ Dependency versions are pinned exactly (`.npmrc` has `save-exact=true`). Never u
 | --- | --- |
 | `npm run dev` | Local dev server at http://localhost:3000 |
 | `npm run build` | Production Next.js build (webpack — required by OpenNext) |
+| `npm run build:cloudflare` | Build Next.js once, then package the Worker without a nested Windows rebuild |
 | `npm run preview` | Build for Cloudflare and preview the Worker locally |
 | `npm run deploy` | Build for Cloudflare and deploy to Cloudflare Workers |
 | `npm run cf-typegen` | Generate TypeScript types for Cloudflare bindings |
