@@ -260,9 +260,21 @@ function cLineItem(v: unknown): LineItem | null {
 
 function cContainer(v: unknown): ContainerRow | null {
   if (!isObj(v)) return null;
+  let containerNo = cStr(v.container_no);
+  let sealNo = cStr(v.seal_no);
+  // Vision models sometimes merge adjacent "Container / Seal" table cells.
+  // Repair only the unambiguous ISO-number + separator + seal form so the
+  // deterministic container validator receives the actual container number.
+  if (containerNo && !sealNo) {
+    const combined = containerNo.match(/^\s*([A-Z]{4}[\s-]*\d{7})\s*[\/:|]\s*(\S(?:.*\S)?)\s*$/i);
+    if (combined) {
+      containerNo = combined[1];
+      sealNo = combined[2];
+    }
+  }
   const row: ContainerRow = {
-    container_no: cStr(v.container_no),
-    seal_no: cStr(v.seal_no),
+    container_no: containerNo,
+    seal_no: sealNo,
     iso_type: cStr(v.iso_type),
     packages: cNum(v.packages),
     package_type: cStr(v.package_type),

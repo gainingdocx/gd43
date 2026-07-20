@@ -34,6 +34,7 @@ describe("normalizeModelOutput — bill of lading", () => {
       total_gross_kg: "36,430.00", // formatted string number
       containers: [
         { container_no: "TCLU4837291", gross_kg: "18,450.00", packages: 620 },
+        { container_no: "MSCU6639870 / SL908771", packages: 120 },
         { container_no: null }, // all-null row must be dropped
       ],
       line_items: [{ description: "CERAMIC TABLEWARE", packages: 1200 }],
@@ -78,8 +79,10 @@ describe("normalizeModelOutput — bill of lading", () => {
 
   it("drops all-null container rows and coerces the rest", () => {
     if (out.detected_type !== "bill_of_lading") return;
-    assert.equal(out.fields.containers.length, 1);
+    assert.equal(out.fields.containers.length, 2);
     assert.equal(out.fields.containers[0].gross_kg, 18450);
+    assert.equal(out.fields.containers[1].container_no, "MSCU6639870");
+    assert.equal(out.fields.containers[1].seal_no, "SL908771");
     assert.deepEqual(containersOf(out), out.fields.containers);
   });
 

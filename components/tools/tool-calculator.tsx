@@ -13,6 +13,7 @@ export function ToolCalculator({ slug }: { slug: string }) {
   const [v, setV] = useState<Record<string, string>>({ qty: "1", unit: "cm", container: "40hc" });
   const [ports, setPorts] = useState<{ code: string; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [portError, setPortError] = useState("");
   const update = (key: string, value: string) => setV((old) => ({ ...old, [key]: value }));
   let body: React.ReactNode;
   if (slug === "cbm-calculator") {
@@ -30,8 +31,22 @@ export function ToolCalculator({ slug }: { slug: string }) {
     const actual=num(v.actual); const volume=num(v.volume); const airVol=volume*167; const charge=Math.max(actual,airVol);
     body=<><div className="grid gap-3 sm:grid-cols-2"><Input label="Actual gross weight (kg)" value={v.actual} set={(x)=>update('actual',x)} /><Input label="Volume (CBM)" value={v.volume} set={(x)=>update('volume',x)} /></div><Result label="Airfreight chargeable weight" value={`${charge.toFixed(1)} kg`} note={`Volumetric weight: ${airVol.toFixed(1)} kg using 1 CBM = 167 kg. Ocean LCL rules vary by tariff.`}/></>;
   } else {
-    async function searchPorts() { setLoading(true); const response=await fetch(`/api/tools/port-lookup?q=${encodeURIComponent(v.q??'')}`); const data=await response.json() as {results:{code:string;name:string}[]}; setPorts(data.results); setLoading(false); }
-    body=<><div className="flex gap-2"><input className={field} placeholder="Port name or code, e.g. Singapore" value={v.q??''} onChange={(e)=>update('q',e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')searchPorts()}}/><Button onClick={searchPorts} disabled={loading}><Search aria-hidden/>{loading?'Searching':'Search'}</Button></div><ul className="mt-4 divide-y rounded-xl border bg-background">{ports.map((p)=><li key={p.code} className="flex justify-between gap-4 p-3"><span>{p.name}</span><strong className="font-mono">{p.code}</strong></li>)}</ul></>;
+    async function searchPorts() {
+      setLoading(true);
+      setPortError("");
+      try {
+        const response = await fetch(`/api/tools/port-lookup?q=${encodeURIComponent(v.q ?? "")}`);
+        if (!response.ok) throw new Error(`Port lookup failed (${response.status})`);
+        const data = await response.json() as { results?: { code: string; name: string }[] };
+        setPorts(data.results ?? []);
+      } catch {
+        setPorts([]);
+        setPortError("Port lookup is temporarily unavailable. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    body=<><div className="flex gap-2"><input aria-label="Port name or UN/LOCODE" className={field} placeholder="Port name or code, e.g. Singapore" value={v.q??''} onChange={(e)=>update('q',e.target.value)} onKeyDown={(e)=>{if(e.key==='Enter')void searchPorts()}}/><Button onClick={() => void searchPorts()} disabled={loading}><Search aria-hidden/>{loading?'Searching':'Search'}</Button></div>{portError&&<p role="alert" className="mt-3 text-sm text-destructive">{portError}</p>}<ul className="mt-4 divide-y rounded-xl border bg-background">{ports.map((p)=><li key={p.code} className="flex justify-between gap-4 p-3"><span>{p.name}</span><strong className="font-mono">{p.code}</strong></li>)}</ul></>;
   }
   return <div><div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">{body}</div><div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary p-4"><p className="text-sm font-medium">Already have this data in a document?</p><Button render={<Link href="/app/scan" />} className="bg-signal text-signal-foreground hover:bg-signal/90">Auto-fill from your document <ArrowRight aria-hidden/></Button></div></div>;
 }

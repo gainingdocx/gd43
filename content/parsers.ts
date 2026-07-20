@@ -143,7 +143,7 @@ export const PARSER_PAGES: ParserPage[] = [
       },
       {
         q: "What formats can I upload?",
-        a: "JPG, PNG or PDF pages, from a scanner or phone camera. Pages are compressed client-side before upload.",
+        a: "PDF, JPG/JPEG, PNG, WebP, BMP and multi-page TIFF are supported. HEIC/HEIF also works when the device can decode it; otherwise export it as JPG. Pages are prepared client-side before upload.",
       },
     ],
   },
