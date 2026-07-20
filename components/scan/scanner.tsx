@@ -10,18 +10,20 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, FileImage, Loader2, Plus, X } from "lucide-react";
+import { Camera, FileText, Loader2, Upload, X } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import { blobToDataUrl, compressImage } from "./compress";
+import { blobToDataUrl } from "./compress";
+import { ACCEPTED_DOCUMENT_TYPES, fileToPageImages } from "./file-to-pages";
 import { readSse } from "./sse";
 
 interface PageItem {
   id: string;
   previewUrl: string;
   blob: Blob;
+  sourceName: string;
 }
 
 interface FeedLine {
@@ -58,6 +60,7 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
   const [status, setStatus] = useState<string>("");
   const [feed, setFeed] = useState<FeedLine[]>([]);
   const [error, setError] = useState<string>("");
+  const [preparing, setPreparing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const pagesRef = useRef<PageItem[]>([]);
   pagesRef.current = pages;
@@ -67,20 +70,34 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
   }, []);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
-    const list = [...files].filter((f) => f.type.startsWith("image/"));
-    for (const file of list) {
-      if (pagesRef.current.length >= MAX_PAGES_UI) break;
-      try {
-        const blob = await compressImage(file);
-        const item: PageItem = {
-          id: crypto.randomUUID(),
-          previewUrl: URL.createObjectURL(blob),
-          blob,
-        };
-        setPages((prev) => [...prev, item]);
-      } catch {
-        setError(`Could not read ${file.name}`);
+    setPreparing(true);
+    setError("");
+    try {
+      for (const file of [...files]) {
+        const remaining = MAX_PAGES_UI - pagesRef.current.length;
+        if (remaining <= 0) {
+          setError(`Only the first ${MAX_PAGES_UI} pages were added.`);
+          break;
+        }
+        try {
+          const { blobs, truncated } = await fileToPageImages(file, remaining);
+          const items: PageItem[] = blobs.map((blob) => ({
+            id: crypto.randomUUID(),
+            previewUrl: URL.createObjectURL(blob),
+            blob,
+            sourceName: file.name,
+          }));
+          setPages((prev) => [...prev, ...items]);
+          pagesRef.current = [...pagesRef.current, ...items];
+          if (truncated) {
+            setError(`${file.name}: only the first ${remaining} pages were added (15-page limit).`);
+          }
+        } catch (fileError) {
+          setError(fileError instanceof Error ? fileError.message : `Could not read ${file.name}`);
+        }
       }
+    } finally {
+      setPreparing(false);
     }
   }, []);
 
@@ -267,38 +284,47 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           dragOver ? "border-signal bg-accent" : "border-input bg-card hover:border-primary/60"
         )}
       >
-        <span className="flex size-12 items-center justify-center rounded-full bg-accent text-signal">
-          <FileImage className="size-6" aria-hidden />
+        <span className="flex size-16 items-center justify-center rounded-2xl bg-accent text-signal">
+          <FileText className="size-8" aria-hidden />
         </span>
         <div className="space-y-1">
           <p className="text-lg font-bold text-primary">Add document pages</p>
           <p className="text-sm text-muted-foreground">
-            Drop images here, or use the buttons below. Pages are compressed
-            on your device before anything is uploaded.
+            Drop a PDF or document scan here. Multi-page PDF and TIFF files are split into pages,
+            and everything is prepared on your device before upload.
           </p>
         </div>
-        <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
+        <div className="flex w-full max-w-2xl flex-col gap-3 sm:flex-row">
           <label
-            htmlFor="document-images"
-            className={buttonVariants({ size: "lg", className: "flex-1 cursor-pointer" })}
+            htmlFor="document-files"
+            aria-disabled={preparing}
+            className={buttonVariants({
+              size: "lg",
+              className: "min-h-16 flex-1 cursor-pointer px-7 text-base shadow-md",
+            })}
           >
-            <Plus className="size-4" aria-hidden /> Choose images
+            {preparing ? (
+              <Loader2 className="size-6 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="size-6" aria-hidden />
+            )}
+            {preparing ? "Preparing document…" : "Choose files or PDF"}
           </label>
           <label
             htmlFor="camera-image"
             className={buttonVariants({
               size: "lg",
               variant: "outline",
-              className: "flex-1 cursor-pointer",
+              className: "min-h-16 flex-1 cursor-pointer px-7 text-base shadow-sm",
             })}
           >
-            <Camera className="size-4" aria-hidden /> Take photo
+            <Camera className="size-6" aria-hidden /> Take a photo
           </label>
         </div>
         <input
-          id="document-images"
+          id="document-files"
           type="file"
-          accept="image/*"
+          accept={ACCEPTED_DOCUMENT_TYPES}
           multiple
           className="sr-only"
           onChange={(e) => {
@@ -309,7 +335,7 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
         <input
           id="camera-image"
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           capture="environment"
           className="sr-only"
           onChange={(e) => {
@@ -317,9 +343,10 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
             e.target.value = "";
           }}
         />
-        <p className="max-w-sm text-xs text-muted-foreground">
-          On a phone, <span className="font-semibold text-foreground">Take photo</span> opens the
-          rear camera. On a computer, use <span className="font-semibold text-foreground">Choose images</span>.
+        <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
+          Supported: PDF, JPG/JPEG, PNG, WebP, BMP, multi-page TIFF, HEIC and HEIF.
+          Save Word or Excel files as PDF first so their tables remain intact. On a phone,
+          <span className="font-semibold text-foreground"> Take a photo</span> opens the rear camera.
         </p>
       </div>
 
@@ -339,6 +366,7 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
                 <span className="absolute bottom-1 left-1 rounded bg-primary/80 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                   {i + 1}
                 </span>
+                <span className="sr-only">Source file: {p.sourceName}</span>
                 <button
                   type="button"
                   aria-label={`Remove page ${i + 1}`}

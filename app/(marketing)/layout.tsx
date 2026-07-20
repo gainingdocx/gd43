@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Menu } from "lucide-react";
 
+import { MobileMenu } from "@/components/marketing/mobile-menu";
 import { Button } from "@/components/ui/button";
 
 function Header() {
@@ -54,25 +54,7 @@ function Header() {
           >
             Parse a document
           </Button>
-          <details className="relative md:hidden">
-            <summary className="flex size-11 cursor-pointer list-none items-center justify-center rounded-xl border border-border bg-white text-primary [&::-webkit-details-marker]:hidden">
-              <Menu className="size-5" aria-hidden />
-              <span className="sr-only">Open navigation</span>
-            </summary>
-            <div className="absolute right-0 top-13 z-50 grid w-52 overflow-hidden rounded-2xl border border-border bg-white p-2 shadow-2xl">
-              {[
-                ["Free tools", "/tools"],
-                ["Templates", "/templates"],
-                ["Guides", "/guides"],
-                ["Pricing", "/pricing"],
-                ["Contact", "/contact"],
-              ].map(([label, href]) => (
-                <Link key={href} href={href} className="flex min-h-11 items-center rounded-xl px-3 text-sm font-semibold text-primary hover:bg-secondary">
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </details>
+          <MobileMenu />
         </nav>
       </div>
     </header>
