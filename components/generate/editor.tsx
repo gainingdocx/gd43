@@ -46,6 +46,7 @@ export function GenerateEditor(props: {
   const [gen, setGen] = useState<GenDoc>(props.draft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [downloaded, setDownloaded] = useState(false);
 
   const setHeader = (i: number, value: string) =>
     setGen((g) => ({
@@ -71,6 +72,7 @@ export function GenerateEditor(props: {
   async function download() {
     setBusy(true);
     setError("");
+    setDownloaded(false);
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -86,8 +88,12 @@ export function GenerateEditor(props: {
       const a = document.createElement("a");
       a.href = url;
       a.download = `${gen.type}-draft.pdf`;
+      a.style.display = "none";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      setDownloaded(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -251,6 +257,11 @@ export function GenerateEditor(props: {
         )}
         Download PDF
       </Button>
+      {downloaded && (
+        <p role="status" className="text-center text-sm font-semibold text-primary">
+          PDF prepared — check your downloads.
+        </p>
+      )}
       <p className="text-center text-xs text-muted-foreground">
         Free plan PDFs carry a watermark — Pro removes it.
       </p>

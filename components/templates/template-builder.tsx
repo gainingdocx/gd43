@@ -15,6 +15,7 @@ function money(value: number) { return value.toLocaleString(undefined, { maximum
 export function TemplateBuilder({ template }: { template: TemplateDefinition }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [lines, setLines] = useState<Line[]>([blankLine()]);
+  const [pdfReady, setPdfReady] = useState(false);
   const totals = useMemo(() => lines.reduce((sum, line) => ({
     cartons: sum.cartons + n(line.cartons), netKg: sum.netKg + n(line.netKg), grossKg: sum.grossKg + n(line.grossKg),
     amount: sum.amount + n(line.quantity) * n(line.unitPrice),
@@ -26,6 +27,7 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
   }
 
   async function downloadPdf() {
+    setPdfReady(false);
     const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
     const pdf = await PDFDocument.create();
     const page = pdf.addPage([595, 842]);
@@ -53,7 +55,16 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
     page.drawText(`Totals: ${money(totals.cartons)} cartons | ${money(totals.netKg)} net kg | ${money(totals.grossKg)} gross kg | ${money(totals.cbm)} CBM | ${money(totals.amount)} value`, { x: 42, y: Math.max(48, y - 12), size: 8, font: bold, color: rgb(.004, .231, .702) });
     const bytes = await pdf.save();
     const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `${template.slug}.pdf`; a.click(); URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${template.slug}.pdf`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    setPdfReady(true);
   }
 
   return (
@@ -72,7 +83,7 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
           </div>
         </div>
       </div>
-      <aside className="h-fit rounded-2xl bg-primary p-6 text-primary-foreground lg:sticky lg:top-24"><h2 className="text-lg font-bold">Live totals</h2><dl className="mt-4 grid grid-cols-2 gap-4 text-sm"><div><dt className="opacity-65">Cartons</dt><dd className="text-xl font-bold">{money(totals.cartons)}</dd></div><div><dt className="opacity-65">CBM</dt><dd className="text-xl font-bold">{money(totals.cbm)}</dd></div><div><dt className="opacity-65">Net kg</dt><dd className="text-xl font-bold">{money(totals.netKg)}</dd></div><div><dt className="opacity-65">Gross kg</dt><dd className="text-xl font-bold">{money(totals.grossKg)}</dd></div><div className="col-span-2"><dt className="opacity-65">Line value</dt><dd className="text-xl font-bold">{money(totals.amount)}</dd></div></dl><Button className="mt-6 w-full bg-signal text-signal-foreground hover:bg-signal/90" onClick={downloadPdf}><Download aria-hidden /> Download PDF</Button><div className="mt-3 grid grid-cols-2 gap-2"><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.xlsx`} download>XLSX</a><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.docx`} download>DOCX</a></div><p className="mt-3 text-xs opacity-65">Nothing is uploaded. This form runs in your browser.</p></aside>
+      <aside className="h-fit rounded-2xl bg-primary p-6 text-primary-foreground lg:sticky lg:top-24"><h2 className="text-lg font-bold">Live totals</h2><dl className="mt-4 grid grid-cols-2 gap-4 text-sm"><div><dt className="opacity-65">Cartons</dt><dd className="text-xl font-bold">{money(totals.cartons)}</dd></div><div><dt className="opacity-65">CBM</dt><dd className="text-xl font-bold">{money(totals.cbm)}</dd></div><div><dt className="opacity-65">Net kg</dt><dd className="text-xl font-bold">{money(totals.netKg)}</dd></div><div><dt className="opacity-65">Gross kg</dt><dd className="text-xl font-bold">{money(totals.grossKg)}</dd></div><div className="col-span-2"><dt className="opacity-65">Line value</dt><dd className="text-xl font-bold">{money(totals.amount)}</dd></div></dl><Button className="mt-6 w-full bg-signal text-signal-foreground hover:bg-signal/90" onClick={downloadPdf}><Download aria-hidden /> Download PDF</Button>{pdfReady && <p role="status" className="mt-3 text-center text-sm font-semibold">PDF prepared — check your downloads.</p>}<div className="mt-3 grid grid-cols-2 gap-2"><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.xlsx`} download>XLSX</a><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.docx`} download>DOCX</a></div><p className="mt-3 text-xs opacity-65">Nothing is uploaded. This form runs in your browser.</p></aside>
     </div>
   );
 }

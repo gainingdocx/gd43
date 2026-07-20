@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, FileImage, Loader2, Plus, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { blobToDataUrl, compressImage } from "./compress";
@@ -59,14 +59,11 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
   const [feed, setFeed] = useState<FeedLine[]>([]);
   const [error, setError] = useState<string>("");
   const [dragOver, setDragOver] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-  const cameraInput = useRef<HTMLInputElement>(null);
   const pagesRef = useRef<PageItem[]>([]);
   pagesRef.current = pages;
 
   useEffect(() => {
-    const current = pagesRef.current;
-    return () => current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    return () => pagesRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
   }, []);
 
   const addFiles = useCallback(async (files: FileList | File[]) => {
@@ -281,35 +278,49 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           </p>
         </div>
         <div className="flex w-full max-w-sm flex-col gap-2 sm:flex-row">
-          <Button size="lg" className="flex-1" onClick={() => fileInput.current?.click()}>
+          <label
+            htmlFor="document-images"
+            className={buttonVariants({ size: "lg", className: "flex-1 cursor-pointer" })}
+          >
             <Plus className="size-4" aria-hidden /> Choose images
-          </Button>
-          <Button size="lg" variant="outline" className="flex-1" onClick={() => cameraInput.current?.click()}>
+          </label>
+          <label
+            htmlFor="camera-image"
+            className={buttonVariants({
+              size: "lg",
+              variant: "outline",
+              className: "flex-1 cursor-pointer",
+            })}
+          >
             <Camera className="size-4" aria-hidden /> Take photo
-          </Button>
+          </label>
         </div>
         <input
-          ref={fileInput}
+          id="document-images"
           type="file"
           accept="image/*"
           multiple
-          hidden
+          className="sr-only"
           onChange={(e) => {
             if (e.target.files) void addFiles(e.target.files);
             e.target.value = "";
           }}
         />
         <input
-          ref={cameraInput}
+          id="camera-image"
           type="file"
           accept="image/*"
           capture="environment"
-          hidden
+          className="sr-only"
           onChange={(e) => {
             if (e.target.files) void addFiles(e.target.files);
             e.target.value = "";
           }}
         />
+        <p className="max-w-sm text-xs text-muted-foreground">
+          On a phone, <span className="font-semibold text-foreground">Take photo</span> opens the
+          rear camera. On a computer, use <span className="font-semibold text-foreground">Choose images</span>.
+        </p>
       </div>
 
       {pages.length > 0 && (
