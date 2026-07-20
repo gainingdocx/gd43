@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Start free with 5 documents a month. Upgrade to Pro for 200 documents, watermark-free exports, document generation and unlimited shipment checks.",
+    "Use GainingDocx during early access. Paid subscriptions are not yet available; planned pricing is shown transparently.",
   alternates: { canonical: "/pricing" },
 };
 
@@ -18,17 +18,17 @@ const plans = [
     period: "forever",
     tagline: "Try the parser on real documents.",
     features: [
-      "5 documents per month",
+      "Anonymous parser preview",
       "AI extraction + full validation",
       "Excel, CSV & JSON exports (watermarked)",
       "Works on mobile & desktop",
     ],
-    cta: "Start free",
+    cta: "Use early access",
     href: "/app",
     highlight: false,
   },
   {
-    name: "Pro",
+    name: "Planned Pro",
     price: "$19",
     period: "per month, or $190/year (2 months free)",
     tagline: "For forwarders and traders who live in documents.",
@@ -39,12 +39,12 @@ const plans = [
       "Unlimited cross-document Shipment Checks",
       "Priority support",
     ],
-    cta: "Get Pro",
-    href: "/app",
+    cta: "Ask about Pro",
+    href: "/contact",
     highlight: true,
   },
   {
-    name: "Top-up packs",
+    name: "Planned top-ups",
     price: "Pay as you go",
     period: "one-time packs",
     tagline: "Busy month? Add documents without changing plans.",
@@ -67,8 +67,8 @@ export default function PricingPage() {
         Simple pricing that pays for itself in one shipment
       </h1>
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-        Every plan includes AI extraction, deterministic maritime validation
-        and structured exports. Prices shown may be adjusted at launch.
+        Early access is available now. Paid checkout is not live yet; Pro and
+        top-up details below are targets and may change before launch.
       </p>
 
       <div className="mt-12 grid gap-6 lg:grid-cols-3">
@@ -83,7 +83,7 @@ export default function PricingPage() {
           >
             {plan.highlight && (
               <span className="absolute -top-3 left-8 rounded-full bg-signal px-3 py-1 text-xs font-semibold text-signal-foreground">
-                Most popular
+                Planned
               </span>
             )}
             <h2 className="text-lg font-semibold text-primary">{plan.name}</h2>
@@ -135,9 +135,9 @@ export default function PricingPage() {
             Can I cancel anytime?
           </h3>
           <p className="mt-1">
-            Yes. Subscriptions are handled by Paddle, our merchant of record.
-            Cancel from your account page and you keep Pro until the end of the
-            billing period.
+            Paid subscriptions are not available yet. Before checkout launches,
+            this page will show the merchant of record, cancellation controls
+            and final billing terms.
           </p>
         </div>
         <div>

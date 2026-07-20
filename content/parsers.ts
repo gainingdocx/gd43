@@ -37,7 +37,7 @@ export const PARSER_PAGES: ParserPage[] = [
     checks: [
       "ISO 6346 container check digits recomputed character by character",
       "IMO number checksum",
-      "Ports matched to UN/LOCODE 2024-2 (17,520 seaports)",
+      "Ports matched to the current bundled UN/LOCODE 2025-1 maritime dataset",
       "Container gross weights summed against the printed total (±0.5%)",
       "Shipped-on-board vs issue-date window",
     ],
@@ -185,7 +185,7 @@ export const PARSER_PAGES: ParserPage[] = [
       },
       {
         q: "Is there a free trial?",
-        a: "Your first document parses free with no account. The free plan includes 5 documents a month.",
+        a: "You can use the anonymous parser preview without an account. Paid subscription quotas are not live yet.",
       },
     ],
   },
@@ -267,7 +267,7 @@ export const PARSER_PAGES: ParserPage[] = [
       },
       {
         q: "How much does it cost?",
-        a: "Five documents a month are free. The Pro plan covers 200 documents with unwatermarked exports and generation.",
+        a: "The parser is in early access. Paid subscription checkout and final quotas are not live yet; see the pricing page for the planned offering.",
       },
     ],
   },

@@ -17,8 +17,11 @@ interface EditBody {
 
 const EDITABLE_TYPES = new Set<DetectedType>([
   "bill_of_lading",
+  "sea_waybill",
   "commercial_invoice",
   "packing_list",
+  "arrival_notice",
+  "booking_confirmation",
   "other",
 ]);
 

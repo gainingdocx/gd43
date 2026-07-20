@@ -72,7 +72,7 @@ export function lineRows(fields: Json): (string | number)[][] {
 
 /** Best human reference for filenames/titles. */
 export function docRef(fields: Json): string | null {
-  const ref = fields.bl_number ?? fields.invoice_no ?? fields.pl_no ?? null;
+  const ref = fields.bl_number ?? fields.invoice_no ?? fields.pl_no ?? fields.booking_no ?? fields.notice_no ?? null;
   return typeof ref === "string" && ref !== "" ? ref : null;
 }
 

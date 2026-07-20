@@ -263,7 +263,7 @@ export function GenerateEditor(props: {
         </p>
       )}
       <p className="text-center text-xs text-muted-foreground">
-        Free plan PDFs carry a watermark — Pro removes it.
+        Early-access PDFs carry a watermark. Watermark-free paid exports are planned but not yet available for purchase.
       </p>
     </div>
   );

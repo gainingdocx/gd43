@@ -5,6 +5,8 @@
 import {
   DETECTED_TYPES,
   type BillOfLadingFields,
+  type ArrivalNoticeFields,
+  type BookingConfirmationFields,
   type CommercialInvoiceFields,
   type ContainerRow,
   type DetectedType,
@@ -65,6 +67,9 @@ export const EXTRACTION_JSON_SCHEMA = {
           po_no: str,
           date: str,
           invoice_ref: str,
+          notice_no: str,
+          booking_no: str,
+          service_contract_no: str,
           // parties
           shipper: partySchema,
           consignee: {
@@ -74,6 +79,7 @@ export const EXTRACTION_JSON_SCHEMA = {
           notify: partySchema,
           seller: partySchema,
           buyer: partySchema,
+          agent: partySchema,
           // voyage
           vessel_name: str,
           imo_number: str,
@@ -82,10 +88,19 @@ export const EXTRACTION_JSON_SCHEMA = {
           port_of_discharge: portSchema,
           place_of_receipt: str,
           place_of_delivery: str,
+          terminal: str,
           // dates (copied exactly as printed)
           issue_date: str,
           issue_place: str,
           shipped_on_board_date: str,
+          eta: str,
+          etd: str,
+          availability_date: str,
+          last_free_day: str,
+          documentation_cutoff: str,
+          vgm_cutoff: str,
+          cargo_cutoff: str,
+          si_cutoff: str,
           // commercial
           freight_terms: { type: ["string", "null"], enum: ["prepaid", "collect", null] },
           incoterm: str,
@@ -98,6 +113,14 @@ export const EXTRACTION_JSON_SCHEMA = {
           lc_number: str,
           country_of_origin: str,
           bank_details: str,
+          pickup_reference: str,
+          freight_due: num,
+          terminal_charges: num,
+          other_charges: num,
+          total_charges: num,
+          payment_instructions: str,
+          commodity: str,
+          special_instructions: str,
           // totals as printed (never computed)
           total_packages: num,
           total_cartons: num,
@@ -124,6 +147,16 @@ export const EXTRACTION_JSON_SCHEMA = {
                 gross_kg: num,
                 tare_kg: num,
                 volume_cbm: num,
+              },
+            },
+          },
+          equipment: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                container_no: str, seal_no: str, iso_type: str, packages: num,
+                package_type: str, gross_kg: num, tare_kg: num, volume_cbm: num,
               },
             },
           },
@@ -338,7 +371,8 @@ export function normalizeModelOutput(
   };
 
   switch (detected_type) {
-    case "bill_of_lading": {
+    case "bill_of_lading":
+    case "sea_waybill": {
       const fields: BillOfLadingFields = {
         bl_number: cStr(f.bl_number),
         scac: cStr(f.scac),
@@ -410,6 +444,33 @@ export function normalizeModelOutput(
       };
       return { detected_type, fields };
     }
+    case "arrival_notice": {
+      const fields: ArrivalNoticeFields = {
+        notice_no: cStr(f.notice_no), issue_date: cStr(f.issue_date), bl_number: cStr(f.bl_number),
+        booking_no: cStr(f.booking_no), carrier_name: cStr(f.carrier_name), agent: cParty(f.agent),
+        consignee: cParty(f.consignee), notify: cParty(f.notify), vessel_name: cStr(f.vessel_name),
+        voyage_no: cStr(f.voyage_no), port_of_discharge: cPort(f.port_of_discharge), terminal: cStr(f.terminal),
+        eta: cStr(f.eta), availability_date: cStr(f.availability_date), last_free_day: cStr(f.last_free_day),
+        pickup_reference: cStr(f.pickup_reference), currency: cStr(f.currency), freight_due: cNum(f.freight_due),
+        terminal_charges: cNum(f.terminal_charges), other_charges: cNum(f.other_charges), total_charges: cNum(f.total_charges),
+        payment_instructions: cStr(f.payment_instructions), containers: cArray(f.containers, cContainer), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "booking_confirmation": {
+      const fields: BookingConfirmationFields = {
+        booking_no: cStr(f.booking_no), carrier_name: cStr(f.carrier_name), shipper: cParty(f.shipper),
+        service_contract_no: cStr(f.service_contract_no), vessel_name: cStr(f.vessel_name), voyage_no: cStr(f.voyage_no),
+        port_of_load: cPort(f.port_of_load), port_of_discharge: cPort(f.port_of_discharge),
+        place_of_receipt: cStr(f.place_of_receipt), place_of_delivery: cStr(f.place_of_delivery),
+        etd: cStr(f.etd), eta: cStr(f.eta), documentation_cutoff: cStr(f.documentation_cutoff),
+        vgm_cutoff: cStr(f.vgm_cutoff), cargo_cutoff: cStr(f.cargo_cutoff), si_cutoff: cStr(f.si_cutoff),
+        equipment: cArray(f.equipment ?? f.containers, cContainer), commodity: cStr(f.commodity),
+        total_packages: cNum(f.total_packages), total_gross_kg: cNum(f.total_gross_kg),
+        special_instructions: cStr(f.special_instructions), _meta,
+      };
+      return { detected_type, fields };
+    }
     default:
       return { detected_type: "other", fields: { raw: f, _meta } };
   }
@@ -417,9 +478,9 @@ export function normalizeModelOutput(
 
 /** Container rows to persist for a document (B/L only). */
 export function containersOf(extraction: NormalizedExtraction): ContainerRow[] {
-  return extraction.detected_type === "bill_of_lading"
-    ? extraction.fields.containers
-    : [];
+  if (extraction.detected_type === "bill_of_lading" || extraction.detected_type === "sea_waybill" || extraction.detected_type === "arrival_notice") return extraction.fields.containers;
+  if (extraction.detected_type === "booking_confirmation") return extraction.fields.equipment;
+  return [];
 }
 
 // ---------------------------------------------------------------------------
@@ -433,7 +494,8 @@ export function countEmptyCriticalFields(
     v === null || v === "" || (Array.isArray(v) && v.length === 0);
 
   switch (extraction.detected_type) {
-    case "bill_of_lading": {
+    case "bill_of_lading":
+    case "sea_waybill": {
       const f = extraction.fields;
       return [
         f.bl_number,
@@ -464,6 +526,14 @@ export function countEmptyCriticalFields(
         f.total_gross_kg,
         f.line_items,
       ].filter(empty).length;
+    }
+    case "arrival_notice": {
+      const f = extraction.fields;
+      return [f.bl_number, f.carrier_name, f.consignee?.name ?? null, f.vessel_name, f.port_of_discharge?.name ?? null, f.eta].filter(empty).length;
+    }
+    case "booking_confirmation": {
+      const f = extraction.fields;
+      return [f.booking_no, f.carrier_name, f.port_of_load?.name ?? null, f.port_of_discharge?.name ?? null, f.etd, f.equipment].filter(empty).length;
     }
     default:
       return 0;

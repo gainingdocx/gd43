@@ -56,6 +56,9 @@ const EXPORT_FORMATS = [
 
 const GEN_LABEL: Record<string, string> = {
   packing_list: "Packing list",
+  sea_waybill: "Sea waybill",
+  arrival_notice: "Arrival notice",
+  booking_confirmation: "Booking confirmation",
   commercial_invoice: "Commercial invoice",
   shipping_instructions: "Shipping instructions",
 };
@@ -70,8 +73,11 @@ function newShareToken(): string {
 
 const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading",
+  sea_waybill: "Sea Waybill",
   commercial_invoice: "Commercial Invoice",
   packing_list: "Packing List",
+  arrival_notice: "Arrival Notice",
+  booking_confirmation: "Booking Confirmation",
   other: "Document",
 };
 

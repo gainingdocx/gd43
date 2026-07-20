@@ -37,6 +37,15 @@ const HOWTO_STEPS = [
   "Export to Excel, CSV or JSON, or generate the counterpart document.",
 ];
 
+const PARSER_HINTS: Record<string, string> = {
+  "bill-of-lading-parser": "bill_of_lading",
+  "commercial-invoice-parser": "commercial_invoice",
+  "packing-list-parser": "packing_list",
+  "sea-waybill-parser": "sea_waybill",
+  "arrival-notice-parser": "arrival_notice",
+  "booking-confirmation-parser": "booking_confirmation",
+};
+
 export default async function ParserPage({
   params,
 }: {
@@ -77,7 +86,7 @@ export default async function ParserPage({
           ))}
           <div className="mt-6 flex flex-wrap gap-3">
             <Button
-              render={<Link href="/app/scan" />}
+              render={<Link href={`/app/scan?type=${PARSER_HINTS[page.slug]}`} />}
               size="lg"
               className="bg-signal text-signal-foreground hover:bg-signal/90"
             >
@@ -153,7 +162,7 @@ export default async function ParserPage({
             Try it on your own document — free, no sign-up
           </p>
           <Button
-            render={<Link href="/app/scan" />}
+            render={<Link href={`/app/scan?type=${PARSER_HINTS[page.slug]}`} />}
             size="lg"
             className="mt-4 bg-signal text-signal-foreground hover:bg-signal/90"
           >

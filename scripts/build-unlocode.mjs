@@ -1,10 +1,10 @@
 // Builds data/unlocode.json — trimmed UN/LOCODE seaport dataset (BUILD_SPEC §M5.3).
 //
 // PROVENANCE
-//   Source:  UNECE UN/LOCODE list, release 2024-2
+//   Source:  UNECE UN/LOCODE list, release 2025-1 (issued 15 Jan 2026)
 //            https://unece.org/trade/cefact/UNLOCODE-Download
 //   Via:     https://github.com/datasets/un-locode (mirror, datapackage
-//            version 2024.2.0), file data/code-list.csv
+//            release 2025-1), file data/code-list.csv
 //   License: ODC-PDDL-1.0 (public domain dedication)
 //   Filter:  Function position 1 = '1' (maritime port), Status != 'XX'
 //            (entries marked for removal), country header rows dropped.
@@ -100,7 +100,7 @@ writeFileSync(
   OUT,
   JSON.stringify(
     {
-      source: "UNECE UN/LOCODE 2024-2 via github.com/datasets/un-locode (ODC-PDDL-1.0)",
+      source: "UNECE UN/LOCODE 2025-1 via github.com/datasets/un-locode (ODC-PDDL-1.0)",
       built: new Date().toISOString().slice(0, 10),
       filter: "Function[0]='1' (port), Status!='XX'",
       count: ports.length,

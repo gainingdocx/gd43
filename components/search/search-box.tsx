@@ -21,16 +21,22 @@ interface Row {
 
 const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "B/L",
+  sea_waybill: "Sea Waybill",
   commercial_invoice: "Invoice",
   packing_list: "Packing list",
+  arrival_notice: "Arrival",
+  booking_confirmation: "Booking",
   other: "Other",
 };
 
 const CHIPS = [
   ["all", "All"],
   ["bill_of_lading", "B/L"],
+  ["sea_waybill", "Sea waybill"],
   ["commercial_invoice", "Invoice"],
   ["packing_list", "Packing list"],
+  ["arrival_notice", "Arrival"],
+  ["booking_confirmation", "Booking"],
 ] as const;
 
 export function SearchBox() {

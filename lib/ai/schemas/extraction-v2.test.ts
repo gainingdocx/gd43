@@ -98,6 +98,33 @@ describe("normalizeModelOutput — bill of lading", () => {
   });
 });
 
+describe("normalizeModelOutput — dedicated operational document types", () => {
+  it("normalizes a sea waybill through the transport-document schema", () => {
+    const out = normalizeModelOutput({ detected_type: "sea_waybill", fields: { bl_number: "SWB-77", shipper: { name: "EXPORTER" }, consignee: { name: "IMPORTER" }, port_of_load: { name: "Singapore", unlocode: "SGSIN" }, port_of_discharge: { name: "Helsinki", unlocode: "FIHEL" }, containers: [{ container_no: "MSCU6639870" }], bl_type: "seaway" } }, PV);
+    assert.equal(out.detected_type, "sea_waybill");
+    if (out.detected_type !== "sea_waybill") return;
+    assert.equal(out.fields.bl_type, "seaway");
+    assert.equal(out.fields.containers.length, 1);
+  });
+
+  it("normalizes arrival-notice charges and equipment", () => {
+    const out = normalizeModelOutput({ detected_type: "arrival_notice", fields: { bl_number: "BL-9", carrier_name: "CARRIER", consignee: { name: "BUYER" }, vessel_name: "VESSEL", port_of_discharge: "Helsinki", eta: "20 JUL 2026", terminal_charges: "125.50", total_charges: 125.5, containers: [{ container_no: "MSCU6639870" }] } }, PV);
+    assert.equal(out.detected_type, "arrival_notice");
+    if (out.detected_type !== "arrival_notice") return;
+    assert.equal(out.fields.terminal_charges, 125.5);
+    assert.equal(containersOf(out).length, 1);
+    assert.equal(countEmptyCriticalFields(out), 0);
+  });
+
+  it("normalizes booking cut-offs and equipment", () => {
+    const out = normalizeModelOutput({ detected_type: "booking_confirmation", fields: { booking_no: "BK-1", carrier_name: "CARRIER", port_of_load: "Singapore", port_of_discharge: "Helsinki", etd: "21 JUL 2026", documentation_cutoff: "19 JUL 2026 12:00", equipment: [{ iso_type: "40HC", packages: 1 }] } }, PV);
+    assert.equal(out.detected_type, "booking_confirmation");
+    if (out.detected_type !== "booking_confirmation") return;
+    assert.equal(out.fields.documentation_cutoff, "19 JUL 2026 12:00");
+    assert.equal(out.fields.equipment[0].iso_type, "40HC");
+  });
+});
+
 describe("normalizeModelOutput — commercial invoice", () => {
   const out = normalizeModelOutput(
     {

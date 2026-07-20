@@ -52,12 +52,35 @@ export async function generatedDocPdf(
   watermark: boolean
 ): Promise<Uint8Array> {
   const { pdf, fonts, logo } = await newDoc();
-  const page = pdf.addPage(A4);
+  let page = pdf.addPage(A4);
   const w = page.getWidth();
   if (watermark) drawWatermark(page, fonts, logo);
   drawTitle(page, fonts, gen.title, logo);
 
   let y = page.getHeight() - 100;
+
+  const continuation = () => {
+    page = pdf.addPage(A4);
+    if (watermark) drawWatermark(page, fonts, logo);
+    drawTitle(page, fonts, `${gen.title} — CONTINUED`, logo);
+    y = page.getHeight() - 100;
+  };
+
+  const wrap = (text: string, maxWidth: number, size: number) => {
+    const out: string[] = [];
+    for (const paragraph of text.replace(/\r/g, "").split("\n")) {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (words.length === 0) { out.push(""); continue; }
+      let row = "";
+      for (const word of words) {
+        const next = row ? `${row} ${word}` : word;
+        if (fonts.regular.widthOfTextAtSize(next, size) <= maxWidth) row = next;
+        else { if (row) out.push(row); row = word; }
+      }
+      if (row) out.push(row);
+    }
+    return out;
+  };
 
   // Header facts in two columns.
   const facts = gen.header.filter((f) => f.value.trim() !== "");
@@ -99,15 +122,18 @@ export async function generatedDocPdf(
   const totalW = active.reduce((a, c) => a + c.width, 0);
   const scale = (w - 2 * MARGIN) / totalW;
   if (gen.lines.length > 0) {
-    page.drawRectangle({ x: MARGIN, y: y - 4, width: w - 2 * MARGIN, height: 16, color: LIGHT });
-    let x = MARGIN + 3;
-    for (const c of active) {
-      page.drawText(c.label, { x, y, size: 8, font: fonts.bold, color: NAVY });
-      x += c.width * scale;
-    }
-    y -= 16;
-    for (const line of gen.lines.slice(0, 24)) {
-      if (y < 120) break;
+    const tableHeader = () => {
+      page.drawRectangle({ x: MARGIN, y: y - 4, width: w - 2 * MARGIN, height: 16, color: LIGHT });
+      let x = MARGIN + 3;
+      for (const c of active) {
+        page.drawText(c.label, { x, y, size: 8, font: fonts.bold, color: NAVY });
+        x += c.width * scale;
+      }
+      y -= 16;
+    };
+    tableHeader();
+    for (const line of gen.lines) {
+      if (y < 90) { continuation(); tableHeader(); }
       let lx = MARGIN + 3;
       for (const c of active) {
         page.drawText(truncate(fonts.regular, line[c.key], 8.5, c.width * scale - 6), {
@@ -122,6 +148,7 @@ export async function generatedDocPdf(
 
   // Totals, right-aligned block.
   const totals = gen.totals.filter((t) => t.value.trim() !== "");
+  if (y - totals.length * 15 < 75) continuation();
   for (const t of totals) {
     const label = `${t.label}:`;
     const lw = fonts.regular.widthOfTextAtSize(label, 9);
@@ -142,17 +169,20 @@ export async function generatedDocPdf(
 
   // Notes.
   if (gen.notes.trim() !== "") {
+    if (y < 90) continuation();
     page.drawText("NOTES", { x: MARGIN, y, size: 7, font: fonts.regular, color: GRAY });
     y -= 12;
-    for (const line of gen.notes.split("\n").slice(0, 10)) {
-      if (y < 60) break;
-      page.drawText(truncate(fonts.regular, line, 8.5, w - 2 * MARGIN), {
+    for (const line of wrap(gen.notes, w - 2 * MARGIN, 8.5)) {
+      if (y < 55) { continuation(); page.drawText("NOTES — CONTINUED", { x: MARGIN, y, size: 7, font: fonts.regular, color: GRAY }); y -= 12; }
+      page.drawText(line, {
         x: MARGIN, y, size: 8.5, font: fonts.regular, color: NAVY,
       });
       y -= 12;
     }
   }
 
-  drawFooter(page, fonts, "This is a draft for review — not a signed transport document.");
+  for (const outputPage of pdf.getPages()) {
+    drawFooter(outputPage, fonts, "This is a draft for review — not a signed transport document.");
+  }
   return pdf.save();
 }

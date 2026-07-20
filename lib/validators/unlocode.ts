@@ -1,5 +1,5 @@
 // UN/LOCODE port lookup (BUILD_SPEC §M5.3). Fuzzy match against
-// data/unlocode.json — UNECE UN/LOCODE 2024-2 filtered to maritime ports
+// data/unlocode.json — UNECE UN/LOCODE 2025-1 filtered to maritime ports
 // (Function position 1 = '1'); provenance in scripts/build-unlocode.mjs.
 //
 // IMPORTANT verdict semantics: a code that is missing from the dataset is a
@@ -26,7 +26,7 @@ const PORTS = dataset.ports as [string, string][];
  * UNECE's 2020-2 release reassigned several major Chinese port codes to
  * airports/cities and gave the seaports new codes; ocean B/Ls still
  * overwhelmingly print the old ones. Recognize both. Every target code
- * verified present in data/unlocode.json (2024-2).
+ * verified present in data/unlocode.json (2025-1).
  */
 export const LEGACY_PORT_ALIASES: Record<string, string> = {
   CNSHA: "CNSGH", // Shanghai
@@ -197,7 +197,7 @@ export function validatePort(
         field: `${field}.unlocode`,
         rule: "unlocode",
         status: "warn",
-        message: `${code} is not in our UN/LOCODE seaport list (2024-2) — it may be an airport/city code or newer than our dataset${suggested ? `; the port name matches ${suggested.code} (${suggested.name})` : ""}`,
+        message: `${code} is not in our UN/LOCODE seaport list (2025-1) — it may be an airport/city code or newer than our dataset${suggested ? `; the port name matches ${suggested.code} (${suggested.name})` : ""}`,
         expected: suggested?.code,
         actual: code,
       });
@@ -216,7 +216,7 @@ export function validatePort(
               field: `${field}.unlocode`,
               rule: "unlocode",
               status: "pass",
-              message: `${resolved.code} = ${resolved.name} (UN/LOCODE 2024-2)`,
+              message: `${resolved.code} = ${resolved.name} (UN/LOCODE 2025-1)`,
               actual: resolved.code,
             }
       );

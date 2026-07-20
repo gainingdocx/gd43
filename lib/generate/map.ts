@@ -39,6 +39,8 @@ export function generatableTypes(docType: string): GenType[] {
     case "packing_list":
       return ["commercial_invoice", "shipping_instructions"];
     case "bill_of_lading":
+    case "sea_waybill":
+    case "booking_confirmation":
       return ["shipping_instructions"];
     default:
       return [];
@@ -149,19 +151,21 @@ export function toShippingInstructions(fields: Json, docType: string): GenDoc {
     const o = p as Json;
     return [o.name, o.unlocode ? `(${s(o.unlocode)})` : ""].map(s).filter(Boolean).join(" ");
   };
-  const containers = Array.isArray(fields.containers)
-    ? (fields.containers as Json[])
+  const equipmentList = Array.isArray(fields.containers) ? fields.containers : fields.equipment;
+  const containers = Array.isArray(equipmentList)
+    ? (equipmentList as Json[])
         .filter((c) => c && typeof c === "object")
         .map((c) => [s(c.container_no), s(c.seal_no), s(c.iso_type)].filter(Boolean).join(" / "))
         .join("\n")
     : "";
-  const shipper = docType === "bill_of_lading" ? fields.shipper : fields.seller;
-  const consignee = docType === "bill_of_lading" ? fields.consignee : fields.buyer;
+  const transportDoc = docType === "bill_of_lading" || docType === "sea_waybill" || docType === "booking_confirmation";
+  const shipper = transportDoc ? fields.shipper : fields.seller;
+  const consignee = transportDoc ? fields.consignee : fields.buyer;
   return {
     type: "shipping_instructions",
     title: "SHIPPING INSTRUCTIONS (DRAFT)",
     header: [
-      { label: "Booking / B/L ref", value: s(fields.bl_number) },
+      { label: "Booking / B/L ref", value: s(fields.booking_no ?? fields.bl_number) },
       { label: "Vessel / Voyage", value: [s(fields.vessel_name), s(fields.voyage_no)].filter(Boolean).join(" ") },
       { label: "Port of loading", value: port(fields.port_of_load) },
       { label: "Port of discharge", value: port(fields.port_of_discharge) },

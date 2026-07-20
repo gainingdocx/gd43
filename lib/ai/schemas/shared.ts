@@ -4,14 +4,20 @@
 
 export type DetectedType =
   | "bill_of_lading"
+  | "sea_waybill"
   | "commercial_invoice"
   | "packing_list"
+  | "arrival_notice"
+  | "booking_confirmation"
   | "other";
 
 export const DETECTED_TYPES: DetectedType[] = [
   "bill_of_lading",
+  "sea_waybill",
   "commercial_invoice",
   "packing_list",
+  "arrival_notice",
+  "booking_confirmation",
   "other",
 ];
 
@@ -143,6 +149,58 @@ export interface PackingListFields {
   _meta: Meta;
 }
 
+export interface ArrivalNoticeFields {
+  notice_no: string | null;
+  issue_date: string | null;
+  bl_number: string | null;
+  booking_no: string | null;
+  carrier_name: string | null;
+  agent: Party | null;
+  consignee: Party | null;
+  notify: Party | null;
+  vessel_name: string | null;
+  voyage_no: string | null;
+  port_of_discharge: PortRef | null;
+  terminal: string | null;
+  eta: string | null;
+  availability_date: string | null;
+  last_free_day: string | null;
+  pickup_reference: string | null;
+  currency: string | null;
+  freight_due: number | null;
+  terminal_charges: number | null;
+  other_charges: number | null;
+  total_charges: number | null;
+  payment_instructions: string | null;
+  containers: ContainerRow[];
+  _meta: Meta;
+}
+
+export interface BookingConfirmationFields {
+  booking_no: string | null;
+  carrier_name: string | null;
+  shipper: Party | null;
+  service_contract_no: string | null;
+  vessel_name: string | null;
+  voyage_no: string | null;
+  port_of_load: PortRef | null;
+  port_of_discharge: PortRef | null;
+  place_of_receipt: string | null;
+  place_of_delivery: string | null;
+  etd: string | null;
+  eta: string | null;
+  documentation_cutoff: string | null;
+  vgm_cutoff: string | null;
+  cargo_cutoff: string | null;
+  si_cutoff: string | null;
+  equipment: ContainerRow[];
+  commodity: string | null;
+  total_packages: number | null;
+  total_gross_kg: number | null;
+  special_instructions: string | null;
+  _meta: Meta;
+}
+
 /** Unrecognized sea-cargo document: raw model fields preserved as-is. */
 export interface OtherDocFields {
   raw: Record<string, unknown>;
@@ -151,6 +209,9 @@ export interface OtherDocFields {
 
 export type NormalizedExtraction =
   | { detected_type: "bill_of_lading"; fields: BillOfLadingFields }
+  | { detected_type: "sea_waybill"; fields: BillOfLadingFields }
   | { detected_type: "commercial_invoice"; fields: CommercialInvoiceFields }
   | { detected_type: "packing_list"; fields: PackingListFields }
+  | { detected_type: "arrival_notice"; fields: ArrivalNoticeFields }
+  | { detected_type: "booking_confirmation"; fields: BookingConfirmationFields }
   | { detected_type: "other"; fields: OtherDocFields };

@@ -76,10 +76,39 @@ const PL_ORDER: [string, string][] = [
   ["total_volume_cbm", "Total volume (cbm)"],
 ];
 
+const ARRIVAL_ORDER: [string, string][] = [
+  ["notice_no", "Notice number"], ["issue_date", "Issue date"], ["bl_number", "B/L number"],
+  ["booking_no", "Booking number"], ["carrier_name", "Carrier"], ["agent.name", "Destination agent"],
+  ["consignee.name", "Consignee"], ["notify.name", "Notify party"], ["vessel_name", "Vessel"],
+  ["voyage_no", "Voyage"], ["port_of_discharge.name", "Discharge port"],
+  ["port_of_discharge.unlocode", "Discharge port code"], ["terminal", "Terminal / CFS"],
+  ["eta", "ETA"], ["availability_date", "Availability date"], ["last_free_day", "Last free day"],
+  ["pickup_reference", "Pickup / release reference"], ["currency", "Currency"],
+  ["freight_due", "Freight due"], ["terminal_charges", "Terminal charges"],
+  ["other_charges", "Other charges"], ["total_charges", "Total charges"],
+  ["payment_instructions", "Payment instructions"],
+];
+
+const BOOKING_ORDER: [string, string][] = [
+  ["booking_no", "Booking number"], ["carrier_name", "Carrier"], ["shipper.name", "Shipper"],
+  ["service_contract_no", "Service contract"], ["vessel_name", "Vessel"], ["voyage_no", "Voyage"],
+  ["place_of_receipt", "Place of receipt"], ["port_of_load.name", "Port of loading"],
+  ["port_of_load.unlocode", "POL code"], ["port_of_discharge.name", "Port of discharge"],
+  ["port_of_discharge.unlocode", "POD code"], ["place_of_delivery", "Place of delivery"],
+  ["etd", "ETD"], ["eta", "ETA"], ["documentation_cutoff", "Documentation cut-off"],
+  ["si_cutoff", "Shipping instructions cut-off"], ["vgm_cutoff", "VGM cut-off"],
+  ["cargo_cutoff", "Cargo cut-off"], ["commodity", "Commodity"],
+  ["total_packages", "Total packages"], ["total_gross_kg", "Total gross kg"],
+  ["special_instructions", "Special instructions"],
+];
+
 const ORDERS: Record<string, [string, string][]> = {
   bill_of_lading: BL_ORDER,
+  sea_waybill: BL_ORDER,
   commercial_invoice: CI_ORDER,
   packing_list: PL_ORDER,
+  arrival_notice: ARRIVAL_ORDER,
+  booking_confirmation: BOOKING_ORDER,
 };
 
 function tokenize(path: string): (string | number)[] {
@@ -192,6 +221,13 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
           editable: true,
         }
       );
+    });
+  }
+  const equipment = fields.equipment;
+  if (Array.isArray(equipment)) {
+    equipment.forEach((c, i) => {
+      if (c === null || typeof c !== "object") return;
+      rows.push({ path: `equipment[${i}].container_no`, label: `Equipment ${i + 1}`, value: display((c as Json).container_no), page: pageFor(fields, "equipment"), editable: true }, { path: `equipment[${i}].iso_type`, label: `Equipment type ${i + 1}`, value: display((c as Json).iso_type), page: pageFor(fields, "equipment"), editable: true });
     });
   }
   return rows;

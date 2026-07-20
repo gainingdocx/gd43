@@ -14,8 +14,11 @@ import { resolveDiscrepancy, runShipmentCheck } from "./actions";
 
 const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading",
+  sea_waybill: "Sea Waybill",
   commercial_invoice: "Commercial Invoice",
   packing_list: "Packing List",
+  arrival_notice: "Arrival Notice",
+  booking_confirmation: "Booking Confirmation",
   other: "Other document",
 };
 

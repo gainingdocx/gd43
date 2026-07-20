@@ -31,7 +31,7 @@ export function validateDocument(
 ): ValidationResult[] {
   const results: ValidationResult[] = [];
 
-  if (extraction.detected_type === "bill_of_lading") {
+  if (extraction.detected_type === "bill_of_lading" || extraction.detected_type === "sea_waybill") {
     const f = extraction.fields;
     f.containers.forEach((c, i) => {
       if (c.container_no) {
@@ -39,6 +39,28 @@ export function validateDocument(
       }
     });
     if (f.imo_number) results.push(validateImo("imo_number", f.imo_number));
+    results.push(...validatePort("port_of_load", f.port_of_load));
+    results.push(...validatePort("port_of_discharge", f.port_of_discharge));
+  }
+
+  if (extraction.detected_type === "arrival_notice") {
+    const f = extraction.fields;
+    f.containers.forEach((c, i) => {
+      if (c.container_no) results.push(validateContainerNo(`containers[${i}].container_no`, c.container_no));
+    });
+    results.push(...validatePort("port_of_discharge", f.port_of_discharge));
+    const charges = [f.freight_due, f.terminal_charges, f.other_charges].filter((v): v is number => typeof v === "number");
+    if (f.total_charges !== null && charges.length > 0) {
+      const calculated = charges.reduce((a, b) => a + b, 0);
+      results.push({ field: "total_charges", rule: "charge_sum", status: Math.abs(calculated - f.total_charges) <= .01 ? "pass" : "fail", message: Math.abs(calculated - f.total_charges) <= .01 ? "Printed charge total matches its components" : `Charge components total ${calculated}, but the notice prints ${f.total_charges}`, expected: String(calculated), actual: String(f.total_charges) });
+    }
+  }
+
+  if (extraction.detected_type === "booking_confirmation") {
+    const f = extraction.fields;
+    f.equipment.forEach((c, i) => {
+      if (c.container_no) results.push(validateContainerNo(`equipment[${i}].container_no`, c.container_no));
+    });
     results.push(...validatePort("port_of_load", f.port_of_load));
     results.push(...validatePort("port_of_discharge", f.port_of_discharge));
   }

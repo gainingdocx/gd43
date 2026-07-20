@@ -53,7 +53,7 @@ function fieldFeedLines(fields: Record<string, unknown>): FeedLine[] {
   return lines;
 }
 
-export function Scanner({ signedIn }: { signedIn: boolean }) {
+export function Scanner({ signedIn, docTypeHint }: { signedIn: boolean; docTypeHint?: string }) {
   const router = useRouter();
   const [pages, setPages] = useState<PageItem[]>([]);
   const [phase, setPhase] = useState<Phase>("collect");
@@ -148,14 +148,14 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           .from("documents")
           .update({ storage_path: `${user.id}/${docId}` })
           .eq("id", docId);
-        body = { pages: paths.map((p) => ({ storagePath: p })), docId };
+        body = { pages: paths.map((p) => ({ storagePath: p })), docId, docTypeHint };
       } else {
         if (pages.length > 3) {
           throw new Error("anonymous parsing is limited to 3 pages — sign in for up to 15");
         }
         setStatus("encoding pages");
         const dataUrls = await Promise.all(pages.map((p) => blobToDataUrl(p.blob)));
-        body = { pages: dataUrls.map((d) => ({ dataUrl: d })) };
+        body = { pages: dataUrls.map((d) => ({ dataUrl: d })), docTypeHint };
       }
 
       setStatus("contacting the parser");
@@ -288,7 +288,7 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           <FileText className="size-8" aria-hidden />
         </span>
         <div className="space-y-1">
-          <p className="text-lg font-bold text-primary">Add document pages</p>
+          <p className="text-lg font-bold text-primary">Add {docTypeHint ? docTypeHint.replace(/_/g, " ") : "document"} pages</p>
           <p className="text-sm text-muted-foreground">
             Drop a PDF or document scan here. Multi-page PDF and TIFF files are split into pages,
             and everything is prepared on your device before upload.
