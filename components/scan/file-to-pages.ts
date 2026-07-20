@@ -28,7 +28,9 @@ function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 async function pdfPages(file: File, maxPages: number): Promise<PageConversion> {
-  const pdfjs = await import("pdfjs-dist/webpack.mjs");
+  const moduleUrl = new URL("/vendor/pdfjs/pdf.min.mjs", window.location.href).href;
+  const pdfjs = (await import(/* webpackIgnore: true */ moduleUrl)) as typeof import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
   const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
   const pdf = await loadingTask.promise;
   const output: Blob[] = [];
@@ -90,11 +92,13 @@ async function tiffPages(file: File, maxPages: number): Promise<PageConversion> 
 }
 
 async function heicPage(file: File): Promise<PageConversion> {
-  const { heicTo } = await import("heic-to/csp");
-  const converted = await heicTo({ blob: file, type: "image/jpeg", quality: JPEG_QUALITY });
-  if (!(converted instanceof Blob)) throw new Error("HEIC conversion did not return an image");
-  const image = new File([converted], `${file.name}.jpg`, { type: "image/jpeg" });
-  return { blobs: [await compressImage(image)], truncated: false };
+  try {
+    return { blobs: [await compressImage(file)], truncated: false };
+  } catch {
+    throw new Error(
+      `${file.name}: this browser cannot decode HEIC/HEIF. Export it as JPG or PDF, or use Take a photo.`
+    );
+  }
 }
 
 export async function fileToPageImages(file: File, maxPages: number): Promise<PageConversion> {

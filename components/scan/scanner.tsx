@@ -344,8 +344,9 @@ export function Scanner({ signedIn }: { signedIn: boolean }) {
           }}
         />
         <p className="max-w-2xl text-xs leading-5 text-muted-foreground">
-          Supported: PDF, JPG/JPEG, PNG, WebP, BMP, multi-page TIFF, HEIC and HEIF.
-          Save Word or Excel files as PDF first so their tables remain intact. On a phone,
+          Supported: PDF, JPG/JPEG, PNG, WebP, BMP and multi-page TIFF. HEIC/HEIF works when
+          your device can decode it; otherwise export it as JPG. Save Word or Excel files as PDF first.
+          On a phone,
           <span className="font-semibold text-foreground"> Take a photo</span> opens the rear camera.
         </p>
       </div>
