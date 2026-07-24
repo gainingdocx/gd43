@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, LockKeyhole } from "lucide-react";
+import { ArrowRight, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoogleButton } from "@/components/auth/google-button";
+import { AuthField } from "@/components/auth/auth-field";
 import { PasswordField } from "@/components/auth/password-field";
 import { AuthNotice } from "@/components/auth/auth-notice";
 import { createClient } from "@/lib/supabase/server";
@@ -24,32 +25,67 @@ export default async function LoginPage({ searchParams }: {
 
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-signal">Welcome back</p>
-      <h1 className="mt-2 text-3xl font-black tracking-[-0.035em] text-primary sm:text-4xl">Sign in to your workspace</h1>
-      <p className="mt-3 text-sm leading-6 text-muted-foreground">Continue reviewing shipment documents, alerts and team approvals.</p>
-      <div className="mt-6 space-y-4">
-        <AuthNotice error={params.error} message={params.message} />
-        <GoogleButton next={next} label="Sign in with Google" />
-        <div className="flex items-center gap-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <span className="h-px flex-1 bg-border" /> or use your email <span className="h-px flex-1 bg-border" />
+      <div className="rounded-3xl border border-border bg-white/95 p-6 shadow-[0_18px_50px_-20px_rgba(1,59,179,0.28)] backdrop-blur sm:p-8">
+        <div className="text-center">
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-signal">Welcome back</p>
+          <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.035em] text-primary">Sign in to your workspace</h1>
         </div>
-        <form action={signInWithPassword} className="space-y-4 rounded-2xl border border-border bg-white/80 p-5 shadow-sm sm:p-6">
-          <input type="hidden" name="next" value={next} />
-          <label htmlFor="login-email" className="block text-sm font-semibold">
-            Work email
-            <input id="login-email" name="email" type="email" required autoComplete="email" placeholder="you@company.com" className="mt-1.5 h-12 w-full rounded-xl border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20" />
-          </label>
-          <PasswordField id="login-password" name="password" label="Password" autoComplete="current-password" />
-          <div className="flex justify-end">
-            <Link href="/auth/forgot-password" className="text-sm font-semibold text-signal hover:underline">Forgot password?</Link>
+
+        <div className="mt-6 space-y-4">
+          <AuthNotice error={params.error} message={params.message} />
+
+          <GoogleButton next={next} label="Continue with Google" />
+
+          <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
           </div>
-          <Button type="submit" size="lg" className="h-12 w-full text-base">Sign in <ArrowRight className="size-4" aria-hidden /></Button>
-        </form>
+
+          <form action={signInWithPassword} className="space-y-4">
+            <input type="hidden" name="next" value={next} />
+            <AuthField
+              id="login-email"
+              name="email"
+              label="Email address"
+              icon={Mail}
+              type="email"
+              autoComplete="email"
+              placeholder="you@company.com"
+            />
+            <PasswordField
+              id="login-password"
+              name="password"
+              label="Password"
+              autoComplete="current-password"
+              trailing={
+                <Link href="/auth/forgot-password" className="text-xs font-bold text-signal hover:underline">
+                  Forgot password?
+                </Link>
+              }
+            />
+            <Button type="submit" size="lg" className="h-12 w-full text-base">
+              Sign in <ArrowRight className="size-4" aria-hidden />
+            </Button>
+          </form>
+
+          <p className="text-center text-xs leading-5 text-muted-foreground">
+            By continuing you agree to the <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link> and acknowledge the{" "}
+            <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>.
+          </p>
+
+          <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="h-px flex-1 bg-border" /> no account needed <span className="h-px flex-1 bg-border" />
+          </div>
+
+          <Button render={<Link href="/app/scan" />} size="lg" variant="outline" className="h-12 w-full bg-white text-base">
+            Continue as guest
+          </Button>
+          <p className="-mt-1 text-center text-xs text-muted-foreground">Parse documents today, create the account later.</p>
+        </div>
       </div>
+
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        New to GainingDocx? <Link href="/auth/sign-up" className="font-bold text-primary hover:underline">Create a free account</Link>
+        New here? <Link href="/auth/sign-up" className="font-bold text-primary hover:underline">Create a free account</Link>
       </p>
-      <p className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground"><LockKeyhole className="size-3.5" aria-hidden /> Secure, encrypted session with automatic renewal.</p>
     </div>
   );
 }

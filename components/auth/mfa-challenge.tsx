@@ -43,7 +43,7 @@ export function MfaChallenge({ next }: { next: string }) {
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-white/85 p-7 shadow-xl shadow-primary/5 sm:p-9">
+    <div className="rounded-3xl border border-border bg-white/95 p-7 shadow-[0_18px_50px_-20px_rgba(1,59,179,0.28)] backdrop-blur sm:p-9">
       <span className="flex size-12 items-center justify-center rounded-2xl bg-secondary text-primary"><ShieldCheck className="size-6" aria-hidden /></span>
       <h1 className="mt-5 text-3xl font-black tracking-[-0.035em] text-primary">Two-step verification</h1>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">Open your authenticator app and enter the current six-digit code.</p>
