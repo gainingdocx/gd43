@@ -162,3 +162,28 @@
     color: #01267c;
   }
 }
+
+/* Auth brand mark: the disc breathes while a slower halo swells behind it, so
+   the logo stays legible instead of flashing. Paired durations (2.4s / 4.8s)
+   keep the two from beating against each other. */
+@keyframes mark-pulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 3px 8px rgba(1, 59, 179, 0.18));
+  }
+  50% {
+    transform: scale(1.09);
+    filter: drop-shadow(0 6px 14px rgba(1, 59, 179, 0.3));
+  }
+}
+
+@keyframes mark-glow {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
