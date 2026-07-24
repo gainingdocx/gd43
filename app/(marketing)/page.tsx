@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { BackdropMark } from "@/components/ui/backdrop-mark";
 import { FEATURES } from "@/content/features";
 import { GUIDES } from "@/content/guides";
 import { PARSER_PAGES } from "@/content/parsers";
@@ -104,6 +105,7 @@ export default function HomePage() {
             </div>
 
             <div className="relative mx-auto w-full max-w-xl" aria-label="Preview of the GainingDocx document workflow">
+              <BackdropMark />
               <div className="absolute -inset-4 -z-10 rotate-2 rounded-[2.25rem] bg-secondary" />
               <div className="overflow-hidden rounded-[1.75rem] border border-border bg-white shadow-[0_30px_90px_-42px_rgba(1,59,179,0.65)]">
                 <div className="flex items-center justify-between bg-primary px-5 py-4 text-white">

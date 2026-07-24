@@ -5,7 +5,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/api/", "/auth/"],
+      // backdrop-seal.png is a non-content decorative layer; keep it out of
+      // crawls and image indexing entirely.
+      disallow: ["/api/", "/auth/", "/backdrop-seal.png"],
     },
     sitemap: "https://gainingdocx.com/sitemap.xml",
     host: "https://gainingdocx.com",

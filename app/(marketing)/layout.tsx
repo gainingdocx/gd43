@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { MobileMenu } from "@/components/marketing/mobile-menu";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
+import { BackdropMark } from "@/components/ui/backdrop-mark";
 import { Button } from "@/components/ui/button";
 import { JsonLd, organizationLd, websiteLd } from "@/lib/seo/jsonld";
 
@@ -73,8 +74,9 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="border-t border-border bg-primary text-primary-foreground">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+    <footer className="relative border-t border-border bg-primary text-primary-foreground">
+      <BackdropMark />
+      <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="space-y-3 sm:col-span-2">
           <BrandWordmark inverse />
           <p className="max-w-md text-base leading-7 text-white">

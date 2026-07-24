@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Calculator, FileSpreadsheet, FileStack, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
+import { BackdropMark } from "@/components/ui/backdrop-mark";
 
 export const metadata: Metadata = {
   title: { default: "Account", template: "%s · GainingDocx" },
@@ -81,7 +82,7 @@ function ChipRow({ items, href, moreLabel }: { items: string[]; href: string; mo
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_5%,rgba(1,59,179,0.16),transparent_34rem),linear-gradient(145deg,#f8fbff,#fff_52%,#fff9ec)]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_15%_5%,rgba(1,59,179,0.16),transparent_34rem),linear-gradient(145deg,#f4f8ff,#fff_52%,#e9f1ff)]">
       <div className="mx-auto grid min-h-screen max-w-[86rem] lg:grid-cols-[1fr_1fr]">
         <section className="relative hidden overflow-hidden bg-primary px-10 py-8 text-white lg:flex lg:flex-col xl:px-14">
           {/* Depth behind the brand wall without shipping an image. */}
@@ -147,13 +148,17 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           <span aria-hidden className="relative mb-3 hidden size-24 shrink-0 items-center justify-center lg:flex">
             {/* Halo sits behind the disc and swells at half speed; the disc
                 itself breathes. Both stop for prefers-reduced-motion. */}
-            <span className="absolute size-24 animate-[mark-glow_4.8s_ease-in-out_infinite] rounded-full bg-[#f4c400]/30 blur-2xl motion-reduce:hidden" />
-            <span className="relative flex size-20 animate-[mark-pulse_2.4s_ease-in-out_infinite] items-center justify-center rounded-full border-2 border-[#f4c400]/70 bg-white shadow-[0_18px_45px_rgba(1,59,179,0.18)] motion-reduce:animate-none">
-              <Image src="/logo.png" alt="" width={60} height={60} unoptimized className="size-[3.6rem] rounded-full" />
+            <span className="absolute size-24 animate-[mark-glow_4.8s_ease-in-out_infinite] rounded-full bg-[#8bb5ff]/45 blur-2xl motion-reduce:hidden" />
+            <span className="relative flex size-20 animate-[mark-pulse_2.4s_ease-in-out_infinite] items-center justify-center overflow-hidden rounded-full bg-white shadow-[0_18px_45px_rgba(1,59,179,0.18)] motion-reduce:animate-none">
+              <BackdropMark />
+              <Image src="/logo.png" alt="" width={80} height={80} unoptimized className="relative size-full rounded-full object-cover" />
             </span>
           </span>
 
-          <div className="w-full max-w-xl">{children}</div>
+          <div className="relative w-full max-w-xl">
+            <BackdropMark />
+            {children}
+          </div>
 
           <p className="mt-7 text-center text-xs text-muted-foreground lg:hidden">
             Parse, validate and generate shipping documents · 11 free templates · 9 free calculators
