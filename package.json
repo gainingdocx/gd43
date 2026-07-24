@@ -18,6 +18,8 @@
   "dependencies": {
     "@base-ui/react": "1.6.0",
     "@opennextjs/cloudflare": "1.20.1",
+    "@paddle/paddle-js": "1.6.4",
+    "@paddle/paddle-node-sdk": "3.8.0",
     "@supabase/ssr": "0.12.3",
     "@supabase/supabase-js": "2.110.7",
     "class-variance-authority": "0.7.1",
