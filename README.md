@@ -42,3 +42,16 @@ Copy `.env.example` to `.env.local` (already done locally) and fill values as ea
 | `PADDLE_WEBHOOK_SECRET` | Paddle dashboard → **Developer Tools → Notifications** → your webhook → secret |
 
 None of these are needed for M0/M1 — fill each one in the milestone that introduces the service (Supabase in M2, OpenRouter in M3, Paddle in M9, etc.).
+
+## Supabase auth settings
+
+Two settings are configured in the hosted project rather than in this repo, so
+they survive no deploy and are easy to lose track of:
+
+| Setting | Value | Why |
+| --- | --- | --- |
+| `mailer_autoconfirm` | `true` | Sign-up completes without a confirmation email. The built-in Supabase SMTP allows only `rate_limit_email_sent: 2` messages per hour, which is not enough to gate registration on, and there is no paid email provider configured. `signUpWithPassword` already handles both cases — it redirects to `/app/onboarding` when a session comes back and to `/auth/check-email` when one does not — so flipping this back to `false` needs no code change. |
+| Built-in SMTP | in use (`smtp_host: null`) | Its 2/hour budget is reserved for password recovery, the one flow that genuinely needs email. |
+
+Read or change them with `SUPABASE_ACCESS_TOKEN` against
+`https://api.supabase.com/v1/projects/<ref>/config/auth`.

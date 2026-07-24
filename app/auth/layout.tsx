@@ -82,7 +82,7 @@ function ChipRow({ items, href, moreLabel }: { items: string[]; href: string; mo
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_15%_5%,rgba(1,59,179,0.16),transparent_34rem),linear-gradient(145deg,#f8fbff,#fff_52%,#fff9ec)]">
-      <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[1.04fr_0.96fr]">
+      <div className="mx-auto grid min-h-screen max-w-[86rem] lg:grid-cols-[1fr_1fr]">
         <section className="relative hidden overflow-hidden bg-primary px-10 py-8 text-white lg:flex lg:flex-col xl:px-14">
           {/* Depth behind the brand wall without shipping an image. */}
           <div
@@ -112,8 +112,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <ul className="mt-6 space-y-3">
               {USPS.map(({ icon: UspIcon, body }, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
-                    <UspIcon className="size-[1.05rem] text-[#f4c400]" aria-hidden />
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white shadow-[0_2px_10px_rgba(0,0,0,0.18)]">
+                    <UspIcon className="size-[1.05rem] text-primary" aria-hidden />
                   </span>
                   <span className="pt-1 text-[0.92rem] leading-[1.6rem] text-white">{body}</span>
                 </li>
@@ -135,11 +135,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-
-          <p className="relative flex items-center gap-2 text-xs text-white/85">
-            <ShieldCheck className="size-4 shrink-0" aria-hidden />
-            Secure sessions via Supabase · Your passwords are never visible to GainingDocx.
-          </p>
         </section>
 
         <section className="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
@@ -149,14 +144,17 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
           {/* Sits clear of the card rather than overlapping it: the card's
               backdrop-blur makes overlap paint order unreliable. */}
-          <span
-            aria-hidden
-            className="mb-4 hidden size-[4.5rem] items-center justify-center rounded-full border border-border bg-white shadow-[0_8px_28px_rgba(1,59,179,0.16)] lg:flex"
-          >
-            <Image src="/logo.png" alt="" width={52} height={52} unoptimized className="size-13 rounded-full" />
+          <span aria-hidden className="relative mb-4 hidden size-[4.5rem] lg:block">
+            {/* Halo pulse. Held behind the mark so the logo itself stays crisp,
+                and dropped entirely when the visitor asks for less motion. */}
+            <span className="absolute inset-0 animate-ping rounded-full bg-primary/25 [animation-duration:2.6s] motion-reduce:hidden" />
+            <span className="absolute inset-0 animate-pulse rounded-full bg-[#f4c400]/25 blur-md [animation-duration:2.6s] motion-reduce:hidden" />
+            <span className="relative flex size-[4.5rem] items-center justify-center rounded-full border border-border bg-white shadow-[0_8px_28px_rgba(1,59,179,0.16)]">
+              <Image src="/logo.png" alt="" width={52} height={52} unoptimized className="size-13 rounded-full" />
+            </span>
           </span>
 
-          <div className="w-full max-w-md">{children}</div>
+          <div className="w-full max-w-xl">{children}</div>
 
           <p className="mt-7 text-center text-xs text-muted-foreground lg:hidden">
             Parse, validate and generate shipping documents · 11 free templates · 9 free calculators
