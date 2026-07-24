@@ -11,6 +11,7 @@ export function PasswordField({
   autoComplete,
   hint,
   minLength,
+  placeholder,
   trailing,
 }: {
   id: string;
@@ -18,6 +19,7 @@ export function PasswordField({
   label: string;
   autoComplete: string;
   hint?: string;
+  placeholder?: string;
   /** Only set on account creation and recovery — never on sign-in, where an
    *  older short password must still be submittable. */
   minLength?: number;
@@ -42,7 +44,8 @@ export function PasswordField({
           minLength={minLength}
           maxLength={128}
           autoComplete={autoComplete}
-          className="h-12 w-full rounded-xl border border-input bg-background px-3.5 pr-12 text-sm shadow-[0_1px_2px_rgba(16,42,92,0.04)] outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
+          placeholder={placeholder}
+          className="h-12 w-full rounded-xl border border-input bg-background px-3.5 pr-12 text-sm shadow-[0_1px_2px_rgba(16,42,92,0.04)] outline-none transition placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20"
         />
         <button
           type="button"

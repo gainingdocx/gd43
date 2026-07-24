@@ -65,7 +65,7 @@ function ChipRow({ items, href, moreLabel }: { items: string[]; href: string; mo
   return (
     <div className="mt-2.5 flex flex-wrap gap-1.5">
       {items.map((item) => (
-        <span key={item} className="rounded-full border border-white/15 bg-white/[0.07] px-2.5 py-1 text-[11px] font-semibold text-blue-50">
+        <span key={item} className="rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white">
           {item}
         </span>
       ))}
@@ -83,7 +83,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_15%_5%,rgba(1,59,179,0.16),transparent_34rem),linear-gradient(145deg,#f8fbff,#fff_52%,#fff9ec)]">
       <div className="mx-auto grid min-h-screen max-w-7xl lg:grid-cols-[1.04fr_0.96fr]">
-        <section className="relative hidden overflow-hidden bg-primary px-10 py-8 text-white lg:flex lg:max-h-screen lg:flex-col lg:overflow-y-auto xl:px-14">
+        <section className="relative hidden overflow-hidden bg-primary px-10 py-8 text-white lg:flex lg:flex-col xl:px-14">
           {/* Depth behind the brand wall without shipping an image. */}
           <div
             aria-hidden
@@ -99,7 +99,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </Link>
 
           <div className="relative my-auto max-w-xl py-6">
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-blue-100">
+            <p className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-white">
               <Sparkles className="size-3.5" aria-hidden /> Shipping paperwork, under control
             </p>
 
@@ -112,23 +112,23 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <ul className="mt-6 space-y-3">
               {USPS.map(({ icon: UspIcon, body }, index) => (
                 <li key={index} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/15">
+                  <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/25">
                     <UspIcon className="size-[1.05rem] text-[#f4c400]" aria-hidden />
                   </span>
-                  <span className="pt-1 text-[0.92rem] leading-[1.6rem] text-blue-50">{body}</span>
+                  <span className="pt-1 text-[0.92rem] leading-[1.6rem] text-white">{body}</span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 grid gap-4 rounded-2xl border border-white/12 bg-white/[0.06] p-4">
+            <div className="mt-6 grid gap-3.5 rounded-2xl border border-white/25 bg-white/[0.10] p-4">
               <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-blue-100">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-white">
                   <FileSpreadsheet className="size-3.5 text-[#f4c400]" aria-hidden /> 11 free templates
                 </p>
                 <ChipRow items={TEMPLATES} href="/templates" moreLabel="+5 more" />
               </div>
               <div>
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-blue-100">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-white">
                   <Calculator className="size-3.5 text-[#f4c400]" aria-hidden /> 9 free calculators
                 </p>
                 <ChipRow items={TOOLS} href="/tools" moreLabel="+3 more" />
@@ -136,13 +136,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <p className="relative flex items-center gap-2 text-xs text-blue-200">
+          <p className="relative flex items-center gap-2 text-xs text-white/85">
             <ShieldCheck className="size-4 shrink-0" aria-hidden />
             Secure sessions via Supabase · Your passwords are never visible to GainingDocx.
           </p>
         </section>
 
-        <section className="flex min-h-screen flex-col items-center justify-center px-4 py-10 sm:px-8 lg:px-12">
+        <section className="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
           <Link href="/" className="mb-7 flex w-fit lg:hidden" aria-label="GainingDocx home">
             <BrandWordmark />
           </Link>

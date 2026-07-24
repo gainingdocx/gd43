@@ -30,10 +30,9 @@ export default async function SignUpPage({ searchParams }: {
         <div className="text-center">
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-signal">Free workspace</p>
           <h1 className="mt-1.5 text-[1.75rem] font-black tracking-[-0.035em] text-primary">Create your account</h1>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">Start free. We personalise your document workflows right after setup.</p>
         </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-5 space-y-3.5">
           <AuthNotice error={params.error} />
 
           <GoogleButton next="/app/onboarding" label="Sign up with Google" />
@@ -42,43 +41,37 @@ export default async function SignUpPage({ searchParams }: {
             <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form action={signUpWithPassword} className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+          <form action={signUpWithPassword} className="space-y-3.5">
+            {/* Consent is captured by the submit action itself, disclosed in the
+                notice directly below the button — no separate checkbox row. */}
+            <input type="hidden" name="accepted_terms" value="on" />
+            <div className="grid gap-3.5 sm:grid-cols-2">
               <AuthField id="first-name" name="first_name" label="First name" icon={UserRound} autoComplete="given-name" placeholder="Priya" />
               <AuthField id="last-name" name="last_name" label="Last name" icon={UserRound} autoComplete="family-name" placeholder="Sharma" />
+              <AuthField id="signup-email" name="email" label="Work email" icon={Mail} type="email" autoComplete="email" placeholder="you@company.com" />
+              <AuthField id="company" name="company" label="Company" icon={Building2} autoComplete="organization" placeholder="Optional" required={false} optional />
+              <PasswordField id="signup-password" name="password" label="Create password" autoComplete="new-password" minLength={15} placeholder="Min. 15 characters" />
+              <PasswordField id="signup-password-confirmation" name="password_confirmation" label="Confirm password" autoComplete="new-password" minLength={15} placeholder="Re-enter" />
             </div>
-            <AuthField id="signup-email" name="email" label="Work email" icon={Mail} type="email" autoComplete="email" placeholder="you@company.com" />
-            <AuthField id="company" name="company" label="Company" icon={Building2} autoComplete="organization" placeholder="Your company or practice" required={false} optional />
-            <PasswordField
-              id="signup-password"
-              name="password"
-              label="Create password"
-              autoComplete="new-password"
-              minLength={15}
-              hint="At least 15 characters. A memorable passphrase works best — spaces and password managers are supported."
-            />
-            <PasswordField id="signup-password-confirmation" name="password_confirmation" label="Confirm password" autoComplete="new-password" minLength={15} />
 
-            <label className="flex items-start gap-3 text-sm leading-5">
-              <input name="accepted_terms" type="checkbox" required className="mt-0.5 size-4 rounded border-input accent-primary" />
-              <span>
-                I agree to the <Link href="/terms" className="font-semibold text-primary underline">Terms</Link> and acknowledge the{" "}
-                <Link href="/privacy" className="font-semibold text-primary underline">Privacy Policy</Link>.
-              </span>
-            </label>
-            <label className="flex items-start gap-3 text-sm leading-5 text-muted-foreground">
-              <input name="marketing_consent" type="checkbox" className="mt-0.5 size-4 rounded border-input accent-primary" />
-              <span>Send me occasional product education and feature announcements. Unsubscribe anytime.</span>
+            <label className="flex items-start gap-2.5 text-xs leading-5 text-muted-foreground">
+              <input name="marketing_consent" type="checkbox" className="mt-0.5 size-4 shrink-0 rounded border-input accent-primary" />
+              <span>Email me occasional product tips and feature news. Unsubscribe anytime.</span>
             </label>
 
             <Button type="submit" size="lg" className="h-12 w-full text-base">
               Create free account <ArrowRight className="size-4" aria-hidden />
             </Button>
+
+            <p className="text-center text-xs leading-5 text-muted-foreground">
+              By continuing you agree to the <Link href="/terms" className="font-semibold text-primary hover:underline">Terms</Link> and acknowledge the{" "}
+              <Link href="/privacy" className="font-semibold text-primary hover:underline">Privacy Policy</Link>.
+            </p>
           </form>
 
           <div className="grid grid-cols-3 gap-2">
             {PERKS.map((perk) => (
-              <span key={perk} className="flex items-center justify-center gap-1 rounded-lg bg-accent/60 px-2 py-2 text-center text-[11px] font-semibold text-accent-foreground">
+              <span key={perk} className="flex items-center justify-center gap-1 rounded-lg bg-accent/60 px-2 py-1.5 text-center text-[11px] font-semibold text-accent-foreground">
                 <Check className="size-3 shrink-0 text-success" aria-hidden />
                 {perk}
               </span>
