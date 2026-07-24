@@ -5,7 +5,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: "/app",
+      disallow: ["/api/", "/auth/"],
     },
     sitemap: "https://gainingdocx.com/sitemap.xml",
     host: "https://gainingdocx.com",

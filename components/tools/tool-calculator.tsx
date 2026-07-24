@@ -2,8 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Copy, Download, Plus, Search, Trash2, XCircle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Copy, Download, Plus, Printer, Search, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  calculateContainerFit,
+  calculateFreeTimeCharge,
+  calculateLclWm,
+  chargeableWeight,
+  CONTAINER_SPECS,
+  volumeM3,
+  volumetricWeight,
+  type DimensionUnit,
+  type RotationRule,
+  type WeightUnit,
+} from "@/lib/tools/calculations";
 import { computeCheckDigit, normalizeContainerNo, validateContainerNo } from "@/lib/validators/container";
 
 const field = "min-h-12 w-full rounded-lg border bg-background px-3 py-2";
@@ -19,15 +31,31 @@ export function ToolCalculator({ slug }: { slug: string }) {
   else if (slug === "container-load-calculator") body = <ContainerLoadCalculator />;
   else if (slug === "container-number-check") body = <ContainerNumberCheck />;
   else if (slug === "chargeable-weight-calculator") body = <ChargeableWeightCalculator />;
+  else if (slug === "lcl-freight-calculator") body = <LclFreightCalculator />;
+  else if (slug === "demurrage-detention-calculator") body = <DemurrageDetentionCalculator />;
+  else if (slug === "hs-code-finder") body = <HsCodeFinder />;
+  else if (slug === "shipping-mark-generator") body = <ShippingMarkGenerator />;
   else body = <PortLookup />;
-  return <div><div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">{body}</div><div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary p-4"><p className="text-sm font-medium">Already have this data in a document?</p><Button render={<Link href="/app/scan" />} className="bg-signal text-signal-foreground hover:bg-signal/90">Auto-fill from your document <ArrowRight aria-hidden/></Button></div></div>;
+  const next = TOOL_NEXT_STEPS[slug] ?? { label: "Parse the supporting document", href: "/app/scan" };
+  return <div><div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">{body}</div><div className="mt-6 rounded-xl border bg-secondary p-4"><p className="text-xs font-bold uppercase tracking-wider text-signal">Recommended next step</p><div className="mt-2 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">{next.label}</p><div className="flex flex-wrap gap-2"><Button render={<Link href={next.href} />} className="bg-signal text-signal-foreground hover:bg-signal/90">Continue workflow <ArrowRight aria-hidden/></Button><Button render={<Link href="/app/scan" />} variant="outline">Use document data</Button></div></div></div></div>;
 }
+
+const TOOL_NEXT_STEPS: Record<string, { label: string; href: string }> = {
+  "cbm-calculator": { label: "Put verified dimensions and CBM into a detailed packing list.", href: "/templates/packing-list-template" },
+  "container-load-calculator": { label: "Carry the selected equipment and loading assumptions into shipping instructions.", href: "/templates/shipping-instructions-template" },
+  "container-number-check": { label: "Parse the B/L and compare its container and seal evidence.", href: "/bill-of-lading-parser" },
+  "port-code-lookup": { label: "Use the verified UN/LOCODE in carrier shipping instructions.", href: "/templates/shipping-instructions-template" },
+  "chargeable-weight-calculator": { label: "Audit the calculated weight against the freight invoice.", href: "/freight-invoice-parser" },
+  "lcl-freight-calculator": { label: "Parse the freight invoice and match quoted versus billed charges.", href: "/freight-invoice-parser" },
+  "demurrage-detention-calculator": { label: "Check dates and free time against the arrival notice before disputing charges.", href: "/arrival-notice-parser" },
+  "hs-code-finder": { label: "Parse the commercial invoice and review codes beside each cargo line.", href: "/commercial-invoice-parser" },
+  "shipping-mark-generator": { label: "Add the same marks and case references to an export packing list.", href: "/templates/packing-list-template" },
+};
 
 function CbmCalculator() {
   const [rows, setRows] = useState<CargoRow[]>([cargoRow()]);
   const [unit, setUnit] = useState("cm");
-  const factor = unit === "m" ? 1 : unit === "in" ? 0.000016387064 : unit === "mm" ? 0.000000001 : 0.000001;
-  const calculated = rows.map((row) => ({ ...row, cbm: num(row.l) * num(row.w) * num(row.h) * num(row.qty) * factor, totalKg: num(row.weight) * num(row.qty) }));
+  const calculated = rows.map((row) => ({ ...row, cbm: volumeM3(num(row.l), num(row.w), num(row.h), num(row.qty), unit as DimensionUnit), totalKg: num(row.weight) * num(row.qty) }));
   const cbm = calculated.reduce((sum, row) => sum + row.cbm, 0);
   const kg = calculated.reduce((sum, row) => sum + row.totalKg, 0);
   const set = (i: number, key: keyof CargoRow, value: string) => setRows((old) => old.map((row, index) => index === i ? { ...row, [key]: value } : row));
@@ -43,35 +71,26 @@ function CbmCalculator() {
   </>;
 }
 
-const CONTAINERS: Record<string, { name: string; l: number; w: number; h: number; cbm: number; payload: number }> = {
-  "20gp": { name: "20′ general purpose", l: 5.90, w: 2.35, h: 2.39, cbm: 33.1, payload: 28200 },
-  "40gp": { name: "40′ general purpose", l: 12.03, w: 2.35, h: 2.39, cbm: 67.7, payload: 26700 },
-  "40hc": { name: "40′ high cube", l: 12.03, w: 2.35, h: 2.69, cbm: 76.3, payload: 26460 },
-  "45hc": { name: "45′ high cube", l: 13.55, w: 2.35, h: 2.69, cbm: 85.7, payload: 27700 },
-};
-
 function ContainerLoadCalculator() {
-  const [v, setV] = useState<Record<string, string>>({ container: "40hc", unit: "cm", qty: "1", rotate: "yes" });
-  const spec = CONTAINERS[v.container] ?? CONTAINERS["40hc"];
-  const factor = v.unit === "in" ? 0.0254 : v.unit === "m" ? 1 : 0.01;
-  const dims = [num(v.l) * factor, num(v.w) * factor, num(v.h) * factor];
-  const orientations = v.rotate === "yes" ? permutations(dims) : [dims];
-  const fits = orientations.map(([l,w,h]) => ({ l, w, h, count: l && w && h ? Math.floor(spec.l/l) * Math.floor(spec.w/w) * Math.floor(spec.h/h) : 0 })).sort((a,b) => b.count-a.count);
-  const best = fits[0] ?? { l:0,w:0,h:0,count:0 };
+  const [v, setV] = useState<Record<string, string>>({ container: "40hc", unit: "cm", qty: "1", rotate: "all" });
+  const spec = CONTAINER_SPECS[v.container] ?? CONTAINER_SPECS["40hc"];
   const requested = num(v.qty);
-  const pieceKg = num(v.weight);
-  const maxByWeight = pieceKg ? Math.floor(spec.payload / pieceKg) : Number.POSITIVE_INFINITY;
-  const maxUnits = Math.min(best.count, maxByWeight);
-  const containersNeeded = maxUnits > 0 ? Math.ceil(requested / maxUnits) : 0;
-  const cargoCbm = dims[0] * dims[1] * dims[2] * requested;
-  const cargoKg = pieceKg * requested;
+  const fit = calculateContainerFit({
+    spec,
+    cartonDimensions: [num(v.l), num(v.w), num(v.h)],
+    unit: v.unit as DimensionUnit,
+    quantity: requested,
+    pieceKg: num(v.weight),
+    rotation: v.rotate as RotationRule,
+  });
+  const best = fit.best;
   const update = (key:string,value:string) => setV((old)=>({...old,[key]:value}));
-  const viable = requested > 0 && maxUnits > 0 && requested <= maxUnits;
+  const viable = fit.fitsOne;
   return <>
-    <div className="grid gap-3 sm:grid-cols-3"><label className="text-sm sm:col-span-2">Container<select className={`${field} mt-1`} value={v.container} onChange={(e)=>update("container",e.target.value)}>{Object.entries(CONTAINERS).map(([key,c])=><option key={key} value={key}>{c.name}</option>)}</select></label><label className="text-sm">Dimension unit<select className={`${field} mt-1`} value={v.unit} onChange={(e)=>update("unit",e.target.value)}><option value="cm">Centimetres</option><option value="m">Metres</option><option value="in">Inches</option></select></label></div>
-    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><Input label="Carton length" value={v.l} set={(x)=>update("l",x)} /><Input label="Carton width" value={v.w} set={(x)=>update("w",x)} /><Input label="Carton height" value={v.h} set={(x)=>update("h",x)} /><Input label="Carton quantity" value={v.qty} set={(x)=>update("qty",x)} /><Input label="Gross kg per carton" value={v.weight} set={(x)=>update("weight",x)} /><label className="text-sm">Allow 90° rotation<select className={`${field} mt-1`} value={v.rotate} onChange={(e)=>update("rotate",e.target.value)}><option value="yes">Yes</option><option value="no">No — keep orientation</option></select></label></div>
-    <Result label={viable ? "Fits by simple orthogonal stowage" : "Estimated containers required"} value={viable ? `Yes — ${requested} of ${maxUnits} units` : containersNeeded ? `${containersNeeded} × ${spec.name}` : "Enter carton dimensions"} note={`Best grid orientation: ${fmt(best.l,2)} × ${fmt(best.w,2)} × ${fmt(best.h,2)} m. Spatial maximum ${best.count}; weight maximum ${Number.isFinite(maxByWeight)?maxByWeight:"not calculated"}. Cargo ${fmt(cargoCbm)} CBM / ${fmt(cargoKg,1)} kg versus nominal ${spec.cbm} CBM / ${spec.payload.toLocaleString()} kg payload.`}/>
-    <p className="mt-3 text-xs text-muted-foreground">This is a deterministic identical-carton grid feasibility check. It accounts for internal dimensions, rotations and payload, but not door aperture, pallets, mixed SKU optimization, bracing, axle distribution or dangerous-goods segregation. Confirm the carrier’s equipment sheet and loading plan.</p>
+    <div className="grid gap-3 sm:grid-cols-3"><label className="text-sm sm:col-span-2">Container<select className={`${field} mt-1`} value={v.container} onChange={(e)=>update("container",e.target.value)}>{Object.entries(CONTAINER_SPECS).map(([key,c])=><option key={key} value={key}>{c.name}</option>)}</select></label><label className="text-sm">Dimension unit<select className={`${field} mt-1`} value={v.unit} onChange={(e)=>update("unit",e.target.value)}><option value="cm">Centimetres</option><option value="m">Metres</option><option value="in">Inches</option></select></label></div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><Input label="Carton length" value={v.l} set={(x)=>update("l",x)} /><Input label="Carton width" value={v.w} set={(x)=>update("w",x)} /><Input label="Carton height" value={v.h} set={(x)=>update("h",x)} /><Input label="Carton quantity" value={v.qty} set={(x)=>update("qty",x)} /><Input label="Gross kg per carton" value={v.weight} set={(x)=>update("weight",x)} /><label className="text-sm">Rotation rule<select className={`${field} mt-1`} value={v.rotate} onChange={(e)=>update("rotate",e.target.value)}><option value="all">All 90° rotations</option><option value="upright">Keep upright; rotate on floor</option><option value="fixed">Fixed orientation</option></select></label></div>
+    <Result label={viable ? "Fits by simple orthogonal stowage" : "Estimated containers required"} value={viable ? `Yes — ${requested} of ${fit.maxUnits} units` : fit.containersNeeded ? `${fit.containersNeeded} × ${spec.name}` : best.doorFits ? "Enter carton dimensions" : "Does not pass the container door"} note={`Best grid orientation: ${fmt(best.length,2)} × ${fmt(best.width,2)} × ${fmt(best.height,2)} m. Door ${spec.door[0]} × ${spec.door[1]} m: ${best.doorFits ? "passes" : "blocked"}. Spatial maximum ${best.count}; weight maximum ${Number.isFinite(fit.maxByWeight)?fit.maxByWeight:"not calculated"}. Cargo ${fmt(fit.cargoCbm)} CBM / ${fmt(fit.cargoKg,1)} kg versus nominal ${spec.nominalCbm} CBM / ${spec.payloadKg.toLocaleString()} kg payload.`}/>
+    <p className="mt-3 text-xs text-muted-foreground">This is a deterministic identical-carton grid feasibility check. It accounts for internal dimensions, door aperture, permitted rotations and payload, but not pallets, mixed-SKU optimization, bracing, axle distribution or dangerous-goods segregation. Confirm the carrier’s equipment sheet and loading plan.</p>
   </>;
 }
 
@@ -90,15 +109,51 @@ function ChargeableWeightCalculator() {
   const [unit, setUnit] = useState("cmkg");
   const [actual, setActual] = useState("");
   const [custom, setCustom] = useState("5000");
-  const divisor = mode === "air6000" ? 6000 : mode === "custom" ? Math.max(1,num(custom)) : unit === "inlb" ? 139 : 5000;
+  const dimensionUnit: DimensionUnit = unit === "inlb" ? "in" : "cm";
+  const weightUnit: WeightUnit = unit === "inlb" ? "lb" : "kg";
+  const divisorBasis = unit === "inlb" ? "in3_per_lb" as const : "cm3_per_kg" as const;
+  const divisor = mode === "air6000" ? (unit === "inlb" ? 166 : 6000) : mode === "custom" ? Math.max(1,num(custom)) : unit === "inlb" ? 139 : 5000;
   const set = (i:number,key:keyof CargoRow,value:string)=>setRows((old)=>old.map((r,x)=>x===i?{...r,[key]:value}:r));
-  const detail = rows.map((r)=>({ ...r, volumetric: num(r.l)*num(r.w)*num(r.h)*num(r.qty)/divisor }));
+  const detail = rows.map((r)=>({ ...r, volumetric: volumetricWeight(num(r.l), num(r.w), num(r.h), num(r.qty), dimensionUnit, divisor, weightUnit, divisorBasis) }));
   const volumetric = detail.reduce((s,r)=>s+r.volumetric,0);
-  const chargeable = Math.max(num(actual),volumetric);
-  const weightUnit = unit === "inlb" ? "lb" : "kg";
-  return <><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Tariff basis<select className={`${field} mt-1`} value={mode} onChange={(e)=>setMode(e.target.value)}><option value="express5000">Express courier — 5,000 cm³/kg</option><option value="air6000">General air cargo — 6,000 cm³/kg</option><option value="custom">Custom carrier divisor</option></select></label><label className="text-sm">Units<select className={`${field} mt-1`} value={unit} onChange={(e)=>setUnit(e.target.value)}><option value="cmkg">cm / kg</option><option value="inlb">in / lb (139 divisor)</option></select></label>{mode==="custom"?<Input label="Custom divisor" value={custom} set={setCustom}/>:<Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/>}</div>{mode==="custom"&&<div className="mt-3 max-w-sm"><Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/></div>}
+  const chargeable = chargeableWeight(num(actual),volumetric);
+  return <><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Tariff basis<select className={`${field} mt-1`} value={mode} onChange={(e)=>setMode(e.target.value)}><option value="express5000">Express courier — 5,000 cm³/kg or 139 in³/lb</option><option value="air6000">General air cargo — 6,000 cm³/kg or 166 in³/lb</option><option value="custom">Custom carrier divisor</option></select></label><label className="text-sm">Units<select className={`${field} mt-1`} value={unit} onChange={(e)=>{const next=e.target.value;setUnit(next);if(mode==="custom")setCustom(next==="inlb"?"139":"5000");}}><option value="cmkg">cm / kg</option><option value="inlb">in / lb</option></select></label>{mode==="custom"?<Input label={`Custom divisor (${unit === "inlb" ? "in³/lb" : "cm³/kg"})`} value={custom} set={setCustom}/>:<Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/>}</div>{mode==="custom"&&<div className="mt-3 max-w-sm"><Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/></div>}
     <div className="mt-4 space-y-3">{detail.map((r,i)=><div key={i} className="grid gap-2 rounded-xl border p-3 sm:grid-cols-6"><Input label="Length" value={r.l} set={(x)=>set(i,"l",x)}/><Input label="Width" value={r.w} set={(x)=>set(i,"w",x)}/><Input label="Height" value={r.h} set={(x)=>set(i,"h",x)}/><Input label="Pieces" value={r.qty} set={(x)=>set(i,"qty",x)}/><div className="flex items-end rounded-lg bg-accent p-2 text-sm"><span><span className="block text-xs text-muted-foreground">Volumetric</span><strong>{fmt(r.volumetric,1)} {weightUnit}</strong></span></div><div className="flex items-end">{rows.length>1&&<Button size="icon" variant="ghost" aria-label={`Remove package group ${i+1}`} onClick={()=>setRows(rows.filter((_,x)=>x!==i))}><Trash2/></Button>}</div></div>)}</div><Button className="mt-3" variant="outline" onClick={()=>setRows([...rows,cargoRow()])}><Plus/> Add package group</Button>
-    <Result label="Chargeable weight" value={`${fmt(chargeable,1)} ${weightUnit}`} note={`Actual ${fmt(num(actual),1)} ${weightUnit}; volumetric ${fmt(volumetric,1)} ${weightUnit}; divisor ${divisor}. The greater figure is chargeable. Calculate each package group separately, then sum.`}/><p className="mt-3 text-xs text-muted-foreground">Carrier rules, minimums and rounding differ. Select the contracted tariff basis; do not use the express divisor for general air cargo or vice versa.</p></>;
+    <Result label="Chargeable weight" value={`${fmt(chargeable,1)} ${weightUnit}`} note={`Actual ${fmt(num(actual),1)} ${weightUnit}; volumetric ${fmt(volumetric,1)} ${weightUnit}; divisor ${divisor} ${unit === "inlb" ? "in³/lb" : "cm³/kg"}. The greater figure is chargeable.`}/><p className="mt-3 text-xs text-muted-foreground">Carrier rules, minimums, per-piece rating and rounding differ. Select the contracted tariff basis; do not use the express divisor for general air cargo or vice versa.</p></>;
+}
+
+function LclFreightCalculator() {
+  const [v, setV] = useState<Record<string, string>>({ currency: "USD", minimum: "1" });
+  const update = (key: string, value: string) => setV((old) => ({ ...old, [key]: value }));
+  const result = calculateLclWm({
+    cbm: num(v.cbm), grossKg: num(v.grossKg), ratePerRevenueTon: num(v.rate),
+    minimumRevenueTons: num(v.minimum), originCharges: num(v.origin),
+    destinationCharges: num(v.destination), otherCharges: num(v.other),
+  });
+  const currency = (v.currency || "USD").toUpperCase().slice(0, 3);
+  return <>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label="Shipment CBM" value={v.cbm} set={(x)=>update("cbm",x)}/><Input label="Gross weight (kg)" value={v.grossKg} set={(x)=>update("grossKg",x)}/><Input label={`Ocean rate (${currency} / W/M)`} value={v.rate} set={(x)=>update("rate",x)}/><Input label="Minimum W/M" value={v.minimum} set={(x)=>update("minimum",x)}/></div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label="Origin charges" value={v.origin} set={(x)=>update("origin",x)}/><Input label="Destination charges" value={v.destination} set={(x)=>update("destination",x)}/><Input label="Other charges" value={v.other} set={(x)=>update("other",x)}/><Input label="Currency" type="text" value={v.currency} set={(x)=>update("currency",x)}/></div>
+    <Result label="Estimated LCL freight total" value={`${currency} ${fmt(result.total,2)}`} note={`Chargeable ${fmt(result.chargeableRevenueTons,3)} revenue tons by ${result.basis}. Measurement ${fmt(result.volumeRevenueTons,3)} CBM versus weight ${fmt(result.weightRevenueTons,3)} metric tons. Base freight ${currency} ${fmt(result.baseFreight,2)} plus ${currency} ${fmt(result.accessorials,2)} entered charges.`}/>
+    <p className="mt-3 text-xs text-muted-foreground">Uses the common ocean LCL W/M rule: one revenue ton is the greater of 1 CBM or 1,000 kg, subject to the entered minimum. Quotes may use trade-lane-specific minimums, rounding, density rules, currencies and surcharges; enter every quoted charge before comparing against a freight invoice.</p>
+  </>;
+}
+
+function DemurrageDetentionCalculator() {
+  const [v, setV] = useState<Record<string, string>>({ currency: "USD", freeDays: "5", tierDays: "5" });
+  const update = (key: string, value: string) => setV((old) => ({ ...old, [key]: value }));
+  const result = calculateFreeTimeCharge({
+    startDate: v.startDate ?? "", endDate: v.endDate ?? "", freeDays: num(v.freeDays),
+    firstTierDays: num(v.tierDays), firstTierDailyRate: num(v.firstRate),
+    secondTierDailyRate: num(v.secondRate), fixedCharges: num(v.fixed),
+  });
+  const currency = (v.currency || "USD").toUpperCase().slice(0, 3);
+  return <>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label="Free-time start date" type="date" value={v.startDate} set={(x)=>update("startDate",x)}/><Input label="Pickup / return date" type="date" value={v.endDate} set={(x)=>update("endDate",x)}/><Input label="Contractual free days" value={v.freeDays} set={(x)=>update("freeDays",x)}/><Input label="First-tier days" value={v.tierDays} set={(x)=>update("tierDays",x)}/></div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label={`First-tier daily rate (${currency})`} value={v.firstRate} set={(x)=>update("firstRate",x)}/><Input label={`Later daily rate (${currency})`} value={v.secondRate} set={(x)=>update("secondRate",x)}/><Input label="Fixed / administrative charges" value={v.fixed} set={(x)=>update("fixed",x)}/><Input label="Currency" type="text" value={v.currency} set={(x)=>update("currency",x)}/></div>
+    <Result label="Estimated time-based charges" value={`${currency} ${fmt(result.total,2)}`} note={`${result.elapsedDays} elapsed calendar days less ${result.freeDays} free days = ${result.chargeableDays} chargeable days. Tier 1: ${result.firstTierDays} days / ${currency} ${fmt(result.firstTierCharge,2)}; later tier: ${result.secondTierDays} days / ${currency} ${fmt(result.secondTierCharge,2)}; fixed charges ${currency} ${fmt(result.fixedCharges,2)}.`}/>
+    <p className="mt-3 text-xs text-muted-foreground">Date-counting conventions differ by carrier, terminal, equipment event and jurisdiction. Confirm whether the start day is included, whether free time uses calendar or working days, and whether demurrage, detention and storage are billed separately before relying on this audit.</p>
+  </>;
 }
 
 function PortLookup() {
@@ -107,7 +162,22 @@ function PortLookup() {
   return <><div className="flex gap-2"><input aria-label="Port name or UN/LOCODE" className={field} placeholder="Port name or code, e.g. SGSIN" value={q} onChange={(e)=>{setQ(e.target.value);setSearched(false);}} onKeyDown={(e)=>{if(e.key==='Enter'&&q.trim().length>=2)void search()}}/><Button onClick={()=>void search()} disabled={loading||q.trim().length<2}><Search/>{loading?'Searching':'Search'}</Button></div>{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}<ul className="mt-4 divide-y rounded-xl border bg-background">{ports.map((p)=><li key={p.code} className="flex items-center justify-between gap-4 p-3"><span>{p.name}</span><span className="flex items-center gap-2"><strong className="font-mono">{p.code}</strong><Button size="icon" variant="ghost" aria-label={`Copy ${p.code}`} onClick={()=>void navigator.clipboard.writeText(p.code)}><Copy className="size-4"/></Button></span></li>)}</ul>{searched&&!loading&&!error&&ports.length===0&&<p className="mt-4 text-sm text-muted-foreground">No maritime location matched. Try the city name without “Port of”, or the five-character code.</p>}</>;
 }
 
-function Input({label,value,set,type="number"}:{label:string;value?:string;set:(value:string)=>void;type?:"number"|"text"}) { return <label className="text-sm">{label}<input type={type} min={type==="number"?"0":undefined} step={type==="number"?"any":undefined} className={`${field} mt-1`} value={value??""} onChange={(e)=>set(e.target.value)}/></label>; }
+type HsResult = { hts: string; hs6: string; description: string; generalRate: string | null; specialRate: string | null; otherRate: string | null; units: string[] };
+function HsCodeFinder() {
+  const [q,setQ]=useState(""); const [results,setResults]=useState<HsResult[]>([]); const [loading,setLoading]=useState(false); const [error,setError]=useState(""); const [searched,setSearched]=useState(false);
+  async function search(){setLoading(true);setError("");setSearched(false);try{const response=await fetch(`/api/tools/hs-search?q=${encodeURIComponent(q)}`);const data=await response.json() as {results?:HsResult[];error?:string};if(!response.ok)throw new Error(data.error||"Lookup failed");setResults(data.results??[]);setSearched(true);}catch(cause){setResults([]);setError(cause instanceof Error?cause.message:"Tariff lookup is temporarily unavailable.");}finally{setLoading(false);}}
+  return <><div className="flex gap-2"><input aria-label="Commodity description" className={field} placeholder="e.g. frozen squid, cotton shirts, ceramic mugs" value={q} onChange={(e)=>{setQ(e.target.value);setSearched(false);}} onKeyDown={(e)=>{if(e.key==='Enter'&&q.trim().length>=2)void search();}}/><Button onClick={()=>void search()} disabled={loading||q.trim().length<2}><Search/>{loading?"Searching":"Search official HTS"}</Button></div>{error&&<p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}{results.length>0&&<div className="mt-4 overflow-x-auto rounded-xl border bg-background"><table className="w-full min-w-[720px] text-left text-sm"><thead className="bg-accent text-xs uppercase tracking-wide text-muted-foreground"><tr><th className="p-3">HS 6-digit</th><th className="p-3">U.S. HTS</th><th className="p-3">Description</th><th className="p-3">General rate</th></tr></thead><tbody className="divide-y">{results.map((r,i)=><tr key={`${r.hts}-${i}`}><td className="p-3 font-mono font-bold text-primary">{r.hs6||"—"}</td><td className="p-3 font-mono">{r.hts}</td><td className="p-3">{r.description}</td><td className="p-3">{r.generalRate||"See schedule"}</td></tr>)}</tbody></table></div>}{searched&&!loading&&!error&&results.length===0&&<p className="mt-4 text-sm text-muted-foreground">No close description matched. Try the material and product type without brand names.</p>}<p className="mt-4 text-xs leading-5 text-muted-foreground">Official U.S. HTS reference, not a binding classification. The first six digits are the internationally harmonized portion; longer digits and duty treatment are country-specific. Rates can also depend on origin, trade programs, quotas and additional duties. Confirm with the importing customs authority or a licensed broker.</p></>;
+}
+
+function ShippingMarkGenerator() {
+  const [v,setV]=useState<Record<string,string>>({packageRange:"1 OF 1",handling:"KEEP DRY"}); const update=(key:string,value:string)=>setV((old)=>({...old,[key]:value}));
+  const rows=[v.consignee,v.destination&&`DESTINATION: ${v.destination}`,v.po&&`PO: ${v.po}`,v.packageRange&&`CASE: ${v.packageRange}`,v.weight&&`GROSS / NET: ${v.weight}`,v.dimensions&&`DIMENSIONS: ${v.dimensions}`,v.handling].filter(Boolean) as string[]; const mark=rows.join("\n");
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Shipping Mark</title><style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;display:grid;place-items:center;min-height:90vh}.mark{width:150mm;min-height:150mm;border:4px solid #111;padding:14mm;box-sizing:border-box;text-align:center;display:flex;flex-direction:column;justify-content:center;gap:8mm;font-size:18pt;font-weight:700;text-transform:uppercase}.brand{font-size:9pt;font-weight:400;color:#555;text-transform:none;margin-top:8mm}</style></head><body><div class="mark">${rows.map((row)=>`<div>${escapeHtml(row)}</div>`).join("")}<div class="brand">Created with GainingDocx · Export Smarter</div></div></body></html>`;
+  function printMark(){const win=window.open("","_blank","noopener,noreferrer");if(!win)return;win.document.write(html);win.document.close();win.addEventListener("load",()=>win.print());}
+  return <><div className="grid gap-3 sm:grid-cols-2"><Input label="Consignee / main mark" type="text" value={v.consignee} set={(x)=>update("consignee",x)}/><Input label="Destination" type="text" value={v.destination} set={(x)=>update("destination",x)}/><Input label="PO / reference" type="text" value={v.po} set={(x)=>update("po",x)}/><Input label="Case range" type="text" value={v.packageRange} set={(x)=>update("packageRange",x)}/><Input label="Gross / net weight" type="text" value={v.weight} set={(x)=>update("weight",x)}/><Input label="Dimensions" type="text" value={v.dimensions} set={(x)=>update("dimensions",x)}/><div className="sm:col-span-2"><Input label="Handling instruction" type="text" value={v.handling} set={(x)=>update("handling",x)}/></div></div><div className="mx-auto mt-6 flex min-h-80 max-w-xl flex-col items-center justify-center gap-4 border-4 border-primary bg-white p-8 text-center text-xl font-black uppercase text-primary">{rows.length?rows.map((row,i)=><div key={i}>{row}</div>):<span className="text-muted-foreground">Enter mark details</span>}<span className="text-xs font-medium normal-case text-muted-foreground">GainingDocx · Export Smarter</span></div><div className="mt-4 flex flex-wrap gap-2"><Button onClick={printMark} disabled={!mark}><Printer/> Print / save PDF</Button><Button variant="outline" onClick={()=>downloadText("shipping-mark.html",html,"text/html")} disabled={!mark}><Download/> Download editable HTML</Button></div><p className="mt-3 text-xs text-muted-foreground">Confirm marks against the letter of credit, purchase order, packing list and destination requirements. Avoid printing confidential consignee details on external packages unless required.</p></>;
+}
+
+function Input({label,value,set,type="number"}:{label:string;value?:string;set:(value:string)=>void;type?:"number"|"text"|"date"}) { return <label className="text-sm">{label}<input type={type} min={type==="number"?"0":undefined} step={type==="number"?"any":undefined} className={`${field} mt-1`} value={value??""} onChange={(e)=>set(e.target.value)}/></label>; }
 function Result({label,value,note}:{label:string;value:string;note?:string}) { return <div className="mt-5 rounded-xl bg-primary p-5 text-primary-foreground"><p className="text-sm opacity-75">{label}</p><p className="mt-1 text-3xl font-bold">{value}</p>{note&&<p className="mt-2 text-xs leading-5 opacity-80">{note}</p>}</div>; }
-function permutations(values:number[]) { const [a,b,c]=values; return [[a,b,c],[a,c,b],[b,a,c],[b,c,a],[c,a,b],[c,b,a]].filter((row,index,all)=>all.findIndex((other)=>other.join("|")===row.join("|"))===index); }
 function downloadText(name:string,text:string,type:string){const url=URL.createObjectURL(new Blob([text],{type}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function escapeHtml(value:string){return value.replace(/[&<>"']/g,(char)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]??char));}

@@ -137,6 +137,23 @@ export function dates(
     }
   }
 
+  if (extraction.detected_type === "freight_invoice") {
+    const inv = check("invoice_date", extraction.fields.invoice_date);
+    check("due_date", extraction.fields.due_date);
+    if (inv && daysBetween(today, inv) > 2) {
+      results.push({ field: "invoice_date", rule: "dates.invoice_future", status: "warn",
+        message: `Freight invoice date ${extraction.fields.invoice_date} is in the future`, actual: extraction.fields.invoice_date! });
+    }
+  }
+
+  if (extraction.detected_type === "purchase_order") {
+    check("po_date", extraction.fields.po_date);
+    check("requested_delivery_date", extraction.fields.requested_delivery_date);
+    check("promised_delivery_date", extraction.fields.promised_delivery_date);
+  }
+
+  if (extraction.detected_type === "goods_receipt") check("receipt_date", extraction.fields.receipt_date);
+
   if (extraction.detected_type === "packing_list") {
     check("date", extraction.fields.date);
   }

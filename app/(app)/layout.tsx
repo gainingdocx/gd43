@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
-import { FileText, House, ScanLine, Search, Ship, User } from "lucide-react";
+import { FileText } from "lucide-react";
 
+import { BrandWordmark } from "@/components/ui/brand-wordmark";
+import { DesktopAppNav } from "@/components/ui/app-shell-nav";
 import { BottomNav } from "@/components/ui/bottom-nav";
 
 // The app surface is private: never indexed (spec §1.4).
@@ -17,55 +18,46 @@ export default function AppLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_50%_0%,rgba(1,59,179,0.08),transparent_30rem)]">
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-white/90 shadow-[0_8px_30px_-24px_rgba(1,59,179,0.7)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link
-            href="/app"
-            className="flex min-h-11 items-center gap-2.5 font-extrabold tracking-tight text-primary"
-          >
-            <Image
-              src="/logo.png"
-              alt="GainingDocx logo"
-              width={36}
-              height={36}
-              unoptimized
-              className="size-9 rounded-full drop-shadow-sm"
-            />
-            GainingDocx
+    <div className="min-h-screen bg-[radial-gradient(circle_at_72%_0%,rgba(1,59,179,0.09),transparent_32rem)] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen flex-col border-r border-border/80 bg-white/95 px-5 py-6 lg:flex">
+        <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-12 items-center px-2">
+          <BrandWordmark compact />
+        </Link>
+        <div className="mt-9">
+          <p className="mb-3 px-3 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-muted-foreground">Workspace</p>
+          <DesktopAppNav />
+        </div>
+        <div className="mt-auto rounded-2xl border border-border bg-background p-4">
+          <p className="text-sm font-bold text-primary">New document</p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">Upload PDFs or page images from this computer.</p>
+          <Link href="/app/scan" className="mt-3 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-signal px-3 text-sm font-bold text-white transition hover:bg-signal/90">
+            <FileText className="size-4" aria-hidden /> Upload document
           </Link>
-          <nav aria-label="Workspace" className="hidden items-center gap-1 md:flex">
-            {[
-              { href: "/app", label: "Home", icon: House },
-              { href: "/app/scan", label: "Scan", icon: ScanLine },
-              { href: "/app/shipments", label: "Shipments", icon: Ship },
-              { href: "/app/search", label: "Search", icon: Search },
-              { href: "/app/account", label: "Account", icon: User },
-            ].map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-              >
-                <Icon className="size-4" aria-hidden /> {label}
-              </Link>
-            ))}
-          </nav>
+        </div>
+      </aside>
+
+      <div className="flex min-h-screen min-w-0 flex-col">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-white/90 shadow-[0_8px_30px_-24px_rgba(1,59,179,0.7)] backdrop-blur-xl lg:hidden">
+        <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
+          <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-11 items-center">
+            <BrandWordmark compact />
+          </Link>
           <Link
             href="/app/scan"
             aria-label="Scan a document"
-            className="flex size-11 items-center justify-center rounded-xl bg-signal text-white shadow-sm transition hover:bg-signal/90 md:hidden"
+            className="flex size-11 items-center justify-center rounded-xl bg-signal text-white shadow-sm transition hover:bg-signal/90"
           >
             <FileText className="size-5" aria-hidden />
           </Link>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-7 pb-24 sm:px-6">
-        <div className="mx-auto w-full max-w-lg [&:has([data-wide])]:max-w-4xl">
+      <main className="w-full flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-10 lg:py-9 lg:pb-10 xl:px-14">
+        <div className="mx-auto w-full max-w-5xl [&:has([data-wide])]:max-w-6xl">
           {children}
         </div>
       </main>
       <BottomNav />
+      </div>
     </div>
   );
 }

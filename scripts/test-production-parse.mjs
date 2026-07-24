@@ -45,6 +45,9 @@ if (!done) {
     JSON.stringify(
       {
         type: result.extraction?.detected_type,
+        model: result.model,
+        escalated: result.escalated,
+        qualityScore: result.qualityScore,
         reference:
           fields.bl_number ?? fields.invoice_no ?? fields.pl_no ?? null,
         shipper: fields.shipper?.name ?? fields.seller?.name ?? fields.exporter?.name ?? null,
@@ -55,6 +58,7 @@ if (!done) {
         cargoLines: fields.cargo?.length ?? fields.line_items?.length ?? 0,
         totalGrossWeightKg: fields.total_gross_kg ?? null,
         totalMeasurementCbm: fields.total_volume_cbm ?? null,
+        fields,
         checks: (result.validation ?? []).map((check) => ({
           id: check.id,
           status: check.status,

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@/components/analytics/google-analytics";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,19 +18,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://gainingdocx.com"),
   title: {
-    default: "GainingDocx — AI Shipping Document Parser",
+    default: "GainingDocx — AI Shipping Document Parser & Tools",
     template: "%s | GainingDocx",
   },
   description:
-    "Parse Bills of Lading, Commercial Invoices and Packing Lists with AI, validate them with maritime rules, and export clean data in seconds.",
+    "Parse, validate, compare and create shipping paperwork with AI document extraction, free calculators, guides and editable logistics templates.",
+  applicationName: "GainingDocx",
+  category: "Shipping document software",
+  keywords: ["shipping document parser", "Bill of Lading parser", "commercial invoice parser", "packing list parser", "shipping document templates", "shipping calculators"],
+  authors: [{ name: "GainingDocx", url: "https://gainingdocx.com" }],
+  creator: "GainingDocx",
+  publisher: "GainingDocx",
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
   openGraph: {
     siteName: "GainingDocx",
     type: "website",
-    images: [{ url: "/og.png", width: 1200, height: 630 }],
+    images: [{ url: "/og-v2.png", width: 2048, height: 1024, alt: "GainingDocx Easy PaperWork shipping document workflow" }],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/og.png"],
+    images: ["/og-v2.png"],
   },
 };
 
@@ -48,6 +56,7 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         {children}
+        <GoogleAnalytics />
       </body>
     </html>
   );

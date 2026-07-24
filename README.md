@@ -28,7 +28,6 @@ Copy `.env.example` to `.env.local` (already done locally) and fill values as ea
 | Variable | Where to get it |
 | --- | --- |
 | `OPENROUTER_API_KEY` | openrouter.ai → sign in → **Keys** → Create Key |
-| `DEEPINFRA_API_KEY` | deepinfra.com → Dashboard → **API Keys** → New (fallback AI provider) |
 | `NEXT_PUBLIC_SUPABASE_URL` | supabase.com → your project → **Settings → API** → Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page → Project API keys → `anon` `public` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Same page → `service_role` (server-only secret — never expose to browser) |

@@ -15,15 +15,17 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Last updated: July 19, 2026
+        Last updated: July 24, 2026
       </p>
 
       <div className="mt-8 space-y-8 text-sm leading-6 text-foreground/90 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary">
         <section className="space-y-3">
           <h2>1. What we collect</h2>
           <p>
-            <strong>Account data:</strong> email address, name and company (if
-            provided), plan and usage counts.
+            <strong>Account and onboarding data:</strong> email address, name,
+            company, role, business type, country, time zone, transport modes,
+            document-volume range, workflow goals, preferences, consent choices,
+            plan and usage counts.
           </p>
           <p>
             <strong>Documents and extracted data:</strong> the files you upload
@@ -34,6 +36,17 @@ export default function PrivacyPage() {
             <strong>Usage and diagnostics:</strong> product analytics events
             (e.g. &quot;document parsed&quot;, &quot;export downloaded&quot;)
             and error reports, used to improve the Service.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2>2.1 Sign-in providers</h2>
+          <p>
+            If you choose Google sign-in, Google authenticates you and shares
+            basic account identity such as your email address, name and profile
+            image. We receive a Supabase session, not your Google password. We
+            do not request access to Gmail, Drive or other Google content for
+            account sign-in.
           </p>
         </section>
 
@@ -51,9 +64,8 @@ export default function PrivacyPage() {
           <h2>3. AI processing</h2>
           <p>
             When you parse a document, its page images are sent to an AI model
-            via our inference providers (OpenRouter, and DeepInfra as a
-            fallback) to extract the text fields. These providers process the
-            document to return the extraction and are contractually restricted
+            via our inference provider (OpenRouter) to extract the text fields.
+            The provider processes the document to return the extraction and is contractually restricted
             from using API data to train models. All validation logic (check
             digits, weight and date rules, cross-document comparison) runs on
             our own infrastructure.
@@ -67,8 +79,8 @@ export default function PrivacyPage() {
             file storage) with access restricted to your account. The
             application runs on Cloudflare&apos;s network. Payments are handled
             by Paddle, our merchant of record — we never see your full card
-            details. Product analytics use PostHog; error monitoring uses
-            Sentry. Transactional email is sent via Resend.
+            details. Website analytics use Google Analytics. Transactional
+            email is sent via Resend.
           </p>
         </section>
 
@@ -95,9 +107,11 @@ export default function PrivacyPage() {
         <section className="space-y-3">
           <h2>7. Cookies</h2>
           <p>
-            We use cookies for authentication (keeping you signed in) and
-            first-party analytics. We do not run third-party advertising
-            trackers.
+            We use essential cookies for authentication and anonymous usage
+            limits. Google Analytics may set analytics cookies so we can
+            understand website usage and improve the Service. Advertising
+            signals are disabled, and document contents and unique document,
+            shipment and share identifiers are not sent to Analytics.
           </p>
         </section>
 
@@ -117,9 +131,11 @@ export default function PrivacyPage() {
             We will announce material changes to this policy by email or
             in-app notice. Questions or requests: reach us via the{" "}
             <Link href="/contact" className="underline">
-              contact page
+            contact page
             </Link>
-            .
+            . 
+            You can separately change operational notifications, product
+            updates and optional marketing consent from Account.
           </p>
         </section>
       </div>

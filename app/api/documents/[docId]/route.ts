@@ -19,9 +19,13 @@ const EDITABLE_TYPES = new Set<DetectedType>([
   "bill_of_lading",
   "sea_waybill",
   "commercial_invoice",
+  "purchase_order",
+  "freight_invoice",
+  "goods_receipt",
   "packing_list",
   "arrival_notice",
   "booking_confirmation",
+  "air_waybill",
   "other",
 ]);
 

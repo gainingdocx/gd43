@@ -10,6 +10,9 @@ import { validateImo } from "./imo";
 import type { ValidationResult } from "./types";
 import { validatePort } from "./unlocode";
 import { weights } from "./weights";
+import { financials } from "./financial";
+import { validateAwbNumber } from "./air-waybill";
+import { validateDangerousGoods } from "./dangerous-goods";
 
 export { containerCheckDigit, computeCheckDigit, normalizeContainerNo, validateContainerNo } from "./container";
 export { dates, parsePrintedDate, daysBetween } from "./dates";
@@ -20,6 +23,9 @@ export { crossCheck, type ShipmentDoc, INVOICE_AFTER_BL_TOLERANCE_DAYS } from ".
 export type { Discrepancy, ValidationResult, ValidationStatus } from "./types";
 export { unlocode, looksLikeUnlocode, portNameForCode, validatePort, type PortMatch } from "./unlocode";
 export { weights, withinTolerance, WEIGHT_TOLERANCE } from "./weights";
+export { financials } from "./financial";
+export { awbCheckDigit, normalizeAwbNumber, validateAwbNumber } from "./air-waybill";
+export { dangerousGoodsOf, normalizeUnNumber, supportsDangerousGoods, validateDangerousGoods } from "./dangerous-goods";
 
 /**
  * All single-document rules for one parsed extraction.
@@ -65,6 +71,10 @@ export function validateDocument(
     results.push(...validatePort("port_of_discharge", f.port_of_discharge));
   }
 
+  if (extraction.detected_type === "air_waybill" && extraction.fields.awb_number) {
+    results.push(validateAwbNumber("awb_number", extraction.fields.awb_number));
+  }
+
   if (extraction.detected_type === "packing_list") {
     extraction.fields.container_refs.forEach((ref, i) => {
       results.push(validateContainerNo(`container_refs[${i}]`, ref));
@@ -72,6 +82,8 @@ export function validateDocument(
   }
 
   results.push(...weights(extraction));
+  results.push(...financials(extraction));
   results.push(...dates(extraction, today));
+  results.push(...validateDangerousGoods(extraction));
   return results;
 }

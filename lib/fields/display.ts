@@ -15,13 +15,33 @@ type Json = Record<string, unknown>;
 
 const BL_ORDER: [string, string][] = [
   ["bl_number", "B/L number"],
+  ["bl_level", "B/L level"],
+  ["master_bl_number", "Master B/L number"],
+  ["house_bl_number", "House B/L number"],
+  ["booking_no", "Booking number"],
+  ["shipper_reference", "Shipper reference"],
+  ["customs_reference", "Customs reference"],
+  ["lc_number", "L/C number"],
   ["carrier_name", "Carrier"],
   ["scac", "SCAC"],
   ["shipper.name", "Shipper"],
   ["shipper.address", "Shipper address"],
+  ["shipper.city", "Shipper city"],
+  ["shipper.postal_code", "Shipper postal code"],
+  ["shipper.country", "Shipper country"],
+  ["shipper.tax_id", "Shipper tax ID"],
   ["consignee.name", "Consignee"],
   ["consignee.address", "Consignee address"],
+  ["consignee.city", "Consignee city"],
+  ["consignee.postal_code", "Consignee postal code"],
+  ["consignee.country", "Consignee country"],
+  ["consignee.tax_id", "Consignee tax ID"],
+  ["consignee.to_order", "To order"],
   ["notify.name", "Notify party"],
+  ["notify.address", "Notify address"],
+  ["notify.city", "Notify city"],
+  ["notify.postal_code", "Notify postal code"],
+  ["notify.country", "Notify country"],
   ["vessel_name", "Vessel"],
   ["imo_number", "IMO number"],
   ["voyage_no", "Voyage"],
@@ -36,7 +56,9 @@ const BL_ORDER: [string, string][] = [
   ["issue_place", "Issue place"],
   ["freight_terms", "Freight terms"],
   ["incoterm", "Incoterm"],
+  ["cargo_raw_text", "Cargo block (verbatim)"],
   ["total_packages", "Total packages"],
+  ["total_net_kg", "Total net (kg)"],
   ["total_gross_kg", "Total gross (kg)"],
   ["total_volume_cbm", "Total volume (cbm)"],
   ["originals_count", "Originals"],
@@ -46,6 +68,7 @@ const BL_ORDER: [string, string][] = [
 const CI_ORDER: [string, string][] = [
   ["invoice_no", "Invoice number"],
   ["invoice_date", "Invoice date"],
+  ["due_date", "Due date"],
   ["po_no", "PO number"],
   ["seller.name", "Seller"],
   ["seller.address", "Seller address"],
@@ -54,13 +77,50 @@ const CI_ORDER: [string, string][] = [
   ["incoterm", "Incoterm"],
   ["currency", "Currency"],
   ["subtotal", "Subtotal"],
+  ["discount_amount", "Discount"],
   ["freight_charge", "Freight"],
   ["insurance", "Insurance"],
+  ["tax_amount", "Tax"],
   ["total_amount", "Total amount"],
+  ["amount_due", "Amount due"],
   ["payment_terms", "Payment terms"],
   ["lc_number", "L/C number"],
   ["country_of_origin", "Country of origin"],
   ["bank_details", "Bank details"],
+];
+
+const PO_ORDER: [string, string][] = [
+  ["po_number", "PO number"], ["po_date", "PO date"], ["revision_no", "Revision"],
+  ["contract_no", "Contract"], ["buyer.name", "Buyer"], ["buyer.address", "Buyer address"],
+  ["seller.name", "Supplier"], ["seller.address", "Supplier address"],
+  ["bill_to.name", "Bill to"], ["ship_to.name", "Ship to"], ["ship_to.address", "Ship-to address"],
+  ["requested_delivery_date", "Requested delivery"], ["promised_delivery_date", "Promised delivery"],
+  ["shipping_method", "Shipping method"], ["incoterm", "Incoterm"],
+  ["payment_terms", "Payment terms"], ["currency", "Currency"], ["subtotal", "Subtotal"],
+  ["discount_amount", "Discount"], ["freight_amount", "Authorized freight"],
+  ["tax_amount", "Tax"], ["total_amount", "PO total"], ["approval_status", "Approval status"],
+  ["approved_by", "Approved by"], ["notes", "Notes"],
+];
+
+const FREIGHT_INVOICE_ORDER: [string, string][] = [
+  ["invoice_no", "Freight invoice number"], ["invoice_date", "Invoice date"], ["due_date", "Due date"],
+  ["carrier_invoice_ref", "Carrier invoice ref"], ["carrier.name", "Carrier / vendor"],
+  ["carrier.address", "Carrier address"], ["bill_to.name", "Bill to"], ["bill_to.address", "Bill-to address"],
+  ["remit_to.name", "Remit to"], ["vessel_name", "Vessel"], ["voyage_no", "Voyage"],
+  ["port_of_load.name", "Port of loading"], ["port_of_discharge.name", "Port of discharge"],
+  ["service_period_start", "Service from"], ["service_period_end", "Service to"],
+  ["currency", "Currency"], ["exchange_rate", "Exchange rate"], ["subtotal", "Subtotal"],
+  ["discount_amount", "Discount"], ["tax_amount", "Tax"], ["total_amount", "Invoice total"],
+  ["amount_paid", "Amount paid"], ["amount_due", "Amount due"], ["payment_terms", "Payment terms"],
+  ["payment_reference", "Payment reference"], ["bank_details", "Bank details"],
+];
+
+const GOODS_RECEIPT_ORDER: [string, string][] = [
+  ["receipt_no", "Receipt / GRN number"], ["receipt_date", "Receipt date"],
+  ["supplier.name", "Supplier"], ["receiver.name", "Receiver"], ["delivery_location", "Delivery location"],
+  ["total_received_quantity", "Total received"], ["total_accepted_quantity", "Total accepted"],
+  ["total_rejected_quantity", "Total rejected"], ["total_packages", "Total packages"],
+  ["total_gross_kg", "Total gross kg"], ["received_by", "Received by"], ["notes", "Notes"],
 ];
 
 const PL_ORDER: [string, string][] = [
@@ -102,13 +162,36 @@ const BOOKING_ORDER: [string, string][] = [
   ["special_instructions", "Special instructions"],
 ];
 
+const AWB_ORDER: [string, string][] = [
+  ["awb_number", "Air waybill number"], ["awb_type", "AWB level"],
+  ["master_awb_number", "Master AWB number"], ["house_awb_number", "House AWB number"],
+  ["airline_name", "Airline"], ["airline_prefix", "Airline prefix"],
+  ["shipper.name", "Shipper"], ["shipper.address", "Shipper address"],
+  ["consignee.name", "Consignee"], ["consignee.address", "Consignee address"],
+  ["issuing_carrier_agent.name", "Issuing carrier agent"], ["issuing_carrier_agent.address", "Agent address"],
+  ["origin_airport", "Origin airport"], ["destination_airport", "Destination airport"],
+  ["flight_no", "Flight number"], ["flight_date", "Flight date"],
+  ["issue_date", "Issue date"], ["issue_place", "Issue place"],
+  ["currency", "Currency"], ["charge_code", "Charge code"],
+  ["declared_value_carriage", "Declared value for carriage"],
+  ["declared_value_customs", "Declared value for customs"],
+  ["insurance_amount", "Insurance amount"], ["handling_information", "Handling information"],
+  ["total_pieces", "Total pieces"], ["total_gross_kg", "Total gross kg"],
+  ["total_chargeable_kg", "Total chargeable kg"], ["total_prepaid", "Total prepaid"],
+  ["total_collect", "Total collect"],
+];
+
 const ORDERS: Record<string, [string, string][]> = {
   bill_of_lading: BL_ORDER,
   sea_waybill: BL_ORDER,
   commercial_invoice: CI_ORDER,
+  purchase_order: PO_ORDER,
+  freight_invoice: FREIGHT_INVOICE_ORDER,
+  goods_receipt: GOODS_RECEIPT_ORDER,
   packing_list: PL_ORDER,
   arrival_notice: ARRIVAL_ORDER,
   booking_confirmation: BOOKING_ORDER,
+  air_waybill: AWB_ORDER,
 };
 
 function tokenize(path: string): (string | number)[] {
@@ -193,6 +276,31 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
     editable: true,
   }));
 
+  const appendStringArray = (key: string, label: string) => {
+    const values = fields[key];
+    if (!Array.isArray(values)) return;
+    values.forEach((value, i) => rows.push({
+      path: `${key}[${i}]`,
+      label: `${label} ${i + 1}`,
+      value: display(value),
+      page: pageFor(fields, key),
+      editable: true,
+    }));
+  };
+  if (docType === "bill_of_lading" || docType === "sea_waybill") {
+    appendStringArray("export_references", "Export reference");
+    appendStringArray("purchase_order_refs", "PO reference");
+    appendStringArray("clauses", "Clause");
+  }
+  if (["commercial_invoice", "freight_invoice", "goods_receipt"].includes(docType)) {
+    appendStringArray("purchase_order_refs", "PO reference");
+    appendStringArray("bl_numbers", "B/L reference");
+    appendStringArray("booking_refs", "Booking reference");
+    appendStringArray("container_refs", "Container reference");
+  }
+  if (docType === "freight_invoice") appendStringArray("shipment_refs", "Shipment reference");
+  if (docType === "goods_receipt") appendStringArray("delivery_note_refs", "Delivery note reference");
+
   // Container rows (B/L) get appended per container.
   const containers = fields.containers;
   if (Array.isArray(containers)) {
@@ -214,13 +322,93 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
           editable: true,
         },
         {
+          path: `containers[${i}].iso_type`,
+          label: `Equipment size/type ${i + 1}`,
+          value: display((c as Json).iso_type),
+          page: pageFor(fields, "containers"),
+          editable: true,
+        },
+        {
+          path: `containers[${i}].packages`,
+          label: `Container packages ${i + 1}`,
+          value: display((c as Json).packages),
+          page: pageFor(fields, "containers"),
+          editable: true,
+        },
+        {
+          path: `containers[${i}].package_type`,
+          label: `Container package type ${i + 1}`,
+          value: display((c as Json).package_type),
+          page: pageFor(fields, "containers"),
+          editable: true,
+        },
+        {
           path: `containers[${i}].gross_kg`,
           label: `Gross kg ${i + 1}`,
           value: display((c as Json).gross_kg),
           page: pageFor(fields, "containers"),
           editable: true,
+        },
+        {
+          path: `containers[${i}].tare_kg`,
+          label: `Tare kg ${i + 1}`,
+          value: display((c as Json).tare_kg),
+          page: pageFor(fields, "containers"),
+          editable: true,
+        },
+        {
+          path: `containers[${i}].volume_cbm`,
+          label: `Container volume cbm ${i + 1}`,
+          value: display((c as Json).volume_cbm),
+          page: pageFor(fields, "containers"),
+          editable: true,
         }
       );
+    });
+  }
+
+  const lineKey = Array.isArray(fields.cargo) ? "cargo" : "line_items";
+  const lines = fields[lineKey];
+  if (Array.isArray(lines)) {
+    const columns: [string, string][] = [
+      ["line_no", "Line"], ["product_code", "Product code"], ["buyer_product_code", "Buyer SKU"],
+      ["seller_product_code", "Supplier SKU"], ["description", "Description"], ["marks", "Marks"], ["hs_code", "HS code (document)"],
+      ["hs_code_suggestion", "Suggested HS code — verify"], ["hs_suggestion_confidence", "HS suggestion confidence"],
+      ["hs_suggestion_reason", "HS suggestion reason"], ["us_general_duty_rate", "US general duty rate estimate"],
+      ["packages", "Packages"], ["package_type", "Package type"], ["cartons", "Cartons"],
+      ["quantity", "Quantity"], ["uom", "Unit"],
+      ["net_kg", "Net kg"], ["gross_kg", "Gross kg"], ["volume_cbm", "Volume cbm"],
+      ["unit_price", "Unit price"], ["amount", "Amount"], ["currency", "Currency"],
+      ["tax_rate", "Tax rate"], ["tax_amount", "Tax amount"], ["discount_amount", "Discount"],
+      ["country_of_origin", "Country of origin"], ["lot_no", "Lot / batch"],
+      ["chargeable_kg", "Chargeable kg"], ["rate_class", "Rate class"],
+      ["rate_charge", "Rate / charge"], ["commodity_item_no", "Commodity item number"],
+    ];
+    lines.forEach((line, i) => {
+      if (line === null || typeof line !== "object") return;
+      columns.forEach(([key, label]) => rows.push({
+        path: `${lineKey}[${i}].${key}`,
+        label: `${lineKey === "cargo" ? "Cargo" : "Line"} ${i + 1} — ${label}`,
+        value: display((line as Json)[key]),
+        page: pageFor(fields, lineKey),
+        editable: true,
+      }));
+    });
+  }
+  const charges = fields.charges;
+  if (Array.isArray(charges)) {
+    const columns: [string, string][] = [
+      ["line_no", "Line"], ["charge_code", "Charge code"], ["description", "Description"],
+      ["container_no", "Container"], ["bl_number", "B/L"], ["quantity", "Quantity"],
+      ["uom", "Unit"], ["rate", "Rate"], ["amount", "Amount"], ["currency", "Currency"],
+      ["tax_rate", "Tax rate"], ["tax_amount", "Tax amount"], ["prepaid_collect", "Prepaid / collect"],
+    ];
+    charges.forEach((charge, i) => {
+      if (charge === null || typeof charge !== "object") return;
+      columns.forEach(([key, label]) => rows.push({
+        path: `charges[${i}].${key}`, label: `Charge ${i + 1} — ${label}`,
+        value: display((charge as Json)[key]), page: pageFor(fields, "charges"), editable: true,
+      }));
     });
   }
   const equipment = fields.equipment;
@@ -228,6 +416,29 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
     equipment.forEach((c, i) => {
       if (c === null || typeof c !== "object") return;
       rows.push({ path: `equipment[${i}].container_no`, label: `Equipment ${i + 1}`, value: display((c as Json).container_no), page: pageFor(fields, "equipment"), editable: true }, { path: `equipment[${i}].iso_type`, label: `Equipment type ${i + 1}`, value: display((c as Json).iso_type), page: pageFor(fields, "equipment"), editable: true });
+    });
+  }
+  const dangerousGoods = fields.dangerous_goods;
+  if (Array.isArray(dangerousGoods)) {
+    const columns: [string, string][] = [
+      ["un_number", "UN number"],
+      ["proper_shipping_name", "Proper shipping name"],
+      ["hazard_class", "Hazard class"],
+      ["subsidiary_risk", "Subsidiary risk"],
+      ["packing_group", "Packing group"],
+      ["marine_pollutant", "Marine pollutant"],
+      ["flash_point_c", "Flash point °C"],
+      ["emergency_contact", "Emergency contact"],
+    ];
+    dangerousGoods.forEach((item, index) => {
+      if (!item || typeof item !== "object") return;
+      columns.forEach(([key, label]) => rows.push({
+        path: `dangerous_goods[${index}].${key}`,
+        label: `Dangerous goods ${index + 1} — ${label}`,
+        value: display((item as Json)[key]),
+        page: pageFor(fields, "dangerous_goods"),
+        editable: true,
+      }));
     });
   }
   return rows;

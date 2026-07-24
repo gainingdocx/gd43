@@ -21,7 +21,7 @@ export default async function GeneratePage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/app/account");
+  if (!user) redirect(`/auth/login?next=/app/generate/${docId}`);
 
   const { data: doc } = await supabase
     .from("documents")

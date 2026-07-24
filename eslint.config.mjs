@@ -20,6 +20,7 @@ const eslintConfig = [
       "public/vendor/**",
       "out/**",
       "build/**",
+      "tmp/**",
       "next-env.d.ts",
       "cloudflare-env.d.ts",
     ],

@@ -24,17 +24,39 @@ const CONTAINER_COLS = [
 
 const LINE_COLS = [
   "description",
+  "line_no",
+  "product_code",
+  "buyer_product_code",
+  "seller_product_code",
   "hs_code",
+  "hs_code_suggestion", "hs_suggestion_confidence", "hs_suggestion_reason", "us_general_duty_rate",
   "marks",
   "packages",
   "package_type",
   "cartons",
+  "quantity",
+  "uom",
   "net_kg",
   "gross_kg",
   "volume_cbm",
   "unit_price",
   "amount",
   "currency",
+  "tax_rate",
+  "tax_amount",
+  "discount_amount",
+  "country_of_origin",
+  "lot_no",
+  "chargeable_kg",
+  "rate_class",
+  "rate_charge",
+  "commodity_item_no",
+] as const;
+
+const CHARGE_COLS = [
+  "line_no", "charge_code", "description", "container_no", "bl_number",
+  "quantity", "uom", "rate", "amount", "currency", "tax_rate",
+  "tax_amount", "prepaid_collect",
 ] as const;
 
 const cell = (v: unknown): string | number =>
@@ -63,16 +85,21 @@ export function lineRows(fields: Json): (string | number)[][] {
     ? fields.line_items
     : Array.isArray(fields.cargo)
       ? fields.cargo
-      : [];
+      : Array.isArray(fields.charges)
+        ? fields.charges
+        : [];
+  const columns = Array.isArray(fields.charges) && !Array.isArray(fields.line_items) && !Array.isArray(fields.cargo)
+    ? CHARGE_COLS
+    : LINE_COLS;
   const rows = list
     .filter((l): l is Json => l !== null && typeof l === "object")
-    .map((l) => LINE_COLS.map((k) => cell(l[k])));
-  return rows.length > 0 ? [[...LINE_COLS], ...rows] : [];
+    .map((l) => columns.map((k) => cell(l[k])));
+  return rows.length > 0 ? [[...columns], ...rows] : [];
 }
 
 /** Best human reference for filenames/titles. */
 export function docRef(fields: Json): string | null {
-  const ref = fields.bl_number ?? fields.invoice_no ?? fields.pl_no ?? fields.booking_no ?? fields.notice_no ?? null;
+  const ref = fields.bl_number ?? fields.awb_number ?? fields.invoice_no ?? fields.po_number ?? fields.receipt_no ?? fields.pl_no ?? fields.booking_no ?? fields.notice_no ?? null;
   return typeof ref === "string" && ref !== "" ? ref : null;
 }
 

@@ -9,6 +9,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { suggest, type NextActionDoc } from "@/lib/next-action";
+import { PLAN_LIMITS } from "@/lib/plans";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
@@ -16,13 +17,16 @@ const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading",
   sea_waybill: "Sea Waybill",
   commercial_invoice: "Commercial Invoice",
+  purchase_order: "Purchase Order",
+  freight_invoice: "Freight Invoice",
+  goods_receipt: "Goods Receipt",
   packing_list: "Packing List",
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
+  air_waybill: "Air Waybill",
   other: "Document",
 };
 
-const PLAN_LIMITS: Record<string, number> = { free: 5, pro: 200 };
 const MINUTES_SAVED_PER_DOC = 12; // manual keying baseline (spec §M6.1)
 
 export default async function AppHomePage() {
@@ -40,10 +44,9 @@ export default async function AppHomePage() {
             <ScanLine className="size-6" aria-hidden />
           </span>
           <div className="space-y-1">
-            <p className="font-semibold">Parse your first shipping document</p>
+            <p className="font-semibold">Parse a shipping document free</p>
             <p className="text-sm text-muted-foreground">
-              Try one document free without an account — B/L, invoice or
-              packing list.
+              Review, correct and export one complete document per day — no account required.
             </p>
           </div>
           <Button
@@ -83,6 +86,7 @@ export default async function AppHomePage() {
     supabase
       .from("documents")
       .select("id", { count: "exact", head: true })
+      .eq("status", "parsed")
       .gte("created_at", monthStart.toISOString()),
   ]);
 
@@ -125,7 +129,7 @@ export default async function AppHomePage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div data-wide className="space-y-6">
       <h1 className="text-2xl font-bold tracking-tight text-primary">Home</h1>
 
       {/* Usage + time saved */}

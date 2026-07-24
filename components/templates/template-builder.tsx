@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Download, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,11 +42,12 @@ function lineHasData(line: Line) {
   return Object.values(line).some((value) => value.trim() !== "");
 }
 
-export function TemplateBuilder({ template }: { template: TemplateDefinition }) {
+export function TemplateBuilder({ template, sectionHeadings }: { template: TemplateDefinition; sectionHeadings?: string[] }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [lines, setLines] = useState<Line[]>([blankLine()]);
   const [pdfReady, setPdfReady] = useState(false);
   const [attempted, setAttempted] = useState(false);
+  const invoiceLike = template.slug === "commercial-invoice-template" || template.slug === "pro-forma-invoice-template";
 
   const totals = useMemo(() => lines.reduce((sum, line) => ({
     cartons: sum.cartons + n(line.cartons),
@@ -71,11 +73,11 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
       const dims = [line.length, line.width, line.height].filter((v) => v.trim() !== "").length;
       if (dims > 0 && dims < 3) out.push(`Row ${index + 1}: enter all three dimensions or none.`);
     });
-    if (template.slug === "commercial-invoice-template" && !(values.currency ?? "").match(/^[A-Za-z]{3}$/)) {
+    if (invoiceLike && !(values.currency ?? "").match(/^[A-Za-z]{3}$/)) {
       out.push("Invoice currency must be a three-letter ISO code.");
     }
     return out;
-  }, [lines, template, values]);
+  }, [invoiceLike, lines, template, values]);
 
   const sections = useMemo(() => {
     const result = new Map<string, typeof template.fields>();
@@ -214,7 +216,7 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
       ["Packages / cartons", money(totals.packages || totals.cartons)],
       ["Net / gross kg", `${money(totals.netKg)} / ${money(totals.grossKg)}`],
       ["Total CBM", money(totals.cbm)],
-      [template.slug === "commercial-invoice-template" ? "Invoice total" : "Line value / charges", money(template.slug === "commercial-invoice-template" ? invoiceTotal : totals.amount + totals.charges + chargeTotal)],
+      [invoiceLike ? "Invoice total" : "Line value / charges", money(invoiceLike ? invoiceTotal : totals.amount + totals.charges + chargeTotal)],
     ];
     totalRows.forEach(([label, value], index) => {
       page.drawText(label, { x: 510, y: y - index * 16, size: 8, font: regular, color: gray });
@@ -269,7 +271,7 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
 
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-lg font-bold text-primary">{template.lineTitle}</h2><p className="text-xs text-muted-foreground">Add one row per item, package group or container as appropriate.</p></div>
+            <div><h2 className="text-lg font-bold text-primary">{sectionHeadings?.[0] ?? template.lineTitle}</h2><p className="text-xs text-muted-foreground">Add one row per item, package group or container as appropriate.</p></div>
             <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, blankLine()])}><Plus aria-hidden /> Add row</Button>
           </div>
           <div className="space-y-4">
@@ -292,7 +294,7 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
       </div>
 
       <aside className="h-fit rounded-2xl bg-primary p-6 text-primary-foreground lg:sticky lg:top-24">
-        <h2 className="text-lg font-bold">Document checks</h2>
+        <h2 className="text-lg font-bold">{sectionHeadings?.[1] ?? "Document checks"}</h2>
         <dl className="mt-4 grid grid-cols-2 gap-4 text-sm">
           <div><dt className="opacity-65">Packages</dt><dd className="text-xl font-bold">{money(totals.packages || totals.cartons)}</dd></div>
           <div><dt className="opacity-65">CBM</dt><dd className="text-xl font-bold">{money(totals.cbm)}</dd></div>
@@ -306,7 +308,25 @@ export function TemplateBuilder({ template }: { template: TemplateDefinition }) 
         {pdfReady && <p role="status" className="mt-3 text-center text-sm font-semibold">Multi-page PDF prepared — check your downloads.</p>}
         <div className="mt-3 grid grid-cols-2 gap-2"><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.xlsx`} download>XLSX</a><a className="flex min-h-11 items-center justify-center rounded-lg border border-white/30 text-sm font-medium" href={`/downloads/${template.slug}.docx`} download>DOCX</a></div>
         <p className="mt-3 text-xs opacity-70">The form runs locally in your browser. Static files are document-specific working templates.</p>
+        <div className="mt-5 border-t border-white/20 pt-4"><p className="text-xs font-bold uppercase tracking-wider text-sky-200">Recommended next step</p><p className="mt-2 text-sm">{templateNextStep(template.slug).label}</p><Button render={<Link href={templateNextStep(template.slug).href} />} className="mt-3 w-full bg-white text-primary hover:bg-white/90">Continue workflow</Button></div>
       </aside>
     </div>
   );
+}
+
+function templateNextStep(slug: string) {
+  const steps: Record<string, { label: string; href: string }> = {
+    "commercial-invoice-template": { label: "Create the matching packing list, then cross-check value, quantity, weight and references.", href: "/templates/packing-list-template" },
+    "pro-forma-invoice-template": { label: "When the sale is final, create the customs-facing commercial invoice.", href: "/templates/commercial-invoice-template" },
+    "packing-list-template": { label: "Parse the B/L and verify package, weight, container and seal evidence.", href: "/bill-of-lading-parser" },
+    "simple-packing-list-template": { label: "Need package-level audit detail? Continue with the detailed packing list.", href: "/templates/packing-list-template" },
+    "container-packing-list-template": { label: "Carry verified equipment details into carrier shipping instructions.", href: "/templates/shipping-instructions-template" },
+    "shipping-instructions-template": { label: "When the carrier sends its draft, parse and compare the issued B/L.", href: "/bill-of-lading-parser" },
+    "certificate-of-origin-template": { label: "Check whether chamber certification or a destination-specific origin form is required.", href: "/templates/commercial-invoice-template" },
+    "air-waybill-template": { label: "Verify chargeable weight before the carrier issues the final air waybill.", href: "/tools/chargeable-weight-calculator" },
+    "arrival-notice-template": { label: "Audit free time and time-based charges before arranging cargo release.", href: "/tools/demurrage-detention-calculator" },
+    "delivery-order-template": { label: "Confirm customs, payment and carrier-release conditions before pickup.", href: "/app/scan" },
+    "bill-of-lading-template": { label: "Submit consistent shipping instructions and later compare the carrier draft.", href: "/templates/shipping-instructions-template" },
+  };
+  return steps[slug] ?? { label: "Parse the related documents and verify all shared references.", href: "/app/scan" };
 }

@@ -5,9 +5,10 @@ import { ArrowRight, CircleCheck, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { PARSER_PAGES } from "@/content/parsers";
-import { breadcrumbLd, faqLd, howToLd, JsonLd } from "@/lib/seo/jsonld";
+import { PARSER_SEO } from "@/content/seo-copy";
+import { breadcrumbLd, faqLd, howToLd, JsonLd, serviceLd } from "@/lib/seo/jsonld";
 
-// 6 parser landing pages (BUILD_SPEC §M8), statically generated.
+// Parser landing pages are statically generated from the document capability catalog.
 // Keep runtime param handling enabled: OpenNext serves these prerendered paths
 // through the Worker and otherwise treats dynamicParams=false as a hard 404.
 export const dynamicParams = true;
@@ -24,10 +25,12 @@ export async function generateMetadata({
   const { slug } = await params;
   const page = PARSER_PAGES.find((p) => p.slug === slug);
   if (!page) return {};
+  const seo = PARSER_SEO[page.slug];
   return {
-    title: { absolute: page.metaTitle },
-    description: page.metaDescription,
+    title: { absolute: seo?.title ?? page.metaTitle },
+    description: seo?.description ?? page.metaDescription,
     alternates: { canonical: `/${page.slug}` },
+    openGraph: { title: seo?.title ?? page.metaTitle, description: seo?.description ?? page.metaDescription, url: `/${page.slug}`, type: "website" },
   };
 }
 
@@ -44,6 +47,10 @@ const PARSER_HINTS: Record<string, string> = {
   "sea-waybill-parser": "sea_waybill",
   "arrival-notice-parser": "arrival_notice",
   "booking-confirmation-parser": "booking_confirmation",
+  "purchase-order-parser": "purchase_order",
+  "freight-invoice-parser": "freight_invoice",
+  "goods-receipt-parser": "goods_receipt",
+  "air-waybill-parser": "air_waybill",
 };
 
 export default async function ParserPage({
@@ -54,6 +61,8 @@ export default async function ParserPage({
   const { slug } = await params;
   const page = PARSER_PAGES.find((p) => p.slug === slug);
   if (!page) notFound();
+  const seo = PARSER_SEO[page.slug];
+  const headings = seo?.headings ?? ["What gets extracted", "Deterministic checks", "How it works", "Frequently asked questions"];
 
   return (
     <>
@@ -63,6 +72,7 @@ export default async function ParserPage({
             { name: "Home", path: "/" },
             { name: page.h1, path: `/${page.slug}` },
           ]),
+          serviceLd(page.h1, page.metaDescription, `/${page.slug}`),
           howToLd(`How to parse a document with ${page.h1}`, HOWTO_STEPS),
           faqLd(page.faqs),
         ]}
@@ -77,8 +87,9 @@ export default async function ParserPage({
             / {page.h1}
           </nav>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-primary">
-            {page.h1}
+            {seo?.h1 ?? page.h1}
           </h1>
+          {seo && <p className="mt-4 max-w-3xl text-lg text-muted-foreground">{seo.intro}</p>}
           {page.intro.map((p) => (
             <p key={p.slice(0, 24)} className="mt-4 max-w-3xl text-lg text-muted-foreground">
               {p}
@@ -105,7 +116,7 @@ export default async function ParserPage({
 
       <section className="mx-auto grid max-w-4xl gap-8 px-4 py-14 sm:px-6 md:grid-cols-2">
         <div>
-          <h2 className="text-xl font-bold text-primary">What gets extracted</h2>
+          <h2 className="text-xl font-bold text-primary">{headings[0]}</h2>
           <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
             {page.extracted.map((item) => (
               <li key={item} className="flex gap-2">
@@ -116,7 +127,7 @@ export default async function ParserPage({
           </ul>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-primary">Deterministic checks</h2>
+          <h2 className="text-xl font-bold text-primary">{headings[1]}</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Computed in code — the AI never does the math.
           </p>
@@ -133,7 +144,7 @@ export default async function ParserPage({
 
       <section className="border-t border-border bg-card">
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-          <h2 className="text-xl font-bold text-primary">How it works</h2>
+          <h2 className="text-xl font-bold text-primary">{headings[2]}</h2>
           <ol className="mt-4 space-y-3">
             {HOWTO_STEPS.map((step, i) => (
               <li key={step} className="flex gap-3 text-sm text-muted-foreground">
@@ -148,7 +159,7 @@ export default async function ParserPage({
       </section>
 
       <section className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
-        <h2 className="text-xl font-bold text-primary">Frequently asked questions</h2>
+        <h2 className="text-xl font-bold text-primary">{headings[3]}</h2>
         <div className="mt-6 space-y-6">
           {page.faqs.map((f) => (
             <div key={f.q}>

@@ -5,7 +5,7 @@ import { Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Contact",
+  title: "Contact GainingDocx Support & Sales",
   description:
     "Get in touch with GainingDocx — support, billing questions, feature requests and partnership inquiries.",
   alternates: { canonical: "/contact" },

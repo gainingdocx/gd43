@@ -23,9 +23,13 @@ const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "B/L",
   sea_waybill: "Sea Waybill",
   commercial_invoice: "Invoice",
+  purchase_order: "Purchase order",
+  freight_invoice: "Freight invoice",
+  goods_receipt: "Goods receipt",
   packing_list: "Packing list",
   arrival_notice: "Arrival",
   booking_confirmation: "Booking",
+  air_waybill: "AWB",
   other: "Other",
 };
 
@@ -34,9 +38,13 @@ const CHIPS = [
   ["bill_of_lading", "B/L"],
   ["sea_waybill", "Sea waybill"],
   ["commercial_invoice", "Invoice"],
+  ["purchase_order", "Purchase order"],
+  ["freight_invoice", "Freight invoice"],
+  ["goods_receipt", "Goods receipt"],
   ["packing_list", "Packing list"],
   ["arrival_notice", "Arrival"],
   ["booking_confirmation", "Booking"],
+  ["air_waybill", "AWB"],
 ] as const;
 
 export function SearchBox() {

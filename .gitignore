@@ -38,9 +38,23 @@ yarn-error.log*
 
 # cloudflare / opennext
 /.open-next/
+# Salvaged copies of a build that was interrupted or replaced; the plain
+# /.open-next/ rule above does not match these renamed snapshots.
+/.open-next-*/
 /.wrangler/
 .dev.vars
 cloudflare-env.d.ts
+
+# local build/dev session output — these bury real changes in `git status`
+*.log
+*.pid
+
+# supabase cli local link state (project ref, pooler url)
+/supabase/.temp/
+
+# local sample documents and agent scratch attachments
+/Sample/
+/.codex-remote-attachments/
 
 # vercel
 .vercel

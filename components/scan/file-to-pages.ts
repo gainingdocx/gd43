@@ -9,6 +9,9 @@ export interface PageConversion {
 }
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+// PDF points use 72 units per inch. Render at 200 DPI for small document
+// text, then respect the long-edge cap to bound upload and inference latency.
+const PDF_RENDER_SCALE = 200 / 72;
 
 const HEIC_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
 const RASTER_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/bmp", "image/x-ms-bmp"]);
@@ -39,7 +42,7 @@ async function pdfPages(file: File, maxPages: number): Promise<PageConversion> {
     for (let index = 1; index <= count; index++) {
       const page = await pdf.getPage(index);
       const base = page.getViewport({ scale: 1 });
-      const scale = Math.min(2, MAX_LONG_EDGE / Math.max(base.width, base.height));
+      const scale = Math.min(PDF_RENDER_SCALE, MAX_LONG_EDGE / Math.max(base.width, base.height));
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width);

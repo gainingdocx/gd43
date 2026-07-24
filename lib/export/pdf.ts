@@ -138,9 +138,13 @@ const TYPE_TITLE: Record<string, string> = {
   bill_of_lading: "Bill of Lading — parsed summary",
   sea_waybill: "Sea Waybill — parsed summary",
   commercial_invoice: "Commercial Invoice — parsed summary",
+  purchase_order: "Purchase Order — parsed summary",
+  freight_invoice: "Freight Invoice — parsed summary",
+  goods_receipt: "Goods Receipt — parsed summary",
   packing_list: "Packing List — parsed summary",
   arrival_notice: "Arrival Notice — parsed summary",
   booking_confirmation: "Booking Confirmation — parsed summary",
+  air_waybill: "Air Waybill — parsed summary",
   other: "Shipping document — parsed summary",
 };
 

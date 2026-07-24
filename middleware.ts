@@ -30,6 +30,12 @@ export async function middleware(request: NextRequest) {
   // Trigger a token refresh if needed; do not remove.
   await supabase.auth.getUser();
 
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (request.nextUrl.pathname.startsWith("/auth/")) {
+    response.headers.set("Referrer-Policy", "no-referrer");
+  }
+
   return response;
 }
 

@@ -23,7 +23,6 @@ Next.js 15 App Router + TypeScript strict + Tailwind + shadcn/ui + Framer Motion
 - Create `.env.local` with this exact template (empty values) and print instructions telling the owner which dashboard each value comes from:
 ```
 OPENROUTER_API_KEY=""
-DEEPINFRA_API_KEY=""
 NEXT_PUBLIC_SUPABASE_URL=""
 NEXT_PUBLIC_SUPABASE_ANON_KEY=""
 SUPABASE_SERVICE_ROLE_KEY=""
@@ -61,7 +60,7 @@ PADDLE_WEBHOOK_SECRET=""
 ### M3 — AI layer (lib/ai/)
 - `router.ts`: single `parseDocument(images[], docTypeHint?)` entry. Fetch to `https://openrouter.ai/api/v1/chat/completions`, model `google/gemma-4-26b-a4b-it` (VERIFY exact slug on the OpenRouter model page at build time), body includes:
   `provider: { quantizations: ["fp8","bf16"], sort: "throughput", allow_fallbacks: true }`, `stream: true`, structured JSON via response_format json_schema (fallback: strict prompt + robust JSON repair parse).
-- Config via env/constants: MODEL_PRIMARY, MODEL_ESCALATION (leave escalation configurable; default same model non-stream retry), DEEPINFRA fallback base URL if OPENROUTER fails twice.
+- Config via env/constants: MODEL_PRIMARY and MODEL_ESCALATION; both are Gemma 4 models routed through OpenRouter.
 - Pipeline per document: (1) doc-type detection+extraction in ONE call (schema includes `detected_type`), (2) stream partial JSON → push field updates to client via SSE, (3) run validators server-side on final JSON, (4) if ≥3 critical fields empty OR JSON invalid → one escalation retry, (5) persist fields+validation, insert containers rows.
 - Prompts in `lib/ai/prompts/` as versioned template strings; system prompt defines maritime context + exact JSON schema + "copy strings EXACTLY as printed, do not correct spelling, use null when absent".
 
@@ -96,7 +95,7 @@ Next Action Engine `lib/next-action/`: pure `suggest(shipment, docs, validation)
 - Generation (lib/generate/): CI→PL, PL→CI, (CI|PL|B/L)→Shipping Instructions draft. Deterministic mapping from parsed fields into template render (same components as public template pages); consistency guaranteed by construction; user edits before PDF download. Watermark on free plan.
 
 ### M8 — Public SEO surface (per the separate SEO site design doc — implement exactly)
-- 6 parser landing pages, /templates hub + 6 fillable template pages (live web form, auto totals/CBM, PDF download, xlsx/docx static downloads), /tools hub + launch set: cbm-calculator, container-load-calculator, container-number-check, port-code-lookup, chargeable-weight-calculator (rest post-launch weekly), 4 launch guides. FAQPage/HowTo/Breadcrumb schema, sitemap.xml, robots (app disallow), OG image generation, canonical, per-page metadata exactly as specced.
+- Parser landing pages, /templates hub + 11 fillable template pages (live web form, auto totals/CBM, PDF download, XLSX/DOCX static downloads), and /tools hub with deterministic CBM, container-load, ISO 6346, UN/LOCODE, chargeable-weight, LCL W/M, and demurrage/detention calculators. FAQPage/HowTo/Breadcrumb schema, sitemap.xml, robots (app disallow), OG image generation, canonical, and per-page metadata.
 - Tool pages work with zero login; each has "auto-fill from your document" CTA into /app.
 
 ### M9 — Monetization + hardening + launch

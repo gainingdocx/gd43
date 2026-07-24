@@ -51,7 +51,7 @@ describe("decideLink", () => {
       ),
       { action: "none" }
     );
-    const other = { detected_type: "other" as const, fields: { raw: {}, _meta: { detected_type: "other" as const, confidence_flags: [], page_refs: {}, prompt_version: "t" } } };
+    const other = { detected_type: "other" as const, fields: { raw: {}, _meta: { detected_type: "other" as const, confidence_flags: [], page_refs: {}, prompt_version: "t", source_languages: [] } } };
     assert.deepEqual(decideLink(other, [], []), { action: "none" });
   });
 });

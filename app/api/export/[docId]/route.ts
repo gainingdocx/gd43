@@ -5,11 +5,12 @@ import { summaryReportPdf } from "@/lib/export/pdf";
 import { buildWorkbook } from "@/lib/export/xlsx";
 import { createClient } from "@/lib/supabase/server";
 import type { ValidationResult } from "@/lib/validators";
+import { integrationExport, INTEGRATION_PROFILES, type IntegrationProfile } from "@/lib/export/integrations";
 
 // Document export (BUILD_SPEC §M7): xlsx | csv | json | pdf.
 // GET /api/export/[docId]?format=xlsx
 
-const FORMATS = ["xlsx", "csv", "json", "pdf"] as const;
+const FORMATS = ["xlsx", "csv", "json", "pdf", ...INTEGRATION_PROFILES] as const;
 type Format = (typeof FORMATS)[number];
 
 export async function GET(
@@ -81,6 +82,10 @@ export async function GET(
         shareUrl: doc.share_token ? `${origin}/share/${doc.share_token}` : null,
       });
       return attachment(`${filename}.pdf`, "application/pdf", pdf as unknown as BodyInit);
+    }
+    default: {
+      const integration = integrationExport(format as IntegrationProfile, doc.doc_type, fields);
+      return attachment(`${filename}-${format}.${integration.extension}`, integration.mime, integration.body);
     }
   }
 }

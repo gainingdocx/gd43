@@ -16,6 +16,33 @@ export interface ParserPage {
 
 export const PARSER_PAGES: ParserPage[] = [
   {
+    slug: "air-waybill-parser",
+    metaTitle: "Air Waybill Parser — Extract MAWB & HAWB Data with AI",
+    metaDescription: "Parse Air Waybills into editable shipper, consignee, airport, flight, piece, weight, rating and charge data with deterministic AWB-number validation.",
+    h1: "Air Waybill Parser",
+    intro: [
+      "Upload a master or house Air Waybill and turn its routing, parties, handling and nature-and-quantity table into structured data. Every field remains editable before export.",
+      "GainingDocx distinguishes explicitly labelled MAWB and HAWB references, validates the printed modulus-7 AWB check digit, and keeps gross and chargeable weight separate for invoice and packing-list review.",
+    ],
+    extracted: [
+      "AWB, MAWB and HAWB numbers with airline prefix",
+      "Shipper, consignee and issuing carrier agent",
+      "Origin and destination airports, flight and issue details",
+      "Pieces, gross weight, chargeable weight and cargo description",
+      "Rate class, charge, declared values, handling and prepaid/collect totals",
+    ],
+    checks: [
+      "IATA-style 3-digit prefix, 7-digit serial and modulus-7 check digit",
+      "Printed total pieces and weights retained separately from line evidence",
+      "Explicit master-versus-house classification without number-format guessing",
+      "Editable review followed by XLSX, CSV, JSON or PDF export",
+    ],
+    faqs: [
+      { q: "Does it parse both MAWB and HAWB documents?", a: "Yes. It records master and house references when they are explicitly printed and otherwise marks the level unknown for human review." },
+      { q: "Does a valid check digit prove the shipment is genuine?", a: "No. It validates the number's arithmetic structure only; airline acceptance and shipment status require carrier confirmation." },
+    ],
+  },
+  {
     slug: "bill-of-lading-parser",
     metaTitle: "Bill of Lading Parser — Extract B/L Data with AI",
     metaDescription:
@@ -269,6 +296,86 @@ export const PARSER_PAGES: ParserPage[] = [
         q: "How much does it cost?",
         a: "The parser is in early access. Paid subscription checkout and final quotas are not live yet; see the pricing page for the planned offering.",
       },
+    ],
+  },
+  {
+    slug: "purchase-order-parser",
+    metaTitle: "Purchase Order Parser — Extract PO Lines for 3-Way Matching",
+    metaDescription: "Extract purchase-order numbers, suppliers, delivery terms, line quantities, prices and totals for automated three-way matching.",
+    h1: "Purchase Order Parser",
+    intro: [
+      "Purchase orders establish what was authorized: supplier, product, quantity, price, currency and delivery terms. GainingDocx captures header and line-level evidence so invoices are never approved from a total-only comparison.",
+      "The parsed PO becomes the commercial baseline for matching against transport or receipt evidence and the supplier or freight invoice. Missing evidence stays incomplete; exact contradictions are blocked instead of averaged away.",
+    ],
+    extracted: [
+      "PO number, issue date, buyer and supplier addresses",
+      "Ship-to, bill-to, requested delivery date and transport terms",
+      "Product code, description, quantity, UOM, unit price and line amount",
+      "Currency, subtotal, discount, tax, freight and total",
+      "Incoterm, payment terms and referenced contracts",
+    ],
+    checks: [
+      "Line quantity × unit price versus printed line amount",
+      "Line sums and charges versus printed PO total",
+      "Exact PO-reference matching across invoices and transport documents",
+      "Supplier, currency, quantity and line-level tolerance checks",
+    ],
+    faqs: [
+      { q: "Does matching stop when the PO number disagrees?", a: "Yes. A contradictory PO reference is blocking evidence. The shipment cannot be marked matched until it is corrected or reviewed." },
+      { q: "Can descriptions match when product codes are missing?", a: "Yes, but description-only matches are conservative and routed to review when the evidence is not strong enough for automatic approval." },
+    ],
+  },
+  {
+    slug: "freight-invoice-parser",
+    metaTitle: "Freight Invoice Parser — Audit Rates, Charges & References",
+    metaDescription: "Extract freight invoice references, routes, equipment, base freight, fuel and accessorial charges for automated audit and matching.",
+    h1: "Freight Invoice Parser",
+    intro: [
+      "Freight invoices combine shipment references with base rates, fuel, terminal and accessorial charges. GainingDocx keeps every charge separate so an apparently correct grand total cannot hide an unsupported fee.",
+      "Invoice evidence is matched to the PO and B/L, sea waybill or receipt using exact commercial references, container IDs, parties, currency and configured amount tolerances.",
+    ],
+    extracted: [
+      "Invoice number, dates, carrier, bill-to party and currency",
+      "B/L, booking, PO, shipment and container references",
+      "Origin, destination, service and equipment details",
+      "Charge code, description, quantity, rate, tax and amount per line",
+      "Subtotal, tax, adjustments and amount due",
+    ],
+    checks: [
+      "Charge-line arithmetic and printed subtotal reconciliation",
+      "Currency and amount-tolerance enforcement",
+      "B/L, booking, PO and container reference matching",
+      "Unsupported or contradictory accessorials routed to review",
+    ],
+    faqs: [
+      { q: "Does it merge all charges into one freight amount?", a: "No. Base freight, fuel, terminal and accessorial charges remain separate rows for auditability." },
+      { q: "Can I verify LCL weight-or-measure billing?", a: "Yes. Use the LCL W/M calculator with CBM and gross weight from the shipment, then compare the estimate with the parsed charge lines." },
+    ],
+  },
+  {
+    slug: "goods-receipt-parser",
+    metaTitle: "Goods Receipt Parser — Extract GRN Quantities for 3-Way Match",
+    metaDescription: "Extract GRN and proof-of-receipt references, accepted and rejected quantities, dates and line items for three-way matching.",
+    h1: "Goods Receipt Parser",
+    intro: [
+      "A goods receipt proves what physically arrived, not merely what was ordered or invoiced. GainingDocx extracts accepted, rejected and damaged quantities at line level so shortages cannot pass a total-only match.",
+      "The receipt can serve as the third evidence role alongside the PO and invoice. For ocean workflows, a B/L or sea waybill can provide transport evidence while receipt documents confirm final acceptance.",
+    ],
+    extracted: [
+      "Receipt or GRN number, receipt date, warehouse and receiver",
+      "PO, invoice, shipment and B/L references",
+      "Product code, description, received, accepted and rejected quantity",
+      "UOM, lot, batch, serial, condition and damage notes",
+    ],
+    checks: [
+      "Accepted plus rejected quantities versus received quantity",
+      "Received quantities versus PO and invoice lines",
+      "Exact PO and shipment-reference consistency",
+      "Missing, damaged or over-received goods routed to review or blocked",
+    ],
+    faqs: [
+      { q: "Can a shipment match without receipt evidence?", a: "No automatic approval is issued when a required evidence role is missing. The result remains incomplete." },
+      { q: "Are damaged quantities preserved?", a: "Yes. Rejected and damaged quantities and notes are retained separately from accepted quantity." },
     ],
   },
 ];

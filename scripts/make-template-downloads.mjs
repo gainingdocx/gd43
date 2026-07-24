@@ -42,6 +42,37 @@ const defs = [
     fields: ["Delivery order number *", "Issue date *", "Issuing carrier / NVOCC / agent *", "B/L number *", "Manifest / booking reference", "Consignee *", "Release cargo to *", "Ocean carrier", "Vessel / voyage", "Terminal / CFS / depot *", "Pickup / PIN / release reference", "Valid from", "Valid until *", "Customs release / entry reference", "Release conditions / instructions *", "Authorized signatory / authentication *"],
     lines: ["Container / unit", "Seal", "Package type", "Packages", "Gross kg", "Release status / depot"],
   },
+  {
+    slug: "pro-forma-invoice-template", title: "PRO FORMA INVOICE",
+    notice: "Not a final demand for payment and may not satisfy customs entry requirements. Replace with the final commercial invoice when the transaction is completed.",
+    fields: ["Pro forma invoice number *", "Issue date *", "Valid until *", "Buyer inquiry / PO reference", "Seller / exporter *", "Buyer *", "Proposed consignee / ship-to *", "Currency (ISO code) *", "Incoterm and named place *", "Proposed payment terms *", "Country of origin", "Production / dispatch lead time", "Proposed mode of transport", "Proposed destination", "Freight estimate", "Insurance estimate", "Other estimated charges", "Quotation conditions / exclusions", "Authorized name / title / signature *"],
+    lines: ["Goods description", "SKU / part no.", "HS code", "Origin", "Quantity", "UOM", "Unit price", "Line amount", "Est. gross kg"],
+    amount: true,
+  },
+  {
+    slug: "certificate-of-origin-template", title: "CERTIFICATE OF ORIGIN DATA WORKSHEET",
+    notice: "NOT A CERTIFIED CERTIFICATE OF ORIGIN. Obtain the destination- and trade-agreement-specific form and any required chamber, customs or approved-exporter certification.",
+    fields: ["Certificate reference (if assigned)", "Application / issue date *", "Exporter / consignor *", "Producer / manufacturer *", "Consignee *", "Means of transport and route", "Place / country of departure", "Country of destination *", "Commercial invoice number and date *", "Origin criterion / rule used *", "Supporting producer declarations / records", "Exporter declaration *", "Authorized exporter signatory *", "Certifying authority use only"],
+    lines: ["Marks & numbers", "Packages", "Goods description", "HS code", "Country of origin", "Quantity", "Gross kg"],
+  },
+  {
+    slug: "air-waybill-template", title: "AIR WAYBILL DATA WORKSHEET",
+    notice: "NOT AN AIR WAYBILL. The airline, freight forwarder or authorized cargo agent issues the transport document and applies tariff, security and dangerous-goods requirements.",
+    fields: ["AWB number (if assigned)", "Booking / reservation reference *", "Shipper account number", "Shipper *", "Consignee *", "Notify / broker", "Issuing carrier / agent", "Airport of departure / IATA code *", "Airport of destination / IATA code *", "Requested flight / routing", "Charge currency", "Charges prepaid / collect *", "Declared value for carriage", "Declared value for customs", "Insurance amount", "Handling / temperature / security instructions", "Dangerous goods declaration status / reference", "Prepared by / contact *"],
+    lines: ["Pieces", "Package type", "Nature and quantity of goods", "Gross kg", "Length cm", "Width cm", "Height cm", "Chargeable kg"],
+  },
+  {
+    slug: "simple-packing-list-template", title: "SIMPLE PACKING LIST",
+    notice: "Use the detailed or container packing list when customs, buyer, warehouse or carrier requires case-level dimensions, marks, serials or container allocation.",
+    fields: ["Packing list number *", "Date *", "Commercial invoice number *", "Seller / exporter *", "Consignee / ship-to *", "Mode of transport", "Final destination", "Packing / handling notes", "Prepared by / signature *"],
+    lines: ["Marks", "Package type", "Packages", "Contents", "Item quantity", "Net kg", "Gross kg"],
+  },
+  {
+    slug: "container-packing-list-template", title: "CONTAINER PACKING LIST",
+    notice: "Container, seal, package, weight and VGM details must agree with the physical stuffing record, shipping instructions and carrier documents.",
+    fields: ["Packing list number *", "Date *", "Commercial invoice number *", "Booking number *", "Seller / exporter *", "Consignee / ship-to *", "Vessel / voyage", "Port of loading", "Port of discharge", "Stuffing place and date", "VGM method / weighing reference", "Loading / dunnage / handling notes", "Prepared by / signature *"],
+    lines: ["Container", "Seal", "Package nos.", "Packages", "Contents", "Gross kg", "CBM", "Size/type / notes"],
+  },
 ];
 
 const out = path.join(process.cwd(), "public", "downloads");
@@ -50,11 +81,14 @@ const BLUE = "FF013BB3";
 const RED = "FFD40505";
 const PALE = "FFEAF1FF";
 
-function styleHeader(row) {
+function styleHeader(row, endColumn) {
   row.height = 25;
-  row.font = { bold: true, color: { argb: "FFFFFFFF" } };
-  row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
-  row.alignment = { vertical: "middle", wrapText: true };
+  for (let column = 1; column <= endColumn; column++) {
+    const cell = row.getCell(column);
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } };
+    cell.alignment = { vertical: "middle", wrapText: true };
+  }
 }
 
 function border(ws, startRow, endRow, endCol) {
@@ -74,7 +108,7 @@ function xlsxFor(def) {
   const info = workbook.addWorksheet("Document", { properties: { defaultRowHeight: 22 } });
   info.mergeCells("A1:B1"); info.getCell("A1").value = def.title; info.getCell("A1").font = { bold: true, size: 18, color: { argb: "FFFFFFFF" } }; info.getCell("A1").fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE } }; info.getCell("A1").alignment = { vertical: "middle" }; info.getRow(1).height = 38;
   info.mergeCells("A2:B3"); info.getCell("A2").value = def.notice; info.getCell("A2").font = { bold: true, color: { argb: RED } }; info.getCell("A2").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFEEEE" } }; info.getCell("A2").alignment = { wrapText: true, vertical: "middle" }; info.getRow(2).height = 25; info.getRow(3).height = 25;
-  info.addRow(["Field", "Enter value"]); styleHeader(info.getRow(4));
+  info.addRow(["Field", "Enter value"]); styleHeader(info.getRow(4), 2);
   def.fields.forEach((field) => { const row = info.addRow([field]); row.height = field.includes("Shipper") || field.includes("Consignee") || field.includes("instructions") || field.includes("declaration") || field.includes("clauses") ? 48 : 25; row.getCell(2).fill = { type: "pattern", pattern: "solid", fgColor: { argb: PALE } }; });
   info.columns = [{ width: 38 }, { width: 78 }];
   border(info, 4, info.rowCount, 2);
@@ -83,7 +117,7 @@ function xlsxFor(def) {
   info.headerFooter.oddFooter = "GainingDocx working template — verify and authorize before use | Page &P of &N";
 
   const lines = workbook.addWorksheet("Lines", { properties: { defaultRowHeight: 22 } });
-  lines.addRow(def.lines); styleHeader(lines.getRow(1));
+  lines.addRow(def.lines); styleHeader(lines.getRow(1), def.lines.length);
   const amountIndex = def.lines.indexOf("Line amount") + 1;
   const qtyIndex = def.lines.indexOf("Quantity") + 1;
   const priceIndex = def.lines.indexOf("Unit price") + 1;

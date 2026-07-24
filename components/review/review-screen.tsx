@@ -11,24 +11,32 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
+  ArrowLeft,
   Check,
   ChevronRight,
   CircleAlert,
   CircleCheck,
   CircleDashed,
+  Eye,
   FileDown,
   FilePlus2,
+  ListChecks,
+  Minus,
   Pencil,
+  Plus,
   Ship,
   X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { NormalizedExtraction } from "@/lib/ai/schemas/shared";
+import { csvTable, docRef } from "@/lib/export/rows";
+import { integrationExport, type IntegrationProfile } from "@/lib/export/integrations";
 import { coerceEdit, flattenFields, getPath, setPath } from "@/lib/fields/display";
 import { generatableTypes } from "@/lib/generate/map";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-import type { ValidationResult } from "@/lib/validators";
+import { validateDocument, type ValidationResult } from "@/lib/validators";
 
 interface ShipmentOption {
   id: string;
@@ -45,6 +53,11 @@ interface Props {
   shipmentId: string | null;
   shipments: ShipmentOption[];
   shareToken: string | null;
+  qualityScore: number | null;
+  guest?: boolean;
+  guestRemaining?: number | null;
+  onGuestFieldsChange?: (fields: Record<string, unknown>, validation: ValidationResult[]) => void;
+  onGuestStartOver?: () => void;
 }
 
 const EXPORT_FORMATS = [
@@ -52,6 +65,11 @@ const EXPORT_FORMATS = [
   ["csv", "CSV"],
   ["json", "JSON"],
   ["pdf", "PDF summary report"],
+  ["canonical_xml", "Canonical XML"],
+  ["cargowise_xml", "CargoWise XML mapping"],
+  ["sap_tm", "SAP TM mapping (JSON)"],
+  ["magaya", "Magaya mapping (JSON)"],
+  ["flexport", "Flexport mapping (JSON)"],
 ] as const;
 
 const GEN_LABEL: Record<string, string> = {
@@ -71,13 +89,37 @@ function newShareToken(): string {
     .replace(/=+$/, "");
 }
 
+function safeFilename(value: string) {
+  return value.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").slice(0, 70) || "document";
+}
+
+function downloadBlob(filename: string, body: BlobPart, type: string) {
+  const url = URL.createObjectURL(new Blob([body], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: string | number) {
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
 const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading",
   sea_waybill: "Sea Waybill",
   commercial_invoice: "Commercial Invoice",
+  purchase_order: "Purchase Order",
+  freight_invoice: "Freight Invoice",
+  goods_receipt: "Goods Receipt",
   packing_list: "Packing List",
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
+  air_waybill: "Air Waybill",
   other: "Document",
 };
 
@@ -103,8 +145,22 @@ export function ReviewScreen(props: Props) {
   const [toast, setToast] = useState("");
   const [menu, setMenu] = useState<null | "export" | "generate" | "shipment">(null);
   const [shareToken, setShareToken] = useState(props.shareToken);
+  const [activePage, setActivePage] = useState(0);
+  const [zoom, setZoom] = useState(100);
+  const [mobilePanel, setMobilePanel] = useState<"source" | "fields">("fields");
+  const [fieldFilter, setFieldFilter] = useState<"all" | "attention" | "empty">("all");
 
   const rows = useMemo(() => flattenFields(props.docType, fields), [props.docType, fields]);
+  const meta = fields._meta && typeof fields._meta === "object"
+    ? fields._meta as {
+        source_languages?: string[];
+        translation?: {
+          target_language_name?: string;
+          translated_fields?: Record<string, string>;
+        };
+      }
+    : null;
+  const translations = meta?.translation?.translated_fields ?? {};
   const byField = useMemo(() => {
     const map = new Map<string, ValidationResult[]>();
     for (const v of validation) {
@@ -119,6 +175,18 @@ export function ReviewScreen(props: Props) {
   }, [validation]);
 
   const failCount = validation.filter((v) => v.status === "fail").length;
+  const attentionCount = validation.filter((v) => v.status === "fail" || v.status === "warn").length;
+  const filledCount = rows.filter((row) => row.value !== "").length;
+  const filteredRows = useMemo(
+    () => rows.filter((row) => {
+      if (fieldFilter === "empty") return row.value === "";
+      if (fieldFilter === "attention") {
+        return (byField.get(row.path) ?? []).some((result) => result.status !== "pass");
+      }
+      return true;
+    }),
+    [byField, fieldFilter, rows]
+  );
 
   function note(msg: string) {
     setToast(msg);
@@ -134,6 +202,19 @@ export function ReviewScreen(props: Props) {
     }
     setSaving(true);
     const next = setPath(fields, path, newValue);
+    if (props.guest) {
+      const nextValidation = validateDocument({
+        detected_type: props.docType,
+        fields: next,
+      } as unknown as NormalizedExtraction);
+      setFields(next);
+      setValidation(nextValidation);
+      props.onGuestFieldsChange?.(next, nextValidation);
+      note("Saved in this browser tab");
+      setSaving(false);
+      setEditing(null);
+      return;
+    }
     const response = await fetch(`/api/documents/${props.docId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -153,6 +234,28 @@ export function ReviewScreen(props: Props) {
     }
     setSaving(false);
     setEditing(null);
+  }
+
+  async function exportGuest(format: (typeof EXPORT_FORMATS)[number][0]) {
+    const base = safeFilename(docRef(fields) ?? props.docType);
+    if (format === "json") {
+      downloadBlob(`${base}.json`, JSON.stringify(fields, null, 2), "application/json;charset=utf-8");
+    } else if (format === "csv") {
+      const csv = csvTable(props.docType, fields).map((row) => row.map(csvCell).join(",")).join("\r\n");
+      downloadBlob(`${base}.csv`, `\uFEFF${csv}`, "text/csv;charset=utf-8");
+    } else if (format === "xlsx") {
+      const { buildWorkbook } = await import("@/lib/export/xlsx");
+      const workbook = await buildWorkbook(props.docType, fields);
+      downloadBlob(`${base}.xlsx`, workbook, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    } else if (format === "pdf") {
+      const { summaryReportPdf } = await import("@/lib/export/pdf");
+      const pdf = await summaryReportPdf({ docType: props.docType, fields, validation, shareUrl: null });
+      downloadBlob(`${base}.pdf`, pdf as unknown as BlobPart, "application/pdf");
+    } else {
+      const integration = integrationExport(format as IntegrationProfile, props.docType, fields);
+      downloadBlob(`${base}-${format}.${integration.extension}`, integration.body, integration.mime);
+    }
+    note(`${format.toUpperCase()} downloaded`);
   }
 
   async function attachShipment(shipmentId: string | null) {
@@ -213,31 +316,76 @@ export function ReviewScreen(props: Props) {
     note("Link copied");
   }
 
-  const pages = (
-    <div className="flex gap-2 overflow-x-auto lg:sticky lg:top-20 lg:flex-col lg:overflow-visible">
+  function showSource(page: number | null) {
+    if (page !== null && props.pageUrls.length > 0) {
+      setActivePage(Math.min(Math.max(page - 1, 0), props.pageUrls.length - 1));
+    }
+    setMobilePanel("source");
+  }
+
+  const sourceViewer = (
+    <section aria-label="Original document" className="overflow-hidden rounded-2xl border border-border bg-[#e9eef7] shadow-sm lg:sticky lg:top-6">
+      <div className="flex min-h-14 items-center justify-between gap-3 border-b border-border bg-white px-3 sm:px-4">
+        <div>
+          <p className="text-sm font-bold text-primary">Original document</p>
+          <p className="text-[0.68rem] text-muted-foreground">
+            {props.pageUrls.length > 0 ? `Page ${activePage + 1} of ${props.pageUrls.length}` : "Source unavailable"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-background p-1">
+          <button type="button" aria-label="Zoom out" disabled={zoom <= 70} onClick={() => setZoom((value) => Math.max(70, value - 15))} className="flex size-9 items-center justify-center rounded-md hover:bg-white disabled:opacity-35">
+            <Minus className="size-4" aria-hidden />
+          </button>
+          <span className="w-10 text-center text-xs font-semibold tabular-nums">{zoom}%</span>
+          <button type="button" aria-label="Zoom in" disabled={zoom >= 175} onClick={() => setZoom((value) => Math.min(175, value + 15))} className="flex size-9 items-center justify-center rounded-md hover:bg-white disabled:opacity-35">
+            <Plus className="size-4" aria-hidden />
+          </button>
+        </div>
+      </div>
       {props.pageUrls.length === 0 ? (
-        <div className="rounded-xl border border-border bg-card px-4 py-6 text-center text-xs text-muted-foreground lg:py-16">
-          Page images unavailable
+        <div className="flex min-h-80 items-center justify-center px-6 text-center text-sm text-muted-foreground lg:h-[calc(100vh-12rem)]">
+          The original page image is unavailable for this document.
         </div>
       ) : (
-        props.pageUrls.map((url, i) => (
-          <a key={url} href={url} target="_blank" rel="noreferrer" className="shrink-0">
-            <Image
-              src={url}
-              alt={`Page ${i + 1}`}
-              width={300}
-              height={420}
-              unoptimized
-              className="w-24 rounded-lg border border-border object-cover lg:w-full"
-            />
-          </a>
-        ))
+        <>
+          <div className="flex h-[62vh] min-h-[28rem] items-start justify-center overflow-auto p-3 lg:h-[calc(100vh-12rem)] lg:min-h-[36rem]">
+            <a href={props.pageUrls[activePage]} target="_blank" rel="noreferrer" className="block w-full shrink-0" aria-label={`Open page ${activePage + 1} in a new tab`}>
+              <Image
+                src={props.pageUrls[activePage]}
+                alt={`Original document, page ${activePage + 1}`}
+                width={1100}
+                height={1500}
+                unoptimized
+                style={{ width: `${zoom}%`, maxWidth: "none", height: "auto" }}
+                className="block rounded-md bg-white shadow-xl"
+              />
+            </a>
+          </div>
+          {props.pageUrls.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto border-t border-border bg-white p-2">
+              {props.pageUrls.map((url, index) => (
+                <button key={url} type="button" onClick={() => setActivePage(index)} aria-label={`Show page ${index + 1}`} aria-current={activePage === index ? "page" : undefined} className={cn("shrink-0 rounded-lg border-2 p-0.5", activePage === index ? "border-primary" : "border-transparent")}>
+                  <Image src={url} alt="" width={48} height={64} unoptimized className="h-14 w-10 rounded object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
-    </div>
+    </section>
   );
 
   return (
-    <div data-wide className="space-y-5 pb-16">
+    <div data-wide className="space-y-5 pb-20 lg:pb-16">
+      {props.guest ? (
+        <button type="button" onClick={props.onGuestStartOver} className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary">
+          <ArrowLeft className="size-4" aria-hidden /> Parse another document
+        </button>
+      ) : (
+        <Link href="/app" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary">
+          <ArrowLeft className="size-4" aria-hidden /> Documents
+        </Link>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-primary">
@@ -249,8 +397,16 @@ export function ReviewScreen(props: Props) {
                 {failCount} deterministic check{failCount > 1 ? "s" : ""} failed
               </span>
             ) : (
-              "All deterministic checks passed"
+              "No deterministic contradictions found"
             )}
+          </p>
+          {props.qualityScore !== null && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Extraction coverage {props.qualityScore}/100 — completeness indicator, not a confidence probability
+            </p>
+          )}
+          <p className="mt-2 text-xs font-medium text-muted-foreground">
+            {filledCount} of {rows.length} fields populated · {attentionCount} need attention
           </p>
         </div>
         {props.shipmentId && (
@@ -264,17 +420,51 @@ export function ReviewScreen(props: Props) {
         )}
       </div>
 
+      {props.guest && (
+        <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
+          <p className="font-semibold text-primary">Complete guest review</p>
+          <p className="mt-1 text-muted-foreground">
+            Correct any field and export Excel, CSV, JSON or PDF now. Your edits remain in this browser tab; a free account saves them and includes 20 documents per month.
+          </p>
+        </div>
+      )}
+
       {toast && (
         <div className="fixed inset-x-0 top-16 z-50 mx-auto w-fit rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground shadow-lg">
           {toast}
         </div>
       )}
 
-      <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-6">
-        {pages}
+      <div className="grid grid-cols-2 rounded-xl border border-border bg-white p-1 lg:hidden" role="tablist" aria-label="Review mode">
+        <button type="button" role="tab" aria-selected={mobilePanel === "source"} onClick={() => setMobilePanel("source")} className={cn("flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-bold", mobilePanel === "source" ? "bg-primary text-white" : "text-muted-foreground")}>
+          <Eye className="size-4" aria-hidden /> Original
+        </button>
+        <button type="button" role="tab" aria-selected={mobilePanel === "fields"} onClick={() => setMobilePanel("fields")} className={cn("flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-bold", mobilePanel === "fields" ? "bg-primary text-white" : "text-muted-foreground")}>
+          <ListChecks className="size-4" aria-hidden /> Fields
+        </button>
+      </div>
 
-        <ul className="mt-4 space-y-2 lg:mt-0">
-          {rows.map((row) => {
+      <div className="lg:grid lg:grid-cols-[minmax(420px,0.95fr)_minmax(0,1.05fr)] lg:items-start lg:gap-6">
+        <div className={cn(mobilePanel === "source" ? "block" : "hidden", "lg:block")}>{sourceViewer}</div>
+
+        <section className={cn(mobilePanel === "fields" ? "block" : "hidden", "lg:block")} aria-label="Extracted fields">
+          <div className="mb-3 rounded-2xl border border-border bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-bold text-primary">Extracted data</p>
+                <p className="text-xs text-muted-foreground">Edit any value, then save. New exports always use the saved values.</p>
+              </div>
+              <div className="flex gap-1 rounded-lg bg-muted p-1" aria-label="Filter fields">
+                {(["all", "attention", "empty"] as const).map((filter) => (
+                  <button key={filter} type="button" onClick={() => setFieldFilter(filter)} aria-pressed={fieldFilter === filter} className={cn("min-h-9 rounded-md px-2.5 text-xs font-semibold capitalize", fieldFilter === filter ? "bg-white text-primary shadow-sm" : "text-muted-foreground")}>
+                    {filter}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        <ul className="space-y-2">
+          {filteredRows.map((row) => {
             const results = byField.get(row.path) ?? [];
             const chip = chipFor(row.value, results);
             const ChipIcon = chip.icon;
@@ -287,7 +477,9 @@ export function ReviewScreen(props: Props) {
                       <ChipIcon className={cn("size-3.5", chip.cls)} aria-label={chip.label} />
                       {row.label}
                       {row.page !== null && (
-                        <span className="rounded bg-accent px-1 text-[10px] normal-case">p.{row.page}</span>
+                        <button type="button" onClick={() => showSource(row.page)} className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold normal-case text-primary hover:bg-secondary" aria-label={`Show source on page ${row.page}`}>
+                          source p.{row.page}
+                        </button>
                       )}
                     </p>
                     {isEditing ? (
@@ -302,9 +494,22 @@ export function ReviewScreen(props: Props) {
                         className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:border-ring"
                       />
                     ) : (
-                      <p className={cn("mt-0.5 truncate text-sm", row.value === "" ? "italic text-muted-foreground" : "font-medium")}>
-                        {row.value === "" ? "—" : row.value}
-                      </p>
+                      <>
+                        <p className={cn("mt-0.5 break-words text-sm", row.value === "" ? "italic text-muted-foreground" : "font-medium")}>
+                          {row.value === "" ? "—" : row.value}
+                        </p>
+                        {translations[row.path] && translations[row.path] !== row.value && (
+                          <p
+                            lang={meta?.translation?.target_language_name}
+                            className="mt-1 break-words rounded-lg bg-accent/70 px-2.5 py-1.5 text-sm text-primary"
+                          >
+                            <span className="mr-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                              {meta?.translation?.target_language_name ?? "Translation"}
+                            </span>
+                            {translations[row.path]}
+                          </p>
+                        )}
+                      </>
                     )}
                     {results
                       .filter((r) => r.status !== "pass")
@@ -357,10 +562,14 @@ export function ReviewScreen(props: Props) {
             );
           })}
         </ul>
+        {filteredRows.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border bg-card px-5 py-10 text-center text-sm text-muted-foreground">No fields match this filter.</div>
+        )}
+        </section>
       </div>
 
       {/* Bottom action bar */}
-      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div className="fixed inset-x-0 bottom-[4.25rem] z-30 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_32px_-28px_rgba(1,59,179,0.7)] backdrop-blur lg:bottom-0 lg:left-[17rem]">
         <div className="mx-auto flex max-w-lg gap-2 px-4 py-2 lg:max-w-4xl">
           <Button
             variant="outline"
@@ -369,31 +578,43 @@ export function ReviewScreen(props: Props) {
           >
             <FileDown className="size-4" aria-hidden /> Export
           </Button>
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => setMenu(menu === "generate" ? null : "generate")}
-          >
-            <FilePlus2 className="size-4" aria-hidden /> Generate
-          </Button>
-          <Button className="flex-1" onClick={() => setMenu(menu === "shipment" ? null : "shipment")}>
-            <Ship className="size-4" aria-hidden /> Shipment
-          </Button>
+          {props.guest ? (
+            <Button render={<Link href="/auth/sign-up" />} className="flex-1">
+              Save free · 20/month
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setMenu(menu === "generate" ? null : "generate")}
+              >
+                <FilePlus2 className="size-4" aria-hidden /> Generate
+              </Button>
+              <Button className="flex-1" onClick={() => setMenu(menu === "shipment" ? null : "shipment")}>
+                <Ship className="size-4" aria-hidden /> Shipment
+              </Button>
+            </>
+          )}
         </div>
 
         {menu === "export" && (
           <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
-            {EXPORT_FORMATS.map(([format, label]) => (
-              <a
+            {EXPORT_FORMATS.map(([format, label]) => props.guest ? (
+              <button
                 key={format}
-                href={`/api/export/${props.docId}?format=${format}`}
-                download
+                type="button"
+                onClick={() => void exportGuest(format)}
                 className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent"
               >
                 {label}
+              </button>
+            ) : (
+              <a key={format} href={`/api/export/${props.docId}?format=${format}`} download className="block w-full rounded-lg border border-border bg-background px-3 py-2 text-left text-sm hover:bg-accent">
+                {label}
               </a>
             ))}
-            <div className="rounded-lg border border-border bg-background px-3 py-2">
+            {!props.guest && <div className="rounded-lg border border-border bg-background px-3 py-2">
               {shareToken ? (
                 <div className="space-y-1.5">
                   <p className="truncate text-xs text-muted-foreground">
@@ -428,11 +649,11 @@ export function ReviewScreen(props: Props) {
                   </span>
                 </button>
               )}
-            </div>
+            </div>}
           </div>
         )}
 
-        {menu === "generate" && (
+        {!props.guest && menu === "generate" && (
           <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
             {generatableTypes(props.docType).length === 0 ? (
               <p className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-muted-foreground">
@@ -455,7 +676,7 @@ export function ReviewScreen(props: Props) {
           </div>
         )}
 
-        {menu === "shipment" && (
+        {!props.guest && menu === "shipment" && (
           <div className="mx-auto max-w-lg space-y-1 px-4 pb-3 lg:max-w-4xl">
             <button
               type="button"

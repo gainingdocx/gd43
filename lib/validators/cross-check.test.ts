@@ -102,6 +102,24 @@ describe("crossCheck — containers", () => {
 });
 
 describe("crossCheck — ports, incoterm, weights, packages, dates", () => {
+  it("red when matching-critical PO or LC references differ", () => {
+    const r = crossCheck([
+      { id: "bl1", extraction: makeBL({ purchase_order_refs: ["PO-100"], lc_number: "LC 777" }) },
+      { id: "ci1", extraction: makeCI({ po_no: "PO-200", lc_number: "LC 888" }) },
+    ]);
+    assert.deepEqual(r.map((x) => [x.severity, x.field]), [
+      ["red", "po_number"], ["red", "lc_number"],
+    ]);
+  });
+
+  it("matches commercial references after punctuation normalization", () => {
+    const r = crossCheck([
+      { id: "bl1", extraction: makeBL({ purchase_order_refs: ["PO 100"], lc_number: "LC-777" }) },
+      { id: "ci1", extraction: makeCI({ po_no: "po-100", lc_number: "lc 777" }) },
+    ]);
+    assert.deepEqual(r, []);
+  });
+
   it("red on differing port pairs across two B/Ls", () => {
     const docs = [
       { id: "bl1", extraction: makeBL({ port_of_load: { name: "Shanghai", unlocode: "CNSGH" }, port_of_discharge: { name: "Rotterdam", unlocode: "NLRTM" } }) },
@@ -140,6 +158,14 @@ describe("crossCheck — ports, incoterm, weights, packages, dates", () => {
       { id: "pl1", extraction: makePL({ total_gross_kg: 35000 }) },
     ]);
     assert.deepEqual([r[0].severity, r[0].field], ["amber", "total_gross_kg"]);
+  });
+
+  it("checks B/L net weight and volume against the packing list", () => {
+    const r = crossCheck([
+      { id: "bl1", extraction: makeBL({ total_net_kg: 15000, total_volume_cbm: 20 }) },
+      { id: "pl1", extraction: makePL({ total_net_kg: 14000, total_volume_cbm: 18 }) },
+    ]);
+    assert.deepEqual(r.map((x) => x.field), ["total_net_kg", "total_volume_cbm"]);
   });
 
   it("amber when CI line-weight sum disagrees with PL total", () => {
@@ -244,6 +270,7 @@ describe("validateDocument", () => {
           confidence_flags: [],
           page_refs: {},
           prompt_version: "test",
+          source_languages: ["en"],
         },
       },
     };

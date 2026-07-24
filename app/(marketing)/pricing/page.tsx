@@ -5,7 +5,7 @@ import { CircleCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: "Pricing",
+  title: "Shipping Document Parser Pricing",
   description:
     "Use GainingDocx during early access. Paid subscriptions are not yet available; planned pricing is shown transparently.",
   alternates: { canonical: "/pricing" },
@@ -16,12 +16,13 @@ const plans = [
     name: "Free",
     price: "$0",
     period: "forever",
-    tagline: "Try the parser on real documents.",
+    tagline: "Try everything, then save your workflow.",
     features: [
-      "Anonymous parser preview",
+      "1 editable guest document per day",
+      "20 saved documents per month after free sign-in",
       "AI extraction + full validation",
-      "Excel, CSV & JSON exports (watermarked)",
-      "Works on mobile & desktop",
+      "Excel, CSV, JSON & PDF exports",
+      "Saved history and Shipment Check",
     ],
     cta: "Use early access",
     href: "/app",
@@ -64,7 +65,7 @@ export default function PricingPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:py-20">
       <h1 className="text-center text-4xl font-bold tracking-tight text-primary">
-        Simple pricing that pays for itself in one shipment
+        Shipping Document Parser Pricing
       </h1>
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
         Early access is available now. Paid checkout is not live yet; Pro and

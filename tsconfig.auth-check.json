@@ -1,0 +1,28 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "app/auth/**/*.ts",
+    "app/auth/**/*.tsx",
+    "app/(app)/app/account/**/*.ts",
+    "app/(app)/app/account/**/*.tsx",
+    "app/(app)/app/onboarding/**/*.ts",
+    "app/(app)/app/onboarding/**/*.tsx",
+    "components/auth/**/*.ts",
+    "components/auth/**/*.tsx",
+    "components/account/**/*.ts",
+    "components/account/**/*.tsx",
+    "lib/supabase/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    ".open-next",
+    ".open-next-*",
+    ".wrangler",
+    "Sample"
+  ]
+}

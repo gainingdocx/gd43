@@ -18,9 +18,13 @@ const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading",
   sea_waybill: "Sea Waybill",
   commercial_invoice: "Commercial Invoice",
+  purchase_order: "Purchase Order",
+  freight_invoice: "Freight Invoice",
+  goods_receipt: "Goods Receipt",
   packing_list: "Packing List",
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
+  air_waybill: "Air Waybill",
   other: "Shipping document",
 };
 

@@ -39,6 +39,11 @@ export const LEGACY_PORT_ALIASES: Record<string, string> = {
   CNCAN: "CNGGZ", // Guangzhou
 };
 
+/** Historical/common port names that differ from the current UNECE spelling. */
+export const PORT_NAME_ALIASES: Record<string, string> = {
+  COCHIN: "KOCHI",
+};
+
 // Lazy indexes (module-level; built on first lookup).
 let byCode: Map<string, string> | null = null;
 let byName: Map<string, string[]> | null = null;
@@ -100,6 +105,8 @@ function queryCandidates(portName: string): string[] {
   push(portName);
   const beforeComma = portName.split(",")[0];
   push(beforeComma);
+  const historicalAlias = PORT_NAME_ALIASES[normalizeText(beforeComma)];
+  if (historicalAlias) push(historicalAlias);
   push(beforeComma.replace(/\([^)]*\)/g, " "));
   const paren = portName.match(/\(([^)]+)\)/);
   if (paren) push(paren[1]);

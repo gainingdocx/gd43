@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   LEGACY_PORT_ALIASES,
+  PORT_NAME_ALIASES,
   looksLikeUnlocode,
   portNameForCode,
   resolvePortCode,
@@ -57,6 +58,14 @@ describe("unlocode lookup", () => {
     assert.equal(unlocode("HELSINKI, FINLAND")?.code, "FIHEL");
     assert.equal(unlocode("NHAVA SHEVA (JNPT), INDIA")?.code, "INNSA");
     assert.equal(unlocode("Rotterdam, The Netherlands")?.code, "NLRTM");
+  });
+
+  it("maps historical Cochin to modern Kochi / INCOK", () => {
+    assert.equal(PORT_NAME_ALIASES.COCHIN, "KOCHI");
+    assert.equal(unlocode("COCHIN, INDIA")?.code, "INCOK");
+    const result = validatePort("port_of_load", { name: "COCHIN, INDIA", unlocode: null });
+    assert.equal(result[0].status, "pass");
+    assert.equal(result[0].expected, "INCOK");
   });
 
   it("fuzzy-matches small typos", () => {

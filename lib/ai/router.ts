@@ -1,11 +1,10 @@
 // Single entry point to the AI layer (BUILD_SPEC §M3): parseDocument().
-// Attempt ladder: OpenRouter streaming → OpenRouter non-stream → DeepInfra.
+// Attempt ladder: OpenRouter Gemma fast streaming → non-stream, with Gemma
+// dense escalation only when deterministic content-quality checks require it.
 // One content-quality escalation retry (invalid JSON or ≥3 empty critical
 // fields). The model only transcribes — validation/math live in TypeScript.
 
 import {
-  DEEPINFRA_BASE_URL,
-  DEEPINFRA_MODEL,
   MAX_OUTPUT_TOKENS,
   MODEL_ESCALATION,
   MODEL_PRIMARY,
@@ -15,15 +14,17 @@ import {
   USE_JSON_SCHEMA,
 } from "./config";
 import { tolerantParse, repairJson } from "./json";
-import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v2";
+import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v3";
 import {
-  countEmptyCriticalFields,
   EXTRACTION_JSON_SCHEMA,
+  extractionQualityScore,
+  needsQualityEscalation,
   normalizeModelOutput,
   type NormalizedExtraction,
 } from "./schemas/extraction-v2";
+import { logInfo, logWarn } from "@/lib/observability/logger";
 
-export type ParseProvider = "openrouter" | "deepinfra";
+export type ParseProvider = "openrouter";
 
 export interface ParseResult {
   extraction: NormalizedExtraction;
@@ -31,6 +32,8 @@ export interface ParseResult {
   provider: ParseProvider;
   escalated: boolean;
   promptVersion: string;
+  /** Deterministic extraction completeness (not a confidence probability). */
+  qualityScore: number;
   /** Raw text of the winning model response (stored as raw_extraction). */
   rawText: string;
 }
@@ -40,6 +43,8 @@ export interface ParseCallbacks {
   onPartial?: (partial: unknown) => void;
   /** Called when the router moves to a fallback attempt or escalates. */
   onStatus?: (status: string) => void;
+  /** Correlates internal diagnostics with a user-safe support reference. */
+  requestId?: string;
 }
 
 interface Attempt {
@@ -59,7 +64,7 @@ function buildMessages(imageUrls: string[], docTypeHint?: string) {
         { type: "text", text: buildUserText(docTypeHint) },
         ...imageUrls.map((url) => ({
           type: "image_url",
-          image_url: { url },
+          image_url: { url, detail: "high" },
         })),
       ],
     },
@@ -167,13 +172,76 @@ function parseToExtraction(rawText: string): NormalizedExtraction {
   return normalizeModelOutput(repairJson(rawText), PROMPT_VERSION);
 }
 
+function mergeComplementaryExtractions(
+  primary: NormalizedExtraction,
+  secondary: NormalizedExtraction
+): NormalizedExtraction {
+  if (primary.detected_type !== secondary.detected_type) return primary;
+  const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+  const a = clone(primary) as unknown as Record<string, unknown>;
+  const b = secondary as unknown as Record<string, unknown>;
+  const isObject = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === "object" && !Array.isArray(value);
+  const missing = (value: unknown) => value === null || value === "" ||
+    (Array.isArray(value) && value.length === 0);
+  const richness = (value: unknown): number => {
+    if (missing(value)) return 0;
+    if (Array.isArray(value)) return value.reduce((sum, item) => sum + richness(item), 0);
+    if (isObject(value)) return Object.values(value).reduce<number>((sum, item) => sum + richness(item), 0);
+    return 1;
+  };
+  const repeatedRows = new Set(["cargo", "line_items", "charges", "containers", "equipment"]);
+  const stringSets = new Set([
+    "export_references", "purchase_order_refs", "bl_numbers", "booking_refs",
+    "shipment_refs", "delivery_note_refs", "container_refs", "clauses",
+  ]);
+  const conflicts: string[] = [];
+  const criticalScalars = new Set([
+    "bl_number", "booking_no", "vessel_name", "voyage_no", "shipped_on_board_date",
+    "issue_date", "total_packages", "total_net_kg", "total_gross_kg", "total_volume_cbm",
+    "invoice_no", "po_number", "total_amount", "amount_due",
+  ]);
+
+  const merge = (left: Record<string, unknown>, right: Record<string, unknown>, path = "") => {
+    for (const [key, rightValue] of Object.entries(right)) {
+      if (key === "_meta") continue;
+      const leftValue = left[key];
+      const fieldPath = path ? `${path}.${key}` : key;
+      if (missing(leftValue) && !missing(rightValue)) {
+        left[key] = clone(rightValue);
+      } else if (stringSets.has(key) && Array.isArray(leftValue) && Array.isArray(rightValue)) {
+        left[key] = [...new Set([...leftValue, ...rightValue].filter((x): x is string => typeof x === "string"))];
+      } else if (repeatedRows.has(key) && Array.isArray(leftValue) && Array.isArray(rightValue)) {
+        if (richness(rightValue) > richness(leftValue)) left[key] = clone(rightValue);
+      } else if (isObject(leftValue) && isObject(rightValue)) {
+        merge(leftValue, rightValue, fieldPath);
+      } else if (criticalScalars.has(key) && !missing(leftValue) && !missing(rightValue) &&
+          String(leftValue).toUpperCase().replace(/\W/g, "") !== String(rightValue).toUpperCase().replace(/\W/g, "")) {
+        conflicts.push(fieldPath);
+      }
+    }
+  };
+  if (isObject(a.fields) && isObject(b.fields)) {
+    const primaryMeta = isObject(a.fields._meta) ? a.fields._meta : {};
+    const secondaryMeta = isObject(b.fields._meta) ? b.fields._meta : {};
+    merge(a.fields, b.fields);
+    const primaryFlags = Array.isArray(primaryMeta.confidence_flags) ? primaryMeta.confidence_flags : [];
+    const secondaryFlags = Array.isArray(secondaryMeta.confidence_flags) ? secondaryMeta.confidence_flags : [];
+    a.fields._meta = {
+      ...primaryMeta,
+      confidence_flags: [...new Set([...primaryFlags, ...secondaryFlags, ...conflicts.map((path) => `cross_model:${path}`)])],
+      page_refs: { ...(isObject(secondaryMeta.page_refs) ? secondaryMeta.page_refs : {}), ...(isObject(primaryMeta.page_refs) ? primaryMeta.page_refs : {}) },
+    };
+  }
+  return a as unknown as NormalizedExtraction;
+}
+
 export async function parseDocument(
   imageUrls: string[],
   docTypeHint?: string,
   callbacks?: ParseCallbacks
 ): Promise<ParseResult> {
   const openrouterKey = process.env.OPENROUTER_API_KEY;
-  const deepinfraKey = process.env.DEEPINFRA_API_KEY;
 
   const ladder: Attempt[] = [
     {
@@ -190,17 +258,6 @@ export async function parseDocument(
       model: MODEL_PRIMARY,
       stream: false,
     },
-    ...(deepinfraKey
-      ? [
-          {
-            provider: "deepinfra" as const,
-            base: DEEPINFRA_BASE_URL,
-            apiKey: deepinfraKey,
-            model: DEEPINFRA_MODEL,
-            stream: false,
-          },
-        ]
-      : []),
   ].filter((a) => a.apiKey);
 
   if (ladder.length === 0) {
@@ -211,7 +268,8 @@ export async function parseDocument(
   let lastError: unknown = null;
   let winner: { attempt: Attempt; rawText: string } | null = null;
 
-  for (const attempt of ladder) {
+  for (const [attemptIndex, attempt] of ladder.entries()) {
+    const attemptStartedAt = Date.now();
     try {
       const rawText = await callModel(
         attempt,
@@ -220,6 +278,14 @@ export async function parseDocument(
         useJsonSchema,
         attempt.stream ? callbacks?.onPartial : undefined
       );
+      logInfo("ocr_attempt_succeeded", {
+        requestId: callbacks?.requestId,
+        attempt: attemptIndex + 1,
+        provider: attempt.provider,
+        model: attempt.model,
+        streaming: attempt.stream,
+        durationMs: Date.now() - attemptStartedAt,
+      });
       winner = { attempt, rawText };
       break;
     } catch (error) {
@@ -227,9 +293,21 @@ export async function parseDocument(
       // Some providers reject response_format — drop it for later attempts.
       const status = (error as { status?: number }).status;
       if (status === 400) useJsonSchema = false;
-      callbacks?.onStatus?.(
-        `retrying: ${attempt.provider}/${attempt.model} failed`
-      );
+      logWarn("ocr_attempt_failed", {
+        requestId: callbacks?.requestId,
+        attempt: attemptIndex + 1,
+        provider: attempt.provider,
+        model: attempt.model,
+        streaming: attempt.stream,
+        durationMs: Date.now() - attemptStartedAt,
+        upstreamStatus: status,
+        errorName: error instanceof Error ? error.name : undefined,
+        errorMessage:
+          error instanceof Error
+            ? error.message.slice(0, 1000)
+            : String(error).slice(0, 1000),
+      });
+      callbacks?.onStatus?.("retrying");
     }
   }
   if (!winner) {
@@ -245,19 +323,16 @@ export async function parseDocument(
     extraction = null;
   }
 
-  const needsEscalation =
-    extraction === null || countEmptyCriticalFields(extraction) >= 3;
+  const needsEscalation = extraction === null || needsQualityEscalation(extraction);
 
   if (needsEscalation) {
-    callbacks?.onStatus?.("escalating: retrying with escalation model");
+    callbacks?.onStatus?.("quality_retry");
     const escalationAttempt: Attempt = {
       ...winner.attempt,
-      model:
-        winner.attempt.provider === "openrouter"
-          ? MODEL_ESCALATION
-          : DEEPINFRA_MODEL,
+      model: MODEL_ESCALATION,
       stream: false,
     };
+    const escalationStartedAt = Date.now();
     try {
       const rawText = await callModel(
         escalationAttempt,
@@ -265,22 +340,42 @@ export async function parseDocument(
         docTypeHint,
         useJsonSchema
       );
+      logInfo("ocr_quality_retry_succeeded", {
+        requestId: callbacks?.requestId,
+        provider: escalationAttempt.provider,
+        model: escalationAttempt.model,
+        durationMs: Date.now() - escalationStartedAt,
+      });
       const escalated = parseToExtraction(rawText);
+      const merged = extraction === null
+        ? escalated
+        : mergeComplementaryExtractions(extraction, escalated);
       const keepEscalated =
         extraction === null ||
-        countEmptyCriticalFields(escalated) <
-          countEmptyCriticalFields(extraction);
+        extractionQualityScore(merged) > extractionQualityScore(extraction);
       if (keepEscalated) {
         return {
-          extraction: escalated,
+          extraction: merged,
           model: escalationAttempt.model,
           provider: escalationAttempt.provider,
           escalated: true,
           promptVersion: PROMPT_VERSION,
+          qualityScore: extractionQualityScore(escalated),
           rawText,
         };
       }
-    } catch {
+    } catch (error) {
+      logWarn("ocr_quality_retry_failed", {
+        requestId: callbacks?.requestId,
+        provider: escalationAttempt.provider,
+        model: escalationAttempt.model,
+        durationMs: Date.now() - escalationStartedAt,
+        errorName: error instanceof Error ? error.name : undefined,
+        errorMessage:
+          error instanceof Error
+            ? error.message.slice(0, 1000)
+            : String(error).slice(0, 1000),
+      });
       // Escalation failed — fall through to the original result if usable.
     }
   }
@@ -295,6 +390,7 @@ export async function parseDocument(
     provider: winner.attempt.provider,
     escalated: false,
     promptVersion: PROMPT_VERSION,
+    qualityScore: extractionQualityScore(extraction),
     rawText: winner.rawText,
   };
 }

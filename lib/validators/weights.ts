@@ -77,7 +77,7 @@ function grossVsNetLine(
 export function weights(extraction: NormalizedExtraction): ValidationResult[] {
   const results: ValidationResult[] = [];
 
-  if (extraction.detected_type === "bill_of_lading") {
+  if (extraction.detected_type === "bill_of_lading" || extraction.detected_type === "sea_waybill") {
     const f = extraction.fields;
     const sum = sumVsTotal(
       "total_gross_kg",
@@ -89,6 +89,26 @@ export function weights(extraction: NormalizedExtraction): ValidationResult[] {
     );
     if (sum) results.push(sum);
     results.push(...grossVsNetLine("cargo", f.cargo));
+    const lineGross = sumVsTotal(
+      "total_gross_kg", "weights.cargo_sum", f.cargo.map((l) => l.gross_kg),
+      f.total_gross_kg, "Cargo-line gross weights", "warn"
+    );
+    if (lineGross) results.push(lineGross);
+    const lineNet = sumVsTotal(
+      "total_net_kg", "weights.cargo_sum", f.cargo.map((l) => l.net_kg),
+      f.total_net_kg, "Cargo-line net weights", "warn"
+    );
+    if (lineNet) results.push(lineNet);
+    if (
+      f.total_gross_kg !== null && f.total_net_kg !== null &&
+      f.total_gross_kg < f.total_net_kg && !withinTolerance(f.total_gross_kg, f.total_net_kg)
+    ) {
+      results.push({
+        field: "total_gross_kg", rule: "weights.gross_ge_net", status: "fail",
+        message: `Total gross ${fmt(f.total_gross_kg)} kg is less than total net ${fmt(f.total_net_kg)} kg`,
+        expected: `≥ ${fmt(f.total_net_kg)}`, actual: fmt(f.total_gross_kg),
+      });
+    }
   }
 
   if (extraction.detected_type === "commercial_invoice") {

@@ -17,6 +17,7 @@ export interface DocCandidate {
   /** fields->>invoice_no for CIs, fields->>invoice_ref for PLs. */
   invoice_no: string | null;
   invoice_ref: string | null;
+  fields?: Record<string, unknown> | null;
 }
 
 export type LinkDecision =
@@ -28,6 +29,17 @@ function refKey(s: string | null): string | null {
   if (!s) return null;
   const k = normalizeText(s).replace(/ /g, "");
   return k === "" ? null : k;
+}
+
+function fieldStrings(doc: DocCandidate, key: string): string[] {
+  const value = doc.fields?.[key];
+  if (typeof value === "string") return [value];
+  return Array.isArray(value) ? value.filter((x): x is string => typeof x === "string") : [];
+}
+
+function anyRefMatches(values: string[], target: string | null): boolean {
+  const key = refKey(target);
+  return Boolean(key && values.some((value) => refKey(value) === key));
 }
 
 /**
@@ -72,6 +84,35 @@ export function decideLink(
     );
     if (ci) return { action: "attach", shipmentId: ci.shipment_id! };
     return { action: "none" };
+  }
+
+  if (extraction.detected_type === "freight_invoice") {
+    for (const bl of extraction.fields.bl_numbers) {
+      const shipment = shipments.find((item) => refKey(item.bl_number) === refKey(bl));
+      if (shipment) return { action: "attach", shipmentId: shipment.id };
+    }
+    for (const po of extraction.fields.purchase_order_refs) {
+      const attached = docs.find((doc) => doc.doc_type === "purchase_order" && doc.shipment_id &&
+        anyRefMatches(fieldStrings(doc, "po_number"), po));
+      if (attached) return { action: "attach", shipmentId: attached.shipment_id! };
+    }
+  }
+
+  if (extraction.detected_type === "purchase_order") {
+    const po = extraction.fields.po_number;
+    if (!po) return { action: "none" };
+    const attached = docs.find((doc) => doc.shipment_id &&
+      ["bill_of_lading", "sea_waybill", "freight_invoice", "commercial_invoice", "goods_receipt"].includes(doc.doc_type) &&
+      anyRefMatches(fieldStrings(doc, "purchase_order_refs"), po));
+    if (attached) return { action: "attach", shipmentId: attached.shipment_id! };
+  }
+
+  if (extraction.detected_type === "goods_receipt") {
+    for (const po of extraction.fields.purchase_order_refs) {
+      const attached = docs.find((doc) => doc.doc_type === "purchase_order" && doc.shipment_id &&
+        anyRefMatches(fieldStrings(doc, "po_number"), po));
+      if (attached) return { action: "attach", shipmentId: attached.shipment_id! };
+    }
   }
 
   return { action: "none" };

@@ -15,6 +15,7 @@ import { parsePrintedDate, daysBetween } from "./dates";
 import { normalizeName } from "./normalize";
 import type { Discrepancy } from "./types";
 import { withinTolerance } from "./weights";
+import { dangerousGoodsOf, normalizeUnNumber, supportsDangerousGoods } from "./dangerous-goods";
 
 export interface ShipmentDoc {
   id: string;
@@ -71,6 +72,10 @@ function incotermCode(s: string | null): string | null {
   if (!s) return null;
   const m = s.toUpperCase().match(/\b(EXW|FCA|CPT|CIP|DAP|DPU|DDP|FAS|FOB|CFR|CIF)\b/);
   return m ? m[1] : null;
+}
+
+function normalizedRef(s: string): string {
+  return s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 }
 
 /** Spec entry point: all pairwise cross-document rules for one shipment. */
@@ -178,9 +183,44 @@ export function crossCheck(docs: ShipmentDoc[]): Discrepancy[] {
     }
   }
 
+  // --- Commercial references (red) ----------------------------------------
+  for (const bl of bls) {
+    for (const ci of cis) {
+      if (bl.f.purchase_order_refs.length > 0 && ci.f.po_no) {
+        const invoicePo = normalizedRef(ci.f.po_no);
+        if (!bl.f.purchase_order_refs.some((ref) => normalizedRef(ref) === invoicePo)) {
+          out.push({
+            severity: "red", field: "po_number", doc_a: bl.id, doc_b: ci.id,
+            value_a: bl.f.purchase_order_refs.join(", "), value_b: ci.f.po_no,
+            message: "Purchase-order reference differs between B/L and invoice",
+          });
+        }
+      }
+      if (bl.f.lc_number && ci.f.lc_number && normalizedRef(bl.f.lc_number) !== normalizedRef(ci.f.lc_number)) {
+        out.push({
+          severity: "red", field: "lc_number", doc_a: bl.id, doc_b: ci.id,
+          value_a: bl.f.lc_number, value_b: ci.f.lc_number,
+          message: "Letter-of-credit reference differs between B/L and invoice",
+        });
+      }
+    }
+  }
+
   // --- Weight totals (amber) -----------------------------------------------
   for (const bl of bls) {
     for (const pl of pls) {
+      for (const [field, blValue, plValue, label] of [
+        ["total_net_kg", bl.f.total_net_kg, pl.f.total_net_kg, "Total net weight"],
+        ["total_volume_cbm", bl.f.total_volume_cbm, pl.f.total_volume_cbm, "Total volume"],
+      ] as const) {
+        if (blValue !== null && plValue !== null && !withinTolerance(blValue, plValue)) {
+          out.push({
+            severity: "amber", field, doc_a: bl.id, doc_b: pl.id,
+            value_a: String(blValue), value_b: String(plValue),
+            message: `${label} differs between B/L and packing list (±0.5%)`,
+          });
+        }
+      }
       if (
         bl.f.total_gross_kg !== null &&
         pl.f.total_gross_kg !== null &&
@@ -261,6 +301,61 @@ export function crossCheck(docs: ShipmentDoc[]): Discrepancy[] {
         });
       }
     }
+  }
+
+  // --- Dangerous-goods declarations (red/amber) ----------------------------
+  // Compare every document that can legitimately carry a DG declaration.
+  // A conflicting class/group is a safety failure; a missing declaration is
+  // surfaced for human review because omission requirements vary by document.
+  const dgDocs = docs
+    .filter((doc) => supportsDangerousGoods(doc.extraction))
+    .map((doc) => ({ id: doc.id, rows: dangerousGoodsOf(doc.extraction) }))
+  if (dgDocs.some((doc) => doc.rows.length > 0)) {
+  for (let i = 0; i < dgDocs.length; i++) {
+    for (let j = i + 1; j < dgDocs.length; j++) {
+      const aByUn = new Map(dgDocs[i].rows.flatMap((row) => {
+        const un = normalizeUnNumber(row.un_number);
+        return un ? [[un, row] as const] : [];
+      }));
+      const bByUn = new Map(dgDocs[j].rows.flatMap((row) => {
+        const un = normalizeUnNumber(row.un_number);
+        return un ? [[un, row] as const] : [];
+      }));
+      const allUn = new Set([...aByUn.keys(), ...bByUn.keys()]);
+      for (const un of allUn) {
+        const a = aByUn.get(un);
+        const b = bByUn.get(un);
+        if (!a || !b) {
+          out.push({
+            severity: "amber",
+            field: "dangerous_goods",
+            doc_a: dgDocs[i].id,
+            doc_b: dgDocs[j].id,
+            value_a: a ? un : null,
+            value_b: b ? un : null,
+            message: `${un} is declared on one dangerous-goods document but not the other`,
+          });
+          continue;
+        }
+        for (const [field, av, bv, label] of [
+          ["hazard_class", a.hazard_class, b.hazard_class, "hazard class"],
+          ["packing_group", a.packing_group, b.packing_group, "packing group"],
+        ] as const) {
+          if (av && bv && av.toUpperCase() !== bv.toUpperCase()) {
+            out.push({
+              severity: "red",
+              field: `dangerous_goods.${field}`,
+              doc_a: dgDocs[i].id,
+              doc_b: dgDocs[j].id,
+              value_a: av,
+              value_b: bv,
+              message: `${un} ${label} conflicts across documents`,
+            });
+          }
+        }
+      }
+    }
+  }
   }
 
   return out;
