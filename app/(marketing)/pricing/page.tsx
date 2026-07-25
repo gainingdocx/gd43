@@ -4,7 +4,7 @@ import { CircleCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { CheckoutButton } from "@/components/paddle/checkout-button";
-import { paddleConfigured, PADDLE_PRICES } from "@/lib/paddle/config";
+import { checkoutEnabled, PADDLE_PRICES } from "@/lib/paddle/config";
 
 export const metadata: Metadata = {
   title: "Shipping Document Parser Pricing",
@@ -70,7 +70,7 @@ export default function PricingPage() {
         Shipping Document Parser Pricing
       </h1>
       <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-        {paddleConfigured
+        {checkoutEnabled
           ? "Start free, upgrade to Pro when documents pile up. Billing is handled securely by Paddle, our merchant of record; cancel anytime."
           : "Early access is available now. Paid checkout is not live yet; Pro and top-up details below are targets and may change before launch."}
       </p>
@@ -78,7 +78,7 @@ export default function PricingPage() {
       <div className="mt-12 grid gap-6 lg:grid-cols-3">
         {plans.map((plan) => {
           const isPro = plan.highlight;
-          const badge = paddleConfigured ? "Most popular" : "Planned";
+          const badge = checkoutEnabled ? "Most popular" : "Planned";
           return (
             <div
               key={plan.name}
@@ -94,7 +94,7 @@ export default function PricingPage() {
                 </span>
               )}
               <h2 className="text-lg font-semibold text-primary">
-                {!paddleConfigured && isPro ? `Planned ${plan.name}` : plan.name}
+                {!checkoutEnabled && isPro ? `Planned ${plan.name}` : plan.name}
               </h2>
               <p className="mt-4 text-4xl font-bold tracking-tight text-primary">
                 {plan.price}
@@ -113,7 +113,7 @@ export default function PricingPage() {
                 ))}
               </ul>
 
-              {isPro && paddleConfigured ? (
+              {isPro && checkoutEnabled ? (
                 <div className="mt-8 space-y-2">
                   <CheckoutButton
                     priceId={PADDLE_PRICES.proMonthly}
@@ -166,7 +166,7 @@ export default function PricingPage() {
             Can I cancel anytime?
           </h3>
           <p className="mt-1">
-            {paddleConfigured
+            {checkoutEnabled
               ? "Yes. Manage or cancel your subscription anytime from your account; access continues until the end of the paid period."
               : "Paid subscriptions are not available yet. Before checkout launches, this page will show the merchant of record, cancellation controls and final billing terms."}
           </p>

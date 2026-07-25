@@ -31,3 +31,15 @@ export function planForPriceId(priceId: string | null | undefined): PlanId | nul
 export const paddleConfigured = Boolean(
   paddleClientToken && PADDLE_PRICES.proMonthly && PADDLE_PRICES.proYearly
 );
+
+/**
+ * Whether to surface real checkout buttons. Safe by default:
+ *  - live production build (live token) → on, so go-live just works
+ *  - local `next dev` → on, so sandbox checkout is testable
+ *  - a PRODUCTION build carrying sandbox creds (e.g. deploying from a dev
+ *    machine whose .env.local holds test_ keys) → OFF, so sandbox checkout can
+ *    never leak onto the live site. NODE_ENV is "development" only under dev.
+ */
+export const checkoutEnabled =
+  paddleConfigured &&
+  (paddleEnvironment === "production" || process.env.NODE_ENV === "development");
