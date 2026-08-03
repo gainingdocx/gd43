@@ -108,6 +108,8 @@ const FREIGHT_INVOICE_ORDER: [string, string][] = [
   ["carrier.address", "Carrier address"], ["bill_to.name", "Bill to"], ["bill_to.address", "Bill-to address"],
   ["remit_to.name", "Remit to"], ["vessel_name", "Vessel"], ["voyage_no", "Voyage"],
   ["port_of_load.name", "Port of loading"], ["port_of_discharge.name", "Port of discharge"],
+  ["origin_airport", "Origin airport"], ["destination_airport", "Destination airport"],
+  ["total_chargeable_kg", "Billed chargeable kg"],
   ["service_period_start", "Service from"], ["service_period_end", "Service to"],
   ["currency", "Currency"], ["exchange_rate", "Exchange rate"], ["subtotal", "Subtotal"],
   ["discount_amount", "Discount"], ["tax_amount", "Tax"], ["total_amount", "Invoice total"],
@@ -181,6 +183,37 @@ const AWB_ORDER: [string, string][] = [
   ["total_collect", "Total collect"],
 ];
 
+const AIR_SLI_ORDER: [string, string][] = [
+  ["instruction_no", "Instruction number"], ["shipper.name", "Shipper"], ["shipper.address", "Shipper address"],
+  ["consignee.name", "Consignee"], ["consignee.address", "Consignee address"],
+  ["issuing_carrier_agent.name", "Forwarder / issuing agent"], ["origin_airport", "Origin airport"],
+  ["destination_airport", "Destination airport"], ["requested_flight_no", "Requested flight"],
+  ["requested_flight_date", "Requested flight date"], ["incoterm", "Incoterm"], ["currency", "Currency"],
+  ["handling_information", "Handling information"], ["total_pieces", "Total pieces"],
+  ["total_gross_kg", "Total gross kg"], ["total_chargeable_kg", "Expected chargeable kg"],
+  ["signatory_name", "Signed by"], ["signed_date", "Signed date"],
+];
+
+const DGD_ORDER: [string, string][] = [
+  ["declaration_reference", "Declaration reference"], ["shipper.name", "Shipper"],
+  ["consignee.name", "Consignee"], ["origin_airport", "Origin airport"],
+  ["destination_airport", "Destination airport"], ["handling_information", "Handling information"],
+  ["emergency_contact", "Emergency contact"], ["signatory_name", "Signed by"], ["signed_date", "Signed date"],
+];
+
+const AIR_MANIFEST_ORDER: [string, string][] = [
+  ["manifest_no", "Manifest number"], ["airline_name", "Airline"], ["flight_no", "Flight number"],
+  ["flight_date", "Flight date"], ["origin_airport", "Origin airport"], ["destination_airport", "Destination airport"],
+  ["total_shipments", "Total shipments"], ["total_pieces", "Total pieces"], ["total_gross_kg", "Total gross kg"],
+];
+
+const SECURITY_ORDER: [string, string][] = [
+  ["declaration_reference", "Declaration reference"], ["regulated_agent.name", "Regulated agent"],
+  ["security_status", "Security status"], ["screening_method", "Screening method"],
+  ["issued_by", "Issued by"], ["issue_date", "Issue date"], ["total_pieces", "Total pieces"],
+  ["total_gross_kg", "Total gross kg"],
+];
+
 const ORDERS: Record<string, [string, string][]> = {
   bill_of_lading: BL_ORDER,
   sea_waybill: BL_ORDER,
@@ -192,6 +225,10 @@ const ORDERS: Record<string, [string, string][]> = {
   arrival_notice: ARRIVAL_ORDER,
   booking_confirmation: BOOKING_ORDER,
   air_waybill: AWB_ORDER,
+  shipper_letter_of_instruction: AIR_SLI_ORDER,
+  dangerous_goods_declaration: DGD_ORDER,
+  air_cargo_manifest: AIR_MANIFEST_ORDER,
+  cargo_security_declaration: SECURITY_ORDER,
 };
 
 function tokenize(path: string): (string | number)[] {
@@ -299,6 +336,9 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
     appendStringArray("container_refs", "Container reference");
   }
   if (docType === "freight_invoice") appendStringArray("shipment_refs", "Shipment reference");
+  if (["freight_invoice", "shipper_letter_of_instruction", "dangerous_goods_declaration", "air_cargo_manifest", "cargo_security_declaration"].includes(docType)) {
+    appendStringArray("awb_numbers", "Air waybill reference");
+  }
   if (docType === "goods_receipt") appendStringArray("delivery_note_refs", "Delivery note reference");
 
   // Container rows (B/L) get appended per container.
@@ -423,9 +463,15 @@ export function flattenFields(docType: string, fields: Json): FieldRow[] {
     const columns: [string, string][] = [
       ["un_number", "UN number"],
       ["proper_shipping_name", "Proper shipping name"],
+      ["technical_name", "Technical name"],
       ["hazard_class", "Hazard class"],
       ["subsidiary_risk", "Subsidiary risk"],
       ["packing_group", "Packing group"],
+      ["packing_instruction", "Packing instruction"],
+      ["quantity_and_type_of_packing", "Quantity and packing"],
+      ["net_quantity", "Net quantity"],
+      ["net_quantity_unit", "Net quantity unit"],
+      ["aircraft_limitation", "Aircraft limitation"],
       ["marine_pollutant", "Marine pollutant"],
       ["flash_point_c", "Flash point °C"],
       ["emergency_contact", "Emergency contact"],

@@ -9,6 +9,10 @@ export const TRANSLATION_LANGUAGES = [
   ["zh", "Chinese"],
   ["ja", "Japanese"],
   ["pt", "Portuguese"],
+  ["el", "Greek"],
+  ["vi", "Vietnamese"],
+  ["id", "Indonesian"],
+  ["ko", "Korean"],
 ] as const;
 
 export type TranslationLanguage = Exclude<(typeof TRANSLATION_LANGUAGES)[number][0], "">;

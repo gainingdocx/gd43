@@ -115,7 +115,7 @@ function fieldFeedLines(fields: Record<string, unknown>): FeedLine[] {
   return lines;
 }
 
-export function Scanner({ signedIn, docTypeHint, defaultTargetLanguage = "" }: { signedIn: boolean; docTypeHint?: string; defaultTargetLanguage?: string }) {
+export function Scanner({ signedIn, docTypeHint, initialShipmentId, defaultTargetLanguage = "" }: { signedIn: boolean; docTypeHint?: string; initialShipmentId?: string; defaultTargetLanguage?: string }) {
   const router = useRouter();
   const [pages, setPages] = useState<PageItem[]>([]);
   const [phase, setPhase] = useState<Phase>("collect");
@@ -217,7 +217,7 @@ export function Scanner({ signedIn, docTypeHint, defaultTargetLanguage = "" }: {
 
         const { data: doc, error: docErr } = await supabase
           .from("documents")
-          .insert({ owner: user.id, status: "uploaded", page_count: pages.length })
+          .insert({ owner: user.id, shipment_id: initialShipmentId || null, status: "uploaded", page_count: pages.length })
           .select("id")
           .single();
         if (docErr || !doc) throw new Error("could not create the document");

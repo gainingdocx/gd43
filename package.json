@@ -8,12 +8,17 @@
     "dev": "next dev --turbopack",
     "prebuild": "npm run prepare:vendor",
     "build": "next build",
+    "check": "npm run lint && tsc --noEmit",
     "start": "next start",
     "lint": "eslint",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "paddle:audit:sandbox": "node scripts/audit-paddle.mjs sandbox",
+    "paddle:audit:live": "node scripts/audit-paddle.mjs live",
+    "paddle:setup:sandbox": "node scripts/setup-paddle.mjs sandbox",
+    "paddle:setup:live": "node scripts/setup-paddle.mjs live --confirm-live"
   },
   "dependencies": {
     "@base-ui/react": "1.6.0",
@@ -30,6 +35,7 @@
     "papaparse": "5.5.4",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "6.1.200",
+    "postal-mime": "2.7.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "shadcn": "4.13.1",

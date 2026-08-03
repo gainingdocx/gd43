@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Ship } from "lucide-react";
+import { ArrowRight, ChevronRight, Ship, Workflow } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { assessCompleteness } from "@/lib/shipments/completeness";
@@ -33,12 +33,9 @@ export default async function ShipmentsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight text-primary">Shipments</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="text-2xl font-bold tracking-tight text-primary">Shipments</h1><Link href="/app/workflows" className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-signal px-4 text-sm font-bold text-white"><Workflow className="size-4" aria-hidden /> Start workflow</Link></div>
       {(shipments ?? []).length === 0 ? (
-        <p className="rounded-2xl border border-border bg-card px-4 py-10 text-center text-sm text-muted-foreground">
-          Shipments appear automatically when you parse a bill of lading, or
-          from a document&apos;s review screen.
-        </p>
+        <div className="rounded-2xl border border-border bg-card px-4 py-10 text-center"><p className="text-sm text-muted-foreground">No shipments yet. Start with the operational check you need, then add its document set.</p><Link href="/app/workflows" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-white">Choose a workflow <ArrowRight className="size-4" aria-hidden /></Link></div>
       ) : (
         <ul className="space-y-2">
           {(shipments ?? []).map((s) => (

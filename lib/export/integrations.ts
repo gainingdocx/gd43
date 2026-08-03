@@ -1,4 +1,5 @@
 import { docRef } from "./rows";
+import { CANONICAL_SCHEMA_VERSION, standardsProfile, validateCanonicalDocument } from "@/lib/standards/crosswalk";
 
 export const INTEGRATION_PROFILES = ["canonical_xml", "cargowise_xml", "sap_tm", "magaya", "flexport"] as const;
 export type IntegrationProfile = typeof INTEGRATION_PROFILES[number];
@@ -16,7 +17,22 @@ function xmlNode(name: string, value: unknown): string {
 }
 
 function canonical(docType: string, fields: Record<string, unknown>) {
-  return { schema: "gainingdocx.integration.v1", documentType: docType, documentReference: docRef(fields), fields };
+  return {
+    schema: "gainingdocx.integration.v2",
+    schemaVersion: CANONICAL_SCHEMA_VERSION,
+    dataModel: {
+      purpose: "reviewed shipping-document data exchange",
+      semanticAlignment: ["DCSA shipping instructions / transport document", "UN/CEFACT multimodal transport reference data model", "FIATA eFBL data structures"],
+      codeSystems: { equipmentIdentification: "ISO 6346", locations: "UN/LOCODE", tradeTerms: "Incoterms as printed" },
+      conformanceStatus: "mapping-ready; not standards-body certified and not a legally transferable eBL",
+      originalTextPolicy: "Printed legal values are preserved; translations and suggestions are separate assistance.",
+    },
+    documentType: docType,
+    documentReference: docRef(fields),
+    standards: standardsProfile(docType, fields),
+    internalConformance: validateCanonicalDocument(docType, fields),
+    fields,
+  };
 }
 
 export function integrationExport(profile: IntegrationProfile, docType: string, fields: Record<string, unknown>): { body: string; extension: "xml" | "json"; mime: string } {

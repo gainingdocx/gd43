@@ -11,8 +11,8 @@ import type { ValidationResult } from "./types";
 import { validatePort } from "./unlocode";
 import { weights } from "./weights";
 import { financials } from "./financial";
-import { validateAwbNumber } from "./air-waybill";
 import { validateDangerousGoods } from "./dangerous-goods";
+import { validateAirCargoDocument } from "./air-cargo";
 
 export { containerCheckDigit, computeCheckDigit, normalizeContainerNo, validateContainerNo } from "./container";
 export { dates, parsePrintedDate, daysBetween } from "./dates";
@@ -25,6 +25,7 @@ export { unlocode, looksLikeUnlocode, portNameForCode, validatePort, type PortMa
 export { weights, withinTolerance, WEIGHT_TOLERANCE } from "./weights";
 export { financials } from "./financial";
 export { awbCheckDigit, normalizeAwbNumber, validateAwbNumber } from "./air-waybill";
+export { validateAirCargoDocument, validateIataAirportCode } from "./air-cargo";
 export { dangerousGoodsOf, normalizeUnNumber, supportsDangerousGoods, validateDangerousGoods } from "./dangerous-goods";
 
 /**
@@ -71,8 +72,23 @@ export function validateDocument(
     results.push(...validatePort("port_of_discharge", f.port_of_discharge));
   }
 
-  if (extraction.detected_type === "air_waybill" && extraction.fields.awb_number) {
-    results.push(validateAwbNumber("awb_number", extraction.fields.awb_number));
+  if (extraction.detected_type === "shipping_instructions") {
+    const f = extraction.fields;
+    f.containers.forEach((c, i) => {
+      if (c.container_no) results.push(validateContainerNo(`containers[${i}].container_no`, c.container_no));
+    });
+    results.push(...validatePort("port_of_load", f.port_of_load));
+    results.push(...validatePort("port_of_discharge", f.port_of_discharge));
+  }
+
+  if (extraction.detected_type === "quotation" || extraction.detected_type === "rate_confirmation") {
+    results.push(...validatePort("port_of_load", extraction.fields.port_of_load));
+    results.push(...validatePort("port_of_discharge", extraction.fields.port_of_discharge));
+  }
+
+  if (extraction.detected_type === "container_event") {
+    if (extraction.fields.container_no) results.push(validateContainerNo("container_no", extraction.fields.container_no));
+    results.push(...validatePort("port", extraction.fields.port));
   }
 
   if (extraction.detected_type === "packing_list") {
@@ -85,5 +101,6 @@ export function validateDocument(
   results.push(...financials(extraction));
   results.push(...dates(extraction, today));
   results.push(...validateDangerousGoods(extraction));
+  results.push(...validateAirCargoDocument(extraction));
   return results;
 }

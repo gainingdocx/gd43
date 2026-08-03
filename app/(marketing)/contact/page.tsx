@@ -22,7 +22,7 @@ export default function ContactPage() {
         a human will reply, usually within one business day.
       </p>
 
-      <div className="mt-10 rounded-2xl border border-border bg-card p-8">
+      <div className="mt-10 rounded-2xl border border-amber/45 bg-card p-8">
         <div className="flex items-start gap-4">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-signal">
             <Mail className="size-5" aria-hidden />

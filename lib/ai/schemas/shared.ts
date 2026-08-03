@@ -12,7 +12,17 @@ export type DetectedType =
   | "packing_list"
   | "arrival_notice"
   | "booking_confirmation"
+  | "shipping_instructions"
+  | "certificate_of_origin"
+  | "quotation"
+  | "rate_confirmation"
+  | "container_event"
+  | "demurrage_detention_invoice"
   | "air_waybill"
+  | "shipper_letter_of_instruction"
+  | "dangerous_goods_declaration"
+  | "air_cargo_manifest"
+  | "cargo_security_declaration"
   | "other";
 
 export const DETECTED_TYPES: DetectedType[] = [
@@ -25,7 +35,17 @@ export const DETECTED_TYPES: DetectedType[] = [
   "packing_list",
   "arrival_notice",
   "booking_confirmation",
+  "shipping_instructions",
+  "certificate_of_origin",
+  "quotation",
+  "rate_confirmation",
+  "container_event",
+  "demurrage_detention_invoice",
   "air_waybill",
+  "shipper_letter_of_instruction",
+  "dangerous_goods_declaration",
+  "air_cargo_manifest",
+  "cargo_security_declaration",
   "other",
 ];
 
@@ -125,9 +145,15 @@ export interface ContainerRow {
 export interface DangerousGoodsItem {
   un_number: string | null;
   proper_shipping_name: string | null;
+  technical_name?: string | null;
   hazard_class: string | null;
   subsidiary_risk: string | null;
   packing_group: "I" | "II" | "III" | null;
+  packing_instruction?: string | null;
+  quantity_and_type_of_packing?: string | null;
+  net_quantity?: number | null;
+  net_quantity_unit?: string | null;
+  aircraft_limitation?: "passenger_and_cargo" | "cargo_aircraft_only" | "forbidden" | "unknown" | null;
   marine_pollutant: boolean | null;
   flash_point_c: number | null;
   emergency_contact: string | null;
@@ -145,6 +171,8 @@ export interface Meta {
   confidence_flags: string[];
   /** field name -> 1-based page number the value was read from */
   page_refs: Record<string, number>;
+  /** Exact printed text supporting each populated top-level field. */
+  source_evidence?: Record<string, { page: number; quote: string; bbox?: [number, number, number, number] }>;
   prompt_version: string;
   /** BCP-47/ISO language codes identified from printed document text. */
   source_languages: string[];
@@ -189,6 +217,7 @@ export interface BillOfLadingFields {
   total_volume_cbm: number | null;
   originals_count: number | null;
   bl_type: "original" | "seaway" | "telex" | null;
+  document_stage?: "draft" | "final" | "unknown" | null;
   clauses: string[];
   dangerous_goods: DangerousGoodsItem[];
   _meta: Meta;
@@ -257,6 +286,7 @@ export interface FreightInvoiceFields {
   carrier_invoice_ref: string | null;
   purchase_order_refs: string[];
   bl_numbers: string[];
+  awb_numbers: string[];
   booking_refs: string[];
   shipment_refs: string[];
   container_refs: string[];
@@ -267,6 +297,9 @@ export interface FreightInvoiceFields {
   voyage_no: string | null;
   port_of_load: PortRef | null;
   port_of_discharge: PortRef | null;
+  origin_airport: string | null;
+  destination_airport: string | null;
+  total_chargeable_kg: number | null;
   service_period_start: string | null;
   service_period_end: string | null;
   currency: string | null;
@@ -375,6 +408,95 @@ export interface BookingConfirmationFields {
   _meta: Meta;
 }
 
+export interface ShippingInstructionsFields {
+  si_number: string | null;
+  booking_no: string | null;
+  bl_number: string | null;
+  shipper_reference: string | null;
+  shipper: Party | null;
+  consignee: (Party & { to_order: boolean | null }) | null;
+  notify: Party | null;
+  carrier_name: string | null;
+  vessel_name: string | null;
+  voyage_no: string | null;
+  port_of_load: PortRef | null;
+  port_of_discharge: PortRef | null;
+  place_of_receipt: string | null;
+  place_of_delivery: string | null;
+  containers: ContainerRow[];
+  cargo: LineItem[];
+  cargo_raw_text: string | null;
+  total_packages: number | null;
+  total_net_kg: number | null;
+  total_gross_kg: number | null;
+  total_volume_cbm: number | null;
+  freight_terms: "prepaid" | "collect" | null;
+  requested_bl_type: "original" | "seaway" | "telex" | null;
+  originals_count: number | null;
+  dangerous_goods: DangerousGoodsItem[];
+  _meta: Meta;
+}
+
+export interface CertificateOfOriginFields {
+  certificate_no: string | null;
+  issue_date: string | null;
+  invoice_refs: string[];
+  bl_numbers: string[];
+  exporter: Party | null;
+  consignee: Party | null;
+  country_of_origin: string | null;
+  destination_country: string | null;
+  transport_details: string | null;
+  certification_body: string | null;
+  line_items: LineItem[];
+  total_packages: number | null;
+  total_gross_kg: number | null;
+  _meta: Meta;
+}
+
+export interface QuotationFields {
+  quotation_no: string | null;
+  rate_agreement_no: string | null;
+  booking_refs: string[];
+  awb_numbers: string[];
+  valid_from: string | null;
+  valid_to: string | null;
+  carrier: Party | null;
+  customer: Party | null;
+  port_of_load: PortRef | null;
+  port_of_discharge: PortRef | null;
+  origin_airport: string | null;
+  destination_airport: string | null;
+  total_chargeable_kg: number | null;
+  place_of_receipt: string | null;
+  place_of_delivery: string | null;
+  equipment: ContainerRow[];
+  currency: string | null;
+  charges: ChargeLine[];
+  free_time_demurrage_days: number | null;
+  free_time_detention_days: number | null;
+  subtotal: number | null;
+  tax_amount: number | null;
+  total_amount: number | null;
+  _meta: Meta;
+}
+
+export interface ContainerEventFields {
+  container_no: string | null;
+  event_type: "discharged" | "available" | "full_gate_out" | "empty_return" | "full_gate_in" | "other" | null;
+  event_timestamp: string | null;
+  timezone: string | null;
+  location: string | null;
+  terminal: string | null;
+  port: PortRef | null;
+  bl_number: string | null;
+  booking_no: string | null;
+  vessel_name: string | null;
+  voyage_no: string | null;
+  source_system: string | null;
+  _meta: Meta;
+}
+
 export interface AirWaybillFields {
   awb_number: string | null;
   awb_type: "master" | "house" | "unknown" | null;
@@ -407,6 +529,72 @@ export interface AirWaybillFields {
   _meta: Meta;
 }
 
+export interface ShipperLetterOfInstructionFields {
+  instruction_no: string | null;
+  awb_numbers: string[];
+  shipper: Party | null;
+  consignee: Party | null;
+  issuing_carrier_agent: Party | null;
+  origin_airport: string | null;
+  destination_airport: string | null;
+  requested_flight_no: string | null;
+  requested_flight_date: string | null;
+  incoterm: string | null;
+  currency: string | null;
+  handling_information: string | null;
+  line_items: LineItem[];
+  total_pieces: number | null;
+  total_gross_kg: number | null;
+  total_chargeable_kg: number | null;
+  dangerous_goods: DangerousGoodsItem[];
+  signatory_name: string | null;
+  signed_date: string | null;
+  _meta: Meta;
+}
+
+export interface DangerousGoodsDeclarationFields {
+  declaration_reference: string | null;
+  awb_numbers: string[];
+  shipper: Party | null;
+  consignee: Party | null;
+  origin_airport: string | null;
+  destination_airport: string | null;
+  handling_information: string | null;
+  dangerous_goods: DangerousGoodsItem[];
+  signatory_name: string | null;
+  signed_date: string | null;
+  emergency_contact: string | null;
+  _meta: Meta;
+}
+
+export interface AirCargoManifestFields {
+  manifest_no: string | null;
+  awb_numbers: string[];
+  airline_name: string | null;
+  flight_no: string | null;
+  flight_date: string | null;
+  origin_airport: string | null;
+  destination_airport: string | null;
+  line_items: LineItem[];
+  total_shipments: number | null;
+  total_pieces: number | null;
+  total_gross_kg: number | null;
+  _meta: Meta;
+}
+
+export interface CargoSecurityDeclarationFields {
+  declaration_reference: string | null;
+  awb_numbers: string[];
+  regulated_agent: Party | null;
+  security_status: string | null;
+  screening_method: string | null;
+  issued_by: string | null;
+  issue_date: string | null;
+  total_pieces: number | null;
+  total_gross_kg: number | null;
+  _meta: Meta;
+}
+
 /** Unrecognized sea-cargo document: raw model fields preserved as-is. */
 export interface OtherDocFields {
   raw: Record<string, unknown>;
@@ -423,5 +611,15 @@ export type NormalizedExtraction =
   | { detected_type: "packing_list"; fields: PackingListFields }
   | { detected_type: "arrival_notice"; fields: ArrivalNoticeFields }
   | { detected_type: "booking_confirmation"; fields: BookingConfirmationFields }
+  | { detected_type: "shipping_instructions"; fields: ShippingInstructionsFields }
+  | { detected_type: "certificate_of_origin"; fields: CertificateOfOriginFields }
+  | { detected_type: "quotation"; fields: QuotationFields }
+  | { detected_type: "rate_confirmation"; fields: QuotationFields }
+  | { detected_type: "container_event"; fields: ContainerEventFields }
+  | { detected_type: "demurrage_detention_invoice"; fields: FreightInvoiceFields }
   | { detected_type: "air_waybill"; fields: AirWaybillFields }
+  | { detected_type: "shipper_letter_of_instruction"; fields: ShipperLetterOfInstructionFields }
+  | { detected_type: "dangerous_goods_declaration"; fields: DangerousGoodsDeclarationFields }
+  | { detected_type: "air_cargo_manifest"; fields: AirCargoManifestFields }
+  | { detected_type: "cargo_security_declaration"; fields: CargoSecurityDeclarationFields }
   | { detected_type: "other"; fields: OtherDocFields };

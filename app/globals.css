@@ -47,6 +47,34 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-warn: var(--warning);
   --color-warn-foreground: var(--warning-foreground);
+
+  /* Brand ramp. `brand` is the mid blue every surface already used; `deep` and
+     `bright` are the two ends the hero gradient and dark panels need. */
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-bright: var(--brand-bright);
+
+  /* Amber ramp, replacing the seven one-off yellows. `amber` is the signature
+     accent, `soft` is the tinted surface, `ink` is readable text on `soft`. */
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-ink: var(--amber-ink);
+
+  /* Positive colour, finally distinct from `primary`. `on-dark` is the tint
+     that stays legible on the deep blue panels. */
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-positive-on-dark: var(--positive-on-dark);
+
+  /* Page surfaces, so marketing stops hardcoding `bg-white` / `#f4f7ff`. */
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-surface-tint: var(--surface-tint);
+
+  /* One elevation scale, replacing three bespoke arbitrary shadows. */
+  --shadow-card: 0 1px 2px rgba(9, 26, 62, 0.05), 0 6px 16px -10px rgba(9, 26, 62, 0.16);
+  --shadow-lift: 0 2px 4px rgba(9, 26, 62, 0.06), 0 18px 36px -18px rgba(9, 26, 62, 0.26);
+  --shadow-panel: 0 28px 70px -40px rgba(1, 38, 124, 0.55);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -56,32 +84,56 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Logo blue #013BB3; logo red #D40505 is reserved for attention states. */
+/* GainingDocx brand system: blue carries trust and is the dominant field, amber
+   is the single accent, red stays reserved for action and critical findings.
+   Every value below is contrast-checked against the surface it is used on. */
 :root {
-  --background: #f7faff;
-  --foreground: #102a5c;
+  --background: #f6f8fc;
+  --foreground: #0b1f47;
   --card: #ffffff;
-  --card-foreground: #102a5c;
+  --card-foreground: #0b1f47;
   --popover: #ffffff;
   --popover-foreground: #102a5c;
   --primary: #013bb3;
   --primary-foreground: #ffffff;
-  --secondary: #e8f0ff;
-  --secondary-foreground: #01267c;
-  --muted: #edf3ff;
-  --muted-foreground: #4b6593;
-  --accent: #e5eeff;
-  --accent-foreground: #01267c;
+  /* `secondary` is used in ~70 places as a light chip/tile/track background
+     carrying dark text, so it is the amber *tint*, not the vivid accent. The
+     old #ffe500 left muted text at ~4.4:1; this clears AA on every pairing
+     in use (primary 8.3:1, muted-foreground 5.5:1, secondary-fg 7.3:1). */
+  --secondary: #fff3cc;
+  --secondary-foreground: #6b4a00;
+  --muted: #eaf0fb;
+  --muted-foreground: #4a6291;
+  --accent: #fff3cc;
+  --accent-foreground: #6b4a00;
   --destructive: #d40505;
   --signal: #d40505;
   --signal-foreground: #ffffff;
-  --success: #013bb3;
+  /* Was #013bb3 — identical to --primary, so nothing could read as "passed". */
+  --success: #047857;
   --success-foreground: #ffffff;
-  --warning: #2b5fc0;
+  --warning: #8a5600;
   --warning-foreground: #ffffff;
-  --border: #cfddf6;
-  --input: #b7caec;
+  --border: #d9e2f2;
+  --input: #b6c6e2;
   --ring: #013bb3;
+
+  --brand: #013bb3;
+  --brand-deep: #001a4d;
+  --brand-bright: #2f6df0;
+
+  /* 10.6:1 on --brand-deep, so amber works as a CTA fill on the hero. */
+  --amber: #ffc700;
+  --amber-soft: #fff3cc;
+  --amber-ink: #6b4a00;
+
+  --positive: #047857;
+  --positive-soft: #e6f5ef;
+  --positive-on-dark: #34d399;
+
+  --surface: #ffffff;
+  --surface-alt: #f6f8fc;
+  --surface-tint: #eef3fd;
   --chart-1: #013bb3;
   --chart-2: #d40505;
   --chart-3: #2b5fc0;
@@ -92,9 +144,9 @@
   --sidebar-foreground: #102a5c;
   --sidebar-primary: #013bb3;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5eeff;
-  --sidebar-accent-foreground: #01267c;
-  --sidebar-border: #cfddf6;
+  --sidebar-accent: #fff3cc;
+  --sidebar-accent-foreground: #6b4a00;
+  --sidebar-border: #dbe4f4;
   --sidebar-ring: #013bb3;
 }
 
@@ -116,13 +168,29 @@
   --destructive: #ff5a5a;
   --signal: #ff5a5a;
   --signal-foreground: #071b4e;
-  --success: #8bb5ff;
-  --success-foreground: #071b4e;
-  --warning: #8bb5ff;
-  --warning-foreground: #071b4e;
+  --success: #34d399;
+  --success-foreground: #04231a;
+  --warning: #ffc700;
+  --warning-foreground: #40300a;
   --border: #ffffff2b;
   --input: #ffffff40;
   --ring: #8bb5ff;
+
+  --brand: #2f6df0;
+  --brand-deep: #04143c;
+  --brand-bright: #6f9dff;
+
+  --amber: #ffc700;
+  --amber-soft: #16418f;
+  --amber-ink: #ffe8a3;
+
+  --positive: #34d399;
+  --positive-soft: #0d3b30;
+  --positive-on-dark: #34d399;
+
+  --surface: #0b2b73;
+  --surface-alt: #071b4e;
+  --surface-tint: #12346f;
   --chart-1: #ffffff;
   --chart-2: #ff5a5a;
   --chart-3: #8bb5ff;
@@ -147,6 +215,9 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
+    /* The two fixed-attachment radials that used to live here were almost
+       entirely occluded by opaque sections while still costing a repaint on
+       every mobile scroll. Sections now carry their own gradients instead. */
     @apply bg-background text-foreground;
     min-height: 100vh;
     font-size: 16px;
@@ -156,10 +227,76 @@
   h1, h2, h3 {
     @apply font-heading;
     letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
   ::selection {
-    background: #cfddf6;
-    color: #01267c;
+    background: var(--amber);
+    color: var(--amber-ink);
+  }
+}
+
+@layer components {
+  [data-slot="button"] {
+    letter-spacing: -0.01em;
+  }
+
+  /* The blanket `main section[rounded-*][border]` shadow rule that used to sit
+     here silently restyled anything matching those classes. Elevation is now
+     opt-in via shadow-card / shadow-lift / shadow-panel. */
+
+  /* Section eyebrow. Was repeated verbatim nine times on the homepage alone. */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-signal;
+  }
+
+  /* Hairline separator used under the deep-blue hero and dark panels. */
+  .rule-amber {
+    background: linear-gradient(90deg, transparent, var(--amber) 18%, var(--amber) 82%, transparent);
+  }
+
+  /* Amber section separator, matching the rules under the header and footer.
+     Applied to a section, it draws the fading yellow line along its bottom. */
+  .section-edge {
+    position: relative;
+  }
+  .section-edge::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--amber) 16%, var(--amber) 84%, transparent);
+  }
+
+  /* Red counter pill with a white numeral, used wherever a count is shown.
+     The gradient plus the inset highlight keep it from reading as a flat dot.
+     White on #b80404 is 6.5:1; on #e81111 it is 4.6:1 — both clear AA. */
+  .counter {
+    @apply inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-bold text-white tabular-nums;
+    border: 1px solid #a80404;
+    background: linear-gradient(180deg, #e81111, #b80404);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+
+  /* Same treatment at step-badge size, for ordered sequences. */
+  .counter-lg {
+    @apply inline-flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white tabular-nums;
+    border: 1px solid #a80404;
+    background: linear-gradient(180deg, #e81111, #b80404);
+    box-shadow: 0 6px 16px -8px rgba(168, 4, 4, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

@@ -1,11 +1,6 @@
-// Shared Paddle configuration, safe to import from client or server.
-// Everything here is public: the client-side token, the environment, and the
-// catalog price IDs. Secrets (API key, webhook secret) live only in server.ts.
-
+// Public Paddle configuration shared by browser and server bundles.
 const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ?? "";
 
-/** Sandbox client tokens are prefixed `test_`; live ones `live_`. Deriving the
- *  environment from the token means there's no separate flag to keep in sync. */
 export const paddleEnvironment: "sandbox" | "production" =
   clientToken.startsWith("test_") ? "sandbox" : "production";
 
@@ -13,33 +8,33 @@ export const paddleClientToken = clientToken;
 
 export const PADDLE_PRICES = {
   proMonthly: process.env.NEXT_PUBLIC_PADDLE_PRICE_PRO_MONTHLY ?? "",
-  proYearly: process.env.NEXT_PUBLIC_PADDLE_PRICE_PRO_YEARLY ?? "",
+  teamMonthly: process.env.NEXT_PUBLIC_PADDLE_PRICE_TEAM_MONTHLY ?? "",
 } as const;
 
-export type PlanId = "free" | "pro";
+export type PlanId = "free" | "pro" | "team";
 
-/** Map a Paddle price ID back to an internal plan. Unknown prices → null so the
- *  webhook can log and ignore rather than granting access by accident. */
+/** Legacy IDs stay recognizable for existing subscribers, but are never shown
+ * in checkout. This lets an older annual subscription retain Pro access until
+ * it ends while the public catalog remains monthly-only. */
+const LEGACY_PRO_PRICE_IDS = new Set(
+  (process.env.NEXT_PUBLIC_PADDLE_LEGACY_PRO_PRICE_IDS ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean)
+);
+
 export function planForPriceId(priceId: string | null | undefined): PlanId | null {
   if (!priceId) return null;
-  if (priceId === PADDLE_PRICES.proMonthly || priceId === PADDLE_PRICES.proYearly) return "pro";
+  if (priceId === PADDLE_PRICES.proMonthly || LEGACY_PRO_PRICE_IDS.has(priceId)) return "pro";
+  if (priceId === PADDLE_PRICES.teamMonthly) return "team";
   return null;
 }
 
-/** True only when the client token and both price IDs are present, so the UI
- *  can fall back to the "contact us" flow until billing is fully wired. */
 export const paddleConfigured = Boolean(
-  paddleClientToken && PADDLE_PRICES.proMonthly && PADDLE_PRICES.proYearly
+  paddleClientToken && PADDLE_PRICES.proMonthly && PADDLE_PRICES.teamMonthly
 );
 
-/**
- * Whether to surface real checkout buttons. Safe by default:
- *  - live production build (live token) → on, so go-live just works
- *  - local `next dev` → on, so sandbox checkout is testable
- *  - a PRODUCTION build carrying sandbox creds (e.g. deploying from a dev
- *    machine whose .env.local holds test_ keys) → OFF, so sandbox checkout can
- *    never leak onto the live site. NODE_ENV is "development" only under dev.
- */
+// A production build carrying test credentials never exposes checkout.
 export const checkoutEnabled =
   paddleConfigured &&
   (paddleEnvironment === "production" || process.env.NODE_ENV === "development");

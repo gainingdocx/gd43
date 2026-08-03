@@ -1,12 +1,20 @@
+import { SEARCH_GUIDES } from "@/content/search-guides";
+
 export interface GuideDefinition {
   slug: string;
   title: string;
+  seoTitle?: string;
   description: string;
   readMinutes: number;
   sections: { heading: string; paragraphs: string[]; bullets?: string[] }[];
+  faqs?: { q: string; a: string }[];
+  sources?: { name: string; url: string; note: string }[];
+  tool?: { href: string; label: string; title: string; description: string };
+  updated?: string;
 }
 
 export const GUIDES: GuideDefinition[] = [
+  ...SEARCH_GUIDES,
   {
     slug: "how-to-read-a-bill-of-lading",
     title: "How to Read a Bill of Lading: Fields, Terms & Checklist",

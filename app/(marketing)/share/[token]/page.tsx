@@ -25,6 +25,10 @@ const TYPE_LABEL: Record<string, string> = {
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
   air_waybill: "Air Waybill",
+  shipper_letter_of_instruction: "Shipper's Letter of Instruction",
+  dangerous_goods_declaration: "Dangerous Goods Declaration",
+  air_cargo_manifest: "Air Cargo Manifest",
+  cargo_security_declaration: "Cargo Security Declaration",
   other: "Shipping document",
 };
 
@@ -84,7 +88,7 @@ export default async function SharePage({
       </div>
 
       {validation.filter((v) => v.status !== "pass").length > 0 && (
-        <ul className="space-y-1 rounded-2xl border border-border bg-card p-4 text-sm">
+        <ul className="space-y-1 rounded-2xl border border-amber/45 bg-card p-4 text-sm">
           {validation
             .filter((v) => v.status !== "pass")
             .slice(0, 6)
@@ -103,7 +107,7 @@ export default async function SharePage({
         </ul>
       )}
 
-      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-2xl border border-border bg-card p-5 sm:grid-cols-2">
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-3 rounded-2xl border border-amber/45 bg-card p-5 sm:grid-cols-2">
         {pairs.map((p) => (
           <div key={p.label}>
             <dt className="text-xs uppercase tracking-wide text-muted-foreground">{p.label}</dt>
@@ -113,7 +117,7 @@ export default async function SharePage({
       </dl>
 
       {containers.length > 0 && (
-        <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+        <div className="overflow-x-auto rounded-2xl border border-amber/45 bg-card">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">

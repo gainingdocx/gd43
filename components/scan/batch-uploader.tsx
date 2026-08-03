@@ -8,16 +8,18 @@ import { createClient } from "@/lib/supabase/client";
 import { fileToPageImages, ACCEPTED_DOCUMENT_TYPES } from "./file-to-pages";
 import { readSse } from "./sse";
 import { TRANSLATION_LANGUAGES } from "@/lib/ai/languages";
+import { getFlagshipWorkflow, type FlagshipWorkflowKey } from "@/lib/workflows/flagship";
 
 type ShipmentOption = { id: string; bl_number: string | null; ref: string | null };
-type Item = { id: string; file: File; status: "queued" | "preparing" | "uploading" | "parsing" | "done" | "failed"; detail?: string; documentId?: string };
+type Item = { id: string; file: File; status: "queued" | "preparing" | "uploading" | "parsing" | "done" | "failed"; detail?: string; documentId?: string; shipmentId?: string };
 
-export function BatchUploader({ signedIn, shipments, defaultTargetLanguage = "" }: { signedIn: boolean; shipments: ShipmentOption[]; defaultTargetLanguage?: string }) {
+export function BatchUploader({ signedIn, shipments, defaultTargetLanguage = "", workflowKey, initialShipmentId }: { signedIn: boolean; shipments: ShipmentOption[]; defaultTargetLanguage?: string; workflowKey?: FlagshipWorkflowKey; initialShipmentId?: string }) {
   const [items, setItems] = useState<Item[]>([]);
-  const [shipmentId, setShipmentId] = useState("");
+  const [shipmentId, setShipmentId] = useState(initialShipmentId ?? "");
   const [running, setRunning] = useState(false);
   const [targetLanguage, setTargetLanguage] = useState(defaultTargetLanguage);
   const batchId = useRef(crypto.randomUUID());
+  const workflow = workflowKey ? getFlagshipWorkflow(workflowKey) : null;
   const patch = (id: string, next: Partial<Item>) => setItems((rows) => rows.map((row) => row.id === id ? { ...row, ...next } : row));
 
   function choose(files: FileList | null) {
@@ -80,7 +82,8 @@ export function BatchUploader({ signedIn, shipments, defaultTargetLanguage = "" 
           }
         }
         if (!finished) throw new Error("Parsing ended unexpectedly");
-        patch(item.id, { status: "done", detail: truncated ? "Parsed first 15 pages" : "Parsed and validated" });
+        const { data: linked } = await supabase.from("documents").select("shipment_id").eq("id", doc.id).maybeSingle();
+        patch(item.id, { status: "done", detail: truncated ? "Parsed first 15 pages" : "Parsed and validated", shipmentId: linked?.shipment_id ?? undefined });
       } catch (error) {
         patch(item.id, { status: "failed", detail: error instanceof Error ? error.message : "Failed" });
       }
@@ -98,12 +101,18 @@ export function BatchUploader({ signedIn, shipments, defaultTargetLanguage = "" 
   );
 
   const complete = items.filter((item) => item.status === "done").length;
+  const linkedShipmentIds = [...new Set(items.map((item) => item.shipmentId).filter((id): id is string => Boolean(id)))];
   return (
     <div className="space-y-5">
+      {workflow && <section className="rounded-2xl border border-signal/30 bg-secondary/55 p-4" aria-label="Selected workflow">
+        <div className="flex items-start gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#ffeb00] text-xs font-black text-[#171717]">{workflow.number}</span><div><p className="font-bold text-primary">{workflow.name}</p><p className="mt-1 text-xs font-semibold text-muted-foreground">{workflow.sequence}</p></div></div>
+        <p className="mt-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">Add these documents</p>
+        <ul className="mt-2 flex flex-wrap gap-2">{workflow.roles.filter((role) => !role.derived).map((role) => <li key={role.key} className="rounded-full border border-border bg-card px-3 py-1 text-xs font-semibold">{role.label}</li>)}</ul>
+      </section>}
       <div className="rounded-3xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-signal/10 text-signal"><FileStack className="size-6" aria-hidden /></span><div>
-          <h2 className="text-lg font-bold text-primary">One file becomes one document</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Select up to 20 PDFs or images. Smart grouping keeps documents separate, then links related B/Ls, invoices, and packing lists automatically.</p>
+          <h2 className="text-lg font-bold text-primary">Add the complete document set</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Select up to 20 PDFs or images. A mixed PDF can be split into logical documents, and related files are grouped into a shipment automatically.</p>
         </div></div>
         <label className="mt-5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="batch-shipment">Destination</label>
         <select id="batch-shipment" value={shipmentId} onChange={(event) => setShipmentId(event.target.value)} disabled={running}
@@ -130,6 +139,16 @@ export function BatchUploader({ signedIn, shipments, defaultTargetLanguage = "" 
         </li>)}</ul>
         <div className="border-t border-border p-4"><Button size="lg" className="w-full bg-signal text-signal-foreground hover:bg-signal/90" onClick={() => void run()} disabled={running || items.every((item) => item.status === "done")}>{running ? "Processing batch…" : `Process ${items.length} document${items.length === 1 ? "" : "s"}`}</Button></div>
       </div>}
+      {complete > 0 && complete === items.length && <section className="rounded-2xl border border-success/35 bg-success/8 p-4">
+        <p className="font-bold text-primary">Document set processed</p>
+        <p className="mt-1 text-sm text-muted-foreground">Open the connected shipment to review workflow coverage and run the discrepancy check.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {linkedShipmentIds.length === 1
+            ? <Link href={`/app/shipments/${linkedShipmentIds[0]}`} className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-white">Open connected check</Link>
+            : <Link href="/app/shipments" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-4 text-sm font-bold text-white">View grouped shipments</Link>}
+          <Link href="/app/workflows" className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-4 text-sm font-bold text-primary">Choose another workflow</Link>
+        </div>
+      </section>}
     </div>
   );
 }

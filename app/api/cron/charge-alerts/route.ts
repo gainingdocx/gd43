@@ -1,4 +1,5 @@
 import { emitWebhook } from "@/lib/integrations/webhooks";
+import { sendCloudflareEmail } from "@/lib/email/cloudflare";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const maxDuration = 60;
@@ -17,19 +18,18 @@ async function sendEmail(alert: {
   free_until: string;
   shipment_id: string;
 }, days: number): Promise<"sent" | "not_configured" | "failed"> {
-  if (!process.env.RESEND_API_KEY || !alert.notify_email) return "not_configured";
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "GainingDocx Alerts <alerts@gainingdocx.com>",
-      to: [alert.notify_email],
+  if (!alert.notify_email) return "not_configured";
+  try {
+    await sendCloudflareEmail({
+      from: { email: "alerts@docs.gainingdocx.com", name: "GainingDocx Alerts" },
+      to: alert.notify_email,
       subject: days === 0 ? "Free time ends today" : `${days} day${days === 1 ? "" : "s"} until charges may begin`,
       html: `<h2>${days === 0 ? "Last free day is today" : `${days} day${days === 1 ? "" : "s"} remaining`}</h2><p>The ${alert.alert_type} free-time date for shipment ${alert.shipment_id.slice(0, 8)} is <strong>${alert.free_until}</strong>.</p><p><a href="https://gainingdocx.com/app/shipments/${alert.shipment_id}">Review the shipment</a></p><p>Confirm the date and applicable carrier terms before operational use.</p>`,
-    }),
-    signal: AbortSignal.timeout(10_000),
-  });
-  return response.ok ? "sent" : "failed";
+    });
+    return "sent";
+  } catch {
+    return "failed";
+  }
 }
 
 export async function POST(request: Request) {
@@ -69,4 +69,3 @@ export async function POST(request: Request) {
   }
   return Response.json({ checked: alerts?.length ?? 0, delivered });
 }
-

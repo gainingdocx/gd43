@@ -25,7 +25,17 @@ const EDITABLE_TYPES = new Set<DetectedType>([
   "packing_list",
   "arrival_notice",
   "booking_confirmation",
+  "shipping_instructions",
+  "certificate_of_origin",
+  "quotation",
+  "rate_confirmation",
+  "container_event",
+  "demurrage_detention_invoice",
   "air_waybill",
+  "shipper_letter_of_instruction",
+  "dangerous_goods_declaration",
+  "air_cargo_manifest",
+  "cargo_security_declaration",
   "other",
 ]);
 

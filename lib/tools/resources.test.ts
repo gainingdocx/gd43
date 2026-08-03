@@ -35,8 +35,8 @@ describe("public shipping resources", () => {
     }
   });
 
-  it("publishes seven unique deterministic tools", () => {
-    assert.equal(TOOLS.length, 7);
+  it("publishes eleven unique deterministic tools", () => {
+    assert.equal(TOOLS.length, 11);
     assert.equal(new Set(TOOLS.map((tool) => tool.slug)).size, TOOLS.length);
     assert.ok(TOOLS.some((tool) => tool.slug === "demurrage-detention-calculator"));
   });

@@ -294,7 +294,7 @@ export const PARSER_PAGES: ParserPage[] = [
       },
       {
         q: "How much does it cost?",
-        a: "The parser is in early access. Paid subscription checkout and final quotas are not live yet; see the pricing page for the planned offering.",
+        a: "Start with 20 documents each month on Free. Pro includes 500 documents for one operator, while Team includes a five-seat shared workspace and 2,000 pooled documents. Both paid plans are monthly and managed through Paddle.",
       },
     ],
   },
@@ -376,6 +376,70 @@ export const PARSER_PAGES: ParserPage[] = [
     faqs: [
       { q: "Can a shipment match without receipt evidence?", a: "No automatic approval is issued when a required evidence role is missing. The result remains incomplete." },
       { q: "Are damaged quantities preserved?", a: "Yes. Rejected and damaged quantities and notes are retained separately from accepted quantity." },
+    ],
+  },
+  {
+    slug: "shipper-letter-of-instruction-parser",
+    metaTitle: "Air Shipper's Letter of Instruction Parser",
+    metaDescription: "Extract air SLI parties, airports, flight request, pieces, weights, handling and dangerous-goods instructions for AWB checking.",
+    h1: "Air Shipper's Letter of Instruction Parser",
+    intro: [
+      "Turn an exporter or forwarder air SLI into structured instructions before the Air Waybill is finalized.",
+      "Connect the SLI to the AWB, commercial invoice and packing list to catch party, route, piece and weight differences before cargo tender.",
+    ],
+    extracted: ["Instruction and AWB references", "Shipper, consignee and issuing agent", "Origin, destination and requested flight", "Pieces, gross and expected chargeable weight", "Handling and dangerous-goods information", "Signature and date evidence"],
+    checks: ["Airport-code format", "AWB reference arithmetic where applicable", "SLI-to-AWB party and route matching", "Piece and gross-weight reconciliation"],
+    faqs: [
+      { q: "Is this the same as ocean shipping instructions?", a: "No. The air SLI uses airports, flight requests, air handling and AWB references; it is classified separately." },
+      { q: "Can it create an official AWB?", a: "No. It prepares and checks the source data; the airline or authorized issuing agent remains responsible for the official AWB." },
+    ],
+  },
+  {
+    slug: "dangerous-goods-declaration-parser",
+    metaTitle: "Dangerous Goods Declaration Parser for Air Cargo",
+    metaDescription: "Extract DGD AWB references, UN numbers, proper shipping names, classes, packing groups, quantities, limitations and signatures.",
+    h1: "Air Dangerous Goods Declaration Parser",
+    intro: [
+      "Extract the printed evidence on an air Dangerous Goods Declaration into a reviewable record.",
+      "Structural and cross-document checks help trained personnel find missing or conflicting data; they do not replace IATA DGR acceptance review.",
+    ],
+    extracted: ["AWB and declaration references", "Shipper, consignee and airport route", "UN number and proper shipping name", "Class, subsidiary risk and packing group", "Packing instruction, quantity and aircraft limitation", "Signatory, date and emergency contact"],
+    checks: ["UN-number and hazard-class structure", "Signature and date presence", "Forbidden and Cargo Aircraft Only indicators", "DGD-to-AWB reference, route and dangerous-goods consistency"],
+    faqs: [
+      { q: "Does this certify dangerous-goods compliance?", a: "No. It is a pre-check and evidence tool for qualified dangerous-goods personnel." },
+      { q: "Will forbidden cargo be flagged?", a: "Yes. A printed forbidden aircraft limitation becomes a stop-level finding for specialist review." },
+    ],
+  },
+  {
+    slug: "air-cargo-manifest-parser",
+    metaTitle: "Air Cargo Manifest Parser & MAWB HAWB Reconciliation",
+    metaDescription: "Extract air manifest flight, route, AWB references, pieces and weight totals for consolidation checking.",
+    h1: "Air Cargo Manifest Parser",
+    intro: [
+      "Convert an air cargo manifest into structured flight, route and waybill evidence.",
+      "Use it with the MAWB and HAWB set to find missing references and totals that do not reconcile.",
+    ],
+    extracted: ["Manifest number", "Airline, flight and date", "Origin and destination airports", "Master and house AWB references", "Shipment, piece and gross-weight totals", "Manifest cargo rows"],
+    checks: ["Airport-code format", "AWB-number arithmetic where applicable", "Manifest-to-MAWB route matching", "Manifest and house-total reconciliation"],
+    faqs: [
+      { q: "Can it process a manifest containing many HAWBs?", a: "Yes. References and cargo rows are retained as a set for consolidation review." },
+      { q: "Does it transmit the manifest to an airline or customs system?", a: "No. Current functionality extracts, checks and exports reviewed data." },
+    ],
+  },
+  {
+    slug: "cargo-security-declaration-parser",
+    metaTitle: "Cargo Security Declaration Parser for Air Freight",
+    metaDescription: "Extract air cargo security status, screening method, regulated agent, issuer, date, AWB references, pieces and weight.",
+    h1: "Air Cargo Security Declaration Parser",
+    intro: [
+      "Extract security declaration evidence and connect it to the related Air Waybill.",
+      "GainingDocx preserves printed codes exactly and flags missing review fields without claiming to grant or authenticate security status.",
+    ],
+    extracted: ["Declaration and AWB references", "Regulated agent", "Security status", "Screening method", "Issuer and issue date", "Piece and gross-weight totals"],
+    checks: ["Required evidence presence", "AWB reference consistency", "Piece and weight comparison", "Source-linked human review"],
+    faqs: [
+      { q: "Does the parser verify a regulated-agent authorization?", a: "No. It extracts printed evidence; authorization must be confirmed with the responsible authority or approved system." },
+      { q: "Are security codes interpreted automatically?", a: "No. They are preserved as printed for trained operational review." },
     ],
   },
 ];

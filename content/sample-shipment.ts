@@ -1,0 +1,85 @@
+export const SAMPLE_SHIPMENT = {
+  reference: "SEA-2026-041",
+  route: "Shanghai (CNSHA) to Rotterdam (NLRTM)",
+  status: "Review required",
+  score: 76,
+  documents: [
+    { id: "booking", name: "Booking confirmation", file: "booking-confirmation.pdf", page: 1, state: "Parsed" },
+    { id: "instructions", name: "Shipping instructions", file: "shipping-instructions.pdf", page: 2, state: "Parsed" },
+    { id: "draft-bl", name: "Draft Bill of Lading", file: "carrier-draft-bl.pdf", page: 1, state: "Parsed" },
+  ],
+  findings: [
+    {
+      id: "container-number",
+      severity: "critical" as const,
+      field: "Container number",
+      expected: "MSCU 663987 0",
+      observed: "MSCU 663987 1",
+      reason: "The carrier draft differs from the booking and shipping instructions, and the printed draft value fails the ISO 6346 check-digit calculation.",
+      sources: [
+        { document: "Shipping instructions", page: 2, quote: "Container No. MSCU 663987 0" },
+        { document: "Draft Bill of Lading", page: 1, quote: "Container: MSCU 663987 1" },
+      ],
+      owner: "Documentation team",
+      resolution: "Open - carrier correction required",
+    },
+    {
+      id: "freight-terms",
+      severity: "critical" as const,
+      field: "Freight terms",
+      expected: "Freight prepaid",
+      observed: "Freight collect",
+      reason: "The draft B/L reverses the payment instruction stated in both the booking confirmation and shipping instructions.",
+      sources: [
+        { document: "Booking confirmation", page: 1, quote: "Payment terms: PREPAID" },
+        { document: "Draft Bill of Lading", page: 1, quote: "Freight payable at destination / COLLECT" },
+      ],
+      owner: "Commercial reviewer",
+      resolution: "Open - verify service contract",
+    },
+    {
+      id: "gross-weight",
+      severity: "warning" as const,
+      field: "Total gross weight",
+      expected: "18,420 kg",
+      observed: "18,240 kg",
+      reason: "The draft is 180 kg below the instructed total. The configured tolerance is 25 kg or 0.5%, whichever is greater.",
+      sources: [
+        { document: "Shipping instructions", page: 2, quote: "Gross weight: 18,420.00 KGS" },
+        { document: "Draft Bill of Lading", page: 1, quote: "Gross weight 18,240 KGS" },
+      ],
+      owner: "Export operations",
+      resolution: "Open - confirm final packing total",
+    },
+    {
+      id: "notify-party",
+      severity: "warning" as const,
+      field: "Notify party",
+      expected: "Delta Imports B.V.",
+      observed: "Same as consignee",
+      reason: "The shipping instructions name a separate notify party, while the carrier draft substitutes the consignee.",
+      sources: [
+        { document: "Shipping instructions", page: 1, quote: "Notify: Delta Imports B.V., Rotterdam" },
+        { document: "Draft Bill of Lading", page: 1, quote: "Notify party: SAME AS CONSIGNEE" },
+      ],
+      owner: "Documentation team",
+      resolution: "Open - customer confirmation requested",
+    },
+    {
+      id: "port-codes",
+      severity: "information" as const,
+      field: "Port normalization",
+      expected: "CNSHA to NLRTM",
+      observed: "Shanghai to Rotterdam",
+      reason: "Printed port names were normalized to UN/LOCODE values for comparison. No route conflict was found.",
+      sources: [
+        { document: "Booking confirmation", page: 1, quote: "POL SHANGHAI / POD ROTTERDAM" },
+        { document: "Draft Bill of Lading", page: 1, quote: "Port of Loading: Shanghai; Port of Discharge: Rotterdam" },
+      ],
+      owner: "System check",
+      resolution: "Passed - no action required",
+    },
+  ],
+} as const;
+
+export type SampleFinding = (typeof SAMPLE_SHIPMENT.findings)[number];

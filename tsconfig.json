@@ -30,6 +30,9 @@
     ".wrangler",
     "tmp",
     "Sample",
-    ".codex-remote-attachments"
+    ".codex-remote-attachments",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.test.mts"
   ]
 }

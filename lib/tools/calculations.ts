@@ -92,6 +92,8 @@ export interface FreeTimeChargeInput {
   firstTierDailyRate: number;
   secondTierDailyRate: number;
   fixedCharges?: number;
+  dayBasis?: "calendar" | "weekdays";
+  includeStartDate?: boolean;
 }
 
 function utcDay(value: string) {
@@ -103,7 +105,14 @@ function utcDay(value: string) {
 export function calculateFreeTimeCharge(input: FreeTimeChargeInput) {
   const start = utcDay(input.startDate);
   const end = utcDay(input.endDate);
-  const elapsedDays = start === null || end === null ? 0 : Math.max(0, Math.round((end - start) / 86_400_000));
+  let elapsedDays = 0;
+  if (start !== null && end !== null && end >= start) {
+    const firstDay = input.includeStartDate ? start : start + 86_400_000;
+    for (let day = firstDay; day <= end; day += 86_400_000) {
+      const weekday = new Date(day).getUTCDay();
+      if (input.dayBasis !== "weekdays" || (weekday !== 0 && weekday !== 6)) elapsedDays += 1;
+    }
+  }
   const freeDays = Math.max(0, Math.floor(input.freeDays));
   const chargeableDays = Math.max(0, elapsedDays - freeDays);
   const firstTierDays = Math.min(chargeableDays, Math.max(0, Math.floor(input.firstTierDays)));

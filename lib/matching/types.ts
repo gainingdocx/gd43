@@ -19,6 +19,16 @@ export interface MatchTolerance {
 
 export interface MatchRuleResult {
   rule_id: string;
+  workflow?:
+    | "export_document_check"
+    | "shipment_document_check"
+    | "freight_invoice_audit"
+    | "arrival_free_time_control"
+    | "air_export_readiness"
+    | "air_consolidation_check"
+    | "air_freight_invoice_audit"
+    | "dangerous_goods_document_check"
+    | "supporting";
   category: MatchCategory;
   status: MatchStatus;
   severity: "critical" | "warning" | "info";
@@ -31,21 +41,24 @@ export interface MatchRuleResult {
   value_a: string | null;
   value_b: string | null;
   tolerance?: MatchTolerance;
+  questioned_amount?: number;
+  questioned_currency?: string | null;
 }
 
 export interface MatchRequirement {
-  role: "purchase_order" | "transport_evidence" | "invoice";
+  role: string;
   label: string;
   present: boolean;
   document_ids: string[];
 }
 
 export interface ThreeWayMatchResult {
-  schema_version: "match-v1";
+  schema_version: "match-v1" | "match-v2";
   decision: MatchDecision;
   score: number;
   requirements: MatchRequirement[];
   counts: Record<MatchStatus, number>;
   rules: MatchRuleResult[];
+  workflows?: import("@/lib/workflows/flagship").FlagshipWorkflowResult[];
   generated_at: string;
 }

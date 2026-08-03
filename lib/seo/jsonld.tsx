@@ -126,6 +126,7 @@ export function articleLd(opts: {
   description: string;
   path: string;
   datePublished: string;
+  dateModified?: string;
 }) {
   return {
     "@context": "https://schema.org",
@@ -134,6 +135,7 @@ export function articleLd(opts: {
     description: opts.description,
     url: `${SITE_URL}${opts.path}`,
     datePublished: opts.datePublished,
+    dateModified: opts.dateModified ?? opts.datePublished,
     publisher: {
       "@type": "Organization",
       name: "GainingDocx",

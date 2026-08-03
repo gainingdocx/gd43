@@ -7,6 +7,8 @@ import type {
 import type { ShipmentDoc } from "@/lib/validators";
 import { crossCheck, normalizeName, similarity } from "@/lib/validators";
 import type { MatchRuleResult, ThreeWayMatchResult } from "./types";
+import { runFlagshipWorkflowRules } from "./workflow-rules";
+import { assessFlagshipWorkflows } from "@/lib/workflows/flagship";
 
 export interface MatchPolicy {
   amount_percent: number;
@@ -108,6 +110,7 @@ export function runThreeWayMatch(
       bls.push({ id: doc.id, f: doc.extraction.fields });
       transportIds.push(doc.id);
     }
+    if (doc.extraction.detected_type === "air_waybill") transportIds.push(doc.id);
     if (doc.extraction.detected_type === "packing_list" || doc.extraction.detected_type === "goods_receipt") transportIds.push(doc.id);
     if (doc.extraction.detected_type === "freight_invoice") {
       freightInvoices.push({ id: doc.id, f: doc.extraction.fields });
@@ -160,6 +163,8 @@ export function runThreeWayMatch(
       field_b: finding.field, value_a: finding.value_a, value_b: finding.value_b,
     }));
   }
+
+  results.push(...runFlagshipWorkflowRules(docs, policy));
 
   for (const po of pos) {
     const poRefs = refs([po.f.po_number]);
@@ -221,6 +226,7 @@ export function runThreeWayMatch(
 
     const evidenceLines = docs.flatMap((doc) => {
       if (doc.extraction.detected_type === "bill_of_lading" || doc.extraction.detected_type === "sea_waybill") return doc.extraction.fields.cargo;
+      if (doc.extraction.detected_type === "air_waybill") return doc.extraction.fields.line_items;
       if (doc.extraction.detected_type === "packing_list" || doc.extraction.detected_type === "goods_receipt" || doc.extraction.detected_type === "commercial_invoice") return doc.extraction.fields.line_items;
       return [];
     });
@@ -338,24 +344,32 @@ export function runThreeWayMatch(
     }
   }
 
+  const workflows = assessFlagshipWorkflows(docs.map((doc) => ({
+    id: doc.id,
+    doc_type: doc.extraction.detected_type,
+    status: "parsed",
+    fields: doc.extraction.fields as unknown as Record<string, unknown>,
+  })));
   const counts = { pass: 0, fail: 0, review: 0, skipped: 0 };
   results.forEach((item) => counts[item.status]++);
-  const complete = requirements.every((item) => item.present);
+  const activeWorkflows = workflows.filter((workflow) => workflow.state !== "not_started");
+  const procurementComplete = requirements.every((item) => item.present);
+  const complete = procurementComplete || (activeWorkflows.length > 0 && activeWorkflows.every((workflow) => workflow.state === "ready"));
   const criticalFailures = results.filter((item) => item.status === "fail" && item.severity === "critical").length;
   const reviews = results.filter((item) => item.status === "review").length;
   const evaluated = counts.pass + counts.fail + counts.review;
   const score = complete && evaluated === 0 ? 50 : Math.max(0, Math.round((counts.pass / Math.max(1, evaluated)) * 100));
-  const decision = !complete ? "incomplete" : criticalFailures ? "blocked" : reviews ? "review" : "matched";
+  const decision = criticalFailures ? "blocked" : !complete ? "incomplete" : reviews ? "review" : "matched";
 
   return {
-    schema_version: "match-v1", decision, score, requirements, counts, rules: results,
+    schema_version: "match-v2", decision, score, requirements, counts, rules: results, workflows,
     generated_at: now.toISOString(),
   };
 }
 
 export function matchFindings(result: ThreeWayMatchResult) {
   return result.rules.filter((item) => item.status === "fail" || item.status === "review").map((item) => ({
-    severity: item.status === "fail" ? "red" as const : "amber" as const,
+    severity: item.severity === "critical" ? "red" as const : item.severity === "info" ? "info" as const : "amber" as const,
     field: item.rule_id,
     doc_a: item.doc_a,
     doc_b: item.doc_b,
@@ -364,5 +378,9 @@ export function matchFindings(result: ThreeWayMatchResult) {
     message: item.message,
     category: item.category,
     tolerance: item.tolerance ?? null,
+    workflow: item.workflow ?? "supporting",
+    rule_reason: item.message,
+    questioned_amount: item.questioned_amount ?? null,
+    questioned_currency: item.questioned_currency ?? null,
   }));
 }

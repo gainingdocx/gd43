@@ -13,13 +13,13 @@ const dg = (un_number: string, hazard_class: string, packing_group: "I" | "II" |
   packing_group,
   marine_pollutant: null,
   flash_point_c: null,
-  emergency_contact: null,
+  emergency_contact: "+1 703 555 0100",
 });
 
 describe("dangerous-goods checks", () => {
   it("validates UN number, class and packing group", () => {
     const results = validateDocument(makeBL({ dangerous_goods: [dg("UN 1993", "3", "II")] }));
-    assert.equal(results.filter((result) => result.rule.startsWith("dangerous_goods")).length, 3);
+    assert.equal(results.filter((result) => result.rule.startsWith("dangerous_goods")).length, 5);
     assert.ok(results.filter((result) => result.rule.startsWith("dangerous_goods")).every((result) => result.status === "pass"));
   });
 

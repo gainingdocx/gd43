@@ -62,6 +62,36 @@ describe("shipping calculations", () => {
     });
   });
 
+  it("supports inclusive calendar-day detention tariffs", () => {
+    const result = calculateFreeTimeCharge({
+      startDate: "2026-07-01",
+      endDate: "2026-07-13",
+      freeDays: 5,
+      firstTierDays: 3,
+      firstTierDailyRate: 75,
+      secondTierDailyRate: 125,
+      includeStartDate: true,
+    });
+    assert.equal(result.elapsedDays, 13);
+    assert.equal(result.chargeableDays, 8);
+    assert.equal(result.total, 850);
+  });
+
+  it("can exclude weekends when a tariff uses working days", () => {
+    const result = calculateFreeTimeCharge({
+      startDate: "2026-07-03",
+      endDate: "2026-07-13",
+      freeDays: 2,
+      firstTierDays: 3,
+      firstTierDailyRate: 50,
+      secondTierDailyRate: 100,
+      dayBasis: "weekdays",
+    });
+    assert.equal(result.elapsedDays, 6);
+    assert.equal(result.chargeableDays, 4);
+    assert.equal(result.total, 250);
+  });
+
   it("converts inches correctly for general air cargo instead of applying 6000 to cubic inches", () => {
     const pounds = volumetricWeight(20, 20, 20, 1, "in", 6_000, "lb");
     assert.ok(Math.abs(pounds - 48.2) < 0.1);

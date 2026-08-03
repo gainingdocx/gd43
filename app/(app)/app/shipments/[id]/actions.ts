@@ -20,6 +20,7 @@ import {
 import { DEFAULT_REQUIREMENTS } from "@/lib/shipments/completeness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emitWebhook } from "@/lib/integrations/webhooks";
+import { TEAM_SEAT_LIMIT } from "@/lib/plans";
 
 export async function runShipmentCheck(formData: FormData) {
   const shipmentId = String(formData.get("shipmentId") ?? "");
@@ -46,8 +47,28 @@ export async function runShipmentCheck(formData: FormData) {
       } as NormalizedExtraction,
     }));
 
-  const result = runThreeWayMatch(shipmentDocs, DEFAULT_MATCH_POLICY);
+  const policyNumber = (name: string, fallback: number, max: number) => {
+    const value = Number(formData.get(name));
+    return Number.isFinite(value) ? Math.min(max, Math.max(0, value)) : fallback;
+  };
+  const policy = {
+    amount_percent: policyNumber("amountPercent", DEFAULT_MATCH_POLICY.amount_percent, 100),
+    amount_absolute: policyNumber("amountAbsolute", DEFAULT_MATCH_POLICY.amount_absolute, 1_000_000),
+    quantity_percent: policyNumber("quantityPercent", DEFAULT_MATCH_POLICY.quantity_percent, 100),
+  };
+  const result = runThreeWayMatch(shipmentDocs, policy);
   const findings = matchFindings(result);
+  const documentsById = new Map(shipmentDocs.map((document) => [document.id, document]));
+  const rulesById = new Map(result.rules.map((rule) => [rule.rule_id, rule]));
+  const evidenceFor = (documentId: string | null, path: string | null) => {
+    if (!documentId || !path) return null;
+    const fields = documentsById.get(documentId)?.extraction.fields;
+    const meta = fields?._meta;
+    const top = path.replace(/^fields\./, "").split(".")[0].split("[")[0];
+    const evidence = meta?.source_evidence?.[path] ?? meta?.source_evidence?.[top];
+    const page = evidence?.page ?? meta?.page_refs?.[top] ?? null;
+    return page ? { page, quote: evidence?.quote ?? null, bbox: evidence?.bbox ?? null, field_path: path } : null;
+  };
 
   // Replace unresolved rows; resolved history stays.
   await supabase
@@ -57,7 +78,9 @@ export async function runShipmentCheck(formData: FormData) {
     .eq("resolved", false);
   if (findings.length > 0) {
     await supabase.from("discrepancies").insert(
-      findings.map((f) => ({
+      findings.map((f) => {
+        const rule = rulesById.get(f.field);
+        return ({
         shipment_id: shipmentId,
         owner: user.id,
         severity: f.severity,
@@ -69,7 +92,15 @@ export async function runShipmentCheck(formData: FormData) {
         message: f.message,
         category: f.category,
         tolerance: f.tolerance,
-      }))
+        workflow_key: f.workflow,
+        rule_reason: f.rule_reason,
+        questioned_amount: f.questioned_amount,
+        questioned_currency: f.questioned_currency,
+        source_evidence: {
+          a: evidenceFor(f.doc_a, rule?.field_a ?? null),
+          b: evidenceFor(f.doc_b, rule?.field_b ?? null),
+        },
+      }); })
     );
   }
   await supabase.from("match_runs").insert({
@@ -78,7 +109,7 @@ export async function runShipmentCheck(formData: FormData) {
     schema_version: result.schema_version,
     decision: result.decision,
     score: result.score,
-    policy: DEFAULT_MATCH_POLICY,
+    policy,
     result,
   });
   await supabase.from("events").insert({
@@ -90,6 +121,7 @@ export async function runShipmentCheck(formData: FormData) {
       findings: findings.length,
       decision: result.decision,
       score: result.score,
+      policy,
     },
   });
   revalidatePath(`/app/shipments/${shipmentId}`);
@@ -98,6 +130,7 @@ export async function runShipmentCheck(formData: FormData) {
 export async function resolveDiscrepancy(formData: FormData) {
   const id = String(formData.get("discrepancyId") ?? "");
   const winner = String(formData.get("winner") ?? ""); // 'a' | 'b' | 'dismiss'
+  const resolutionNote = String(formData.get("resolutionNote") ?? "").trim().slice(0, 1000) || null;
   if (!id || !["a", "b", "dismiss"].includes(winner)) return;
 
   const supabase = await createClient();
@@ -156,11 +189,18 @@ export async function resolveDiscrepancy(formData: FormData) {
     }
   }
 
-  await supabase.from("discrepancies").update({ resolved: true }).eq("id", id);
+  await supabase.from("discrepancies").update({
+    resolved: true,
+    resolution_status: winner === "dismiss" ? "dismissed" : "corrected",
+    resolved_by: user.id,
+    resolved_by_email: user.email ?? null,
+    resolved_at: new Date().toISOString(),
+    resolution_note: resolutionNote,
+  }).eq("id", id);
   await supabase.from("events").insert({
     owner: user.id,
     type: "discrepancy_resolved",
-    payload: { discrepancy_id: id, winner },
+    payload: { discrepancy_id: id, winner, resolution_note: resolutionNote },
   });
   revalidatePath(`/app/shipments/${disc.shipment_id}`);
 }
@@ -173,7 +213,8 @@ async function currentShipmentAccess(shipmentId: string) {
   if (!shipment) return null;
   const { data: membership } = shipment.owner === user.id ? { data: null } : await supabase
     .from("shipment_members").select("role").eq("shipment_id", shipmentId).eq("member_id", user.id).eq("status", "active").maybeSingle();
-  return { supabase, user, shipment, role: shipment.owner === user.id ? "owner" : membership?.role ?? null };
+  const { data: ownerProfile } = await createAdminClient().from("profiles").select("plan").eq("id", shipment.owner).maybeSingle();
+  return { supabase, user, shipment, role: shipment.owner === user.id ? "owner" : membership?.role ?? null, teamEnabled: ownerProfile?.plan === "team" };
 }
 
 function refreshShipment(shipmentId: string) {
@@ -221,17 +262,28 @@ export async function inviteTeamMember(formData: FormData) {
   if (!access || access.role !== "owner" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
       !["reviewer", "editor", "approver"].includes(role)) return;
   const admin = createAdminClient();
+  const [{ data: ownerProfile }, { data: workspace }] = await Promise.all([
+    admin.from("profiles").select("plan").eq("id", access.shipment.owner).maybeSingle(),
+    admin.from("team_workspaces").select("id").eq("owner", access.shipment.owner).maybeSingle(),
+  ]);
+  if (ownerProfile?.plan !== "team" || !workspace) return;
+  const [{ count }, { data: existing }] = await Promise.all([
+    admin.from("team_members").select("id", { count: "exact", head: true }).eq("workspace_id", workspace.id).neq("status", "removed"),
+    admin.from("team_members").select("id").eq("workspace_id", workspace.id).eq("email", email).maybeSingle(),
+  ]);
+  if (!existing && (count ?? 0) >= TEAM_SEAT_LIMIT - 1) return;
   const { data: profile } = await admin.from("profiles").select("id, full_name").ilike("email", email).maybeSingle();
-  await access.supabase.from("shipment_members").upsert({
-    shipment_id: shipmentId,
-    owner: access.shipment.owner,
+  const member = {
+    workspace_id: workspace.id,
     member_id: profile?.id ?? null,
     email,
     display_name: profile?.full_name ?? null,
     role,
     status: profile ? "active" : "pending",
     invited_by: access.user.id,
-  }, { onConflict: "shipment_id,email" });
+  };
+  if (existing) await admin.from("team_members").update(member).eq("id", existing.id);
+  else await admin.from("team_members").insert(member);
   await access.supabase.from("events").insert({
     owner: access.shipment.owner,
     type: "shipment_member_invited",
@@ -245,7 +297,10 @@ export async function removeTeamMember(formData: FormData) {
   const memberId = String(formData.get("memberId") ?? "");
   const access = await currentShipmentAccess(shipmentId);
   if (!access || access.role !== "owner") return;
-  await access.supabase.from("shipment_members").update({ status: "removed" }).eq("id", memberId).eq("shipment_id", shipmentId);
+  const admin = createAdminClient();
+  const { data: shipmentMember } = await admin.from("shipment_members").select("email").eq("id", memberId).eq("shipment_id", shipmentId).maybeSingle();
+  const { data: workspace } = await admin.from("team_workspaces").select("id").eq("owner", access.shipment.owner).maybeSingle();
+  if (shipmentMember && workspace) await admin.from("team_members").update({ status: "removed" }).eq("workspace_id", workspace.id).eq("email", shipmentMember.email);
   refreshShipment(shipmentId);
 }
 
@@ -255,7 +310,7 @@ export async function updateDocumentWorkflow(formData: FormData) {
   const status = String(formData.get("status") ?? "in_review");
   const assigneeEmail = String(formData.get("assigneeEmail") ?? "").trim().toLowerCase();
   const access = await currentShipmentAccess(shipmentId);
-  if (!access || !["unassigned", "in_review", "correction_requested", "approved"].includes(status)) return;
+  if (!access?.teamEnabled || !["unassigned", "in_review", "correction_requested", "approved"].includes(status)) return;
   if (assigneeEmail && !["owner", "editor"].includes(access.role ?? "")) return;
   const { data: assignee } = assigneeEmail ? await access.supabase.from("shipment_members")
     .select("member_id, email").eq("shipment_id", shipmentId).eq("email", assigneeEmail).eq("status", "active").maybeSingle() : { data: null };
@@ -283,7 +338,7 @@ export async function addDocumentComment(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim().slice(0, 2000);
   const kind = String(formData.get("kind") ?? "comment");
   const access = await currentShipmentAccess(shipmentId);
-  if (!access || !body || !["comment", "correction_request", "approval"].includes(kind)) return;
+  if (!access?.teamEnabled || !body || !["comment", "correction_request", "approval"].includes(kind)) return;
   await access.supabase.from("document_comments").insert({
     document_id: documentId, shipment_id: shipmentId, owner: access.shipment.owner,
     author: access.user.id, author_email: access.user.email ?? "team member", body, kind,
@@ -307,7 +362,7 @@ export async function addDocumentComment(formData: FormData) {
 export async function setExportApprovalRequired(formData: FormData) {
   const shipmentId = String(formData.get("shipmentId") ?? "");
   const access = await currentShipmentAccess(shipmentId);
-  if (!access || access.role !== "owner") return;
+  if (!access?.teamEnabled || access.role !== "owner") return;
   await access.supabase.from("shipments").update({
     export_approval_required: String(formData.get("required") ?? "") === "true",
   }).eq("id", shipmentId);
@@ -317,7 +372,7 @@ export async function setExportApprovalRequired(formData: FormData) {
 export async function requestExportApproval(formData: FormData) {
   const shipmentId = String(formData.get("shipmentId") ?? "");
   const access = await currentShipmentAccess(shipmentId);
-  if (!access) return;
+  if (!access?.teamEnabled) return;
   await access.supabase.from("export_approvals").insert({
     shipment_id: shipmentId, owner: access.shipment.owner, requested_by: access.user.id,
   });
@@ -330,7 +385,7 @@ export async function decideExportApproval(formData: FormData) {
   const approvalId = String(formData.get("approvalId") ?? "");
   const decision = String(formData.get("decision") ?? "");
   const access = await currentShipmentAccess(shipmentId);
-  if (!access || !["owner", "approver"].includes(access.role ?? "") || !["approved", "rejected"].includes(decision)) return;
+  if (!access?.teamEnabled || !["owner", "approver"].includes(access.role ?? "") || !["approved", "rejected"].includes(decision)) return;
   await access.supabase.from("export_approvals").update({
     status: decision, decided_by: access.user.id, decided_at: new Date().toISOString(),
     decision_note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,

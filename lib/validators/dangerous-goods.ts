@@ -8,6 +8,9 @@ const DG_DOCUMENT_TYPES = new Set([
   "commercial_invoice",
   "packing_list",
   "booking_confirmation",
+  "shipping_instructions",
+  "shipper_letter_of_instruction",
+  "dangerous_goods_declaration",
 ]);
 
 export function supportsDangerousGoods(extraction: NormalizedExtraction): boolean {
@@ -41,6 +44,46 @@ export function validateDangerousGoods(extraction: NormalizedExtraction): Valida
       message: un ? `${un} has a valid four-digit UN number` : "UN number must contain exactly four digits",
       expected: "UN followed by four digits",
       actual: row.un_number ?? "",
+    });
+
+    if (row.aircraft_limitation === "forbidden") {
+      results.push({
+        field: `${prefix}.aircraft_limitation`,
+        rule: "dangerous_goods.aircraft_limitation",
+        status: "fail",
+        message: "The declaration marks this item forbidden for air transport; stop and obtain qualified dangerous-goods review",
+        actual: row.aircraft_limitation,
+      });
+    } else if (row.aircraft_limitation) {
+      results.push({
+        field: `${prefix}.aircraft_limitation`,
+        rule: "dangerous_goods.aircraft_limitation",
+        status: "pass",
+        message: row.aircraft_limitation === "cargo_aircraft_only"
+          ? "Cargo Aircraft Only limitation is printed for operational review"
+          : "Aircraft limitation is printed for operational review",
+        actual: row.aircraft_limitation,
+      });
+    }
+
+    results.push({
+      field: `${prefix}.proper_shipping_name`,
+      rule: "dangerous_goods.proper_shipping_name_presence",
+      status: row.proper_shipping_name?.trim() ? "pass" : "warn",
+      message: row.proper_shipping_name?.trim()
+        ? "A proper shipping name is printed for review"
+        : "No proper shipping name was extracted; verify the declaration and source page",
+      actual: row.proper_shipping_name ?? "",
+    });
+
+    results.push({
+      field: `${prefix}.emergency_contact`,
+      rule: "dangerous_goods.emergency_contact_presence",
+      status: row.emergency_contact?.trim() ? "pass" : "warn",
+      message: row.emergency_contact?.trim()
+        ? "An emergency contact is printed for review"
+        : "No emergency contact was extracted; confirm whether one is required on the applicable document",
+      actual: row.emergency_contact ?? "",
     });
 
     const hazard = row.hazard_class?.trim() ?? "";

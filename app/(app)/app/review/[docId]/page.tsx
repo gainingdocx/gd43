@@ -12,10 +12,15 @@ import { ClipboardCheck, MessageSquareText } from "lucide-react";
 
 export default async function ReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ docId: string }>;
+  searchParams: Promise<{ page?: string; focus?: string }>;
 }) {
   const { docId } = await params;
+  const query = await searchParams;
+  const requestedPage = Number(query.page ?? "1");
+  const requestedFocus = typeof query.focus === "string" ? query.focus.slice(0, 300) : undefined;
   const supabase = await createClient();
   const {
     data: { user },
@@ -24,7 +29,7 @@ export default async function ReviewPage({
 
   const { data: doc } = await supabase
     .from("documents")
-    .select("id, doc_type, status, fields, validation, raw_extraction, shipment_id, page_count, storage_path, share_token, created_at")
+    .select("id, doc_type, status, fields, validation, raw_extraction, shipment_id, page_count, storage_path, source_pages, logical_group_index, logical_group_count, share_token, created_at")
     .eq("id", docId)
     .maybeSingle();
   if (!doc) notFound();
@@ -53,7 +58,10 @@ export default async function ReviewPage({
   const pageUrls: string[] = [];
   const pageCount = Math.min(doc.page_count ?? 1, 15);
   if (doc.storage_path) {
-    const paths = Array.from({ length: pageCount }, (_, i) => `${doc.storage_path}/page-${i + 1}.jpg`);
+    const sourcePages = Array.isArray(doc.source_pages) && doc.source_pages.length
+      ? doc.source_pages.slice(0, 15)
+      : Array.from({ length: pageCount }, (_, i) => i + 1);
+    const paths = sourcePages.map((page) => `${doc.storage_path}/page-${page}.jpg`);
     const { data: signed } = await supabase.storage.from("docs").createSignedUrls(paths, 3600);
     for (const s of signed ?? []) if (s.signedUrl && !s.error) pageUrls.push(s.signedUrl);
   }
@@ -75,6 +83,7 @@ export default async function ReviewPage({
 
   return (
     <div className="space-y-6">
+    {(doc.logical_group_count ?? 0) > 1 && <section className="rounded-2xl border border-[#f4c400]/70 bg-[#fffdf2] p-4"><p className="font-bold text-primary">Logical document {doc.logical_group_index} of {doc.logical_group_count}</p><p className="mt-1 text-xs text-muted-foreground">The uploaded file contained multiple documents. This record uses only its assigned source pages; the other logical documents were extracted and saved separately.</p></section>}
     {doc.shipment_id && <section className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-start gap-3"><ClipboardCheck className="mt-0.5 size-5 text-signal" aria-hidden/><div className="min-w-0 flex-1"><h2 className="font-bold text-primary">Team review</h2><p className="mt-1 text-xs capitalize text-muted-foreground">{workflow?.status?.replace(/_/g, " ") ?? "Unassigned"}{workflow?.assignee_email ? ` · assigned to ${workflow.assignee_email}` : ""}</p></div>
         <form action={updateDocumentWorkflow}><input type="hidden" name="shipmentId" value={doc.shipment_id}/><input type="hidden" name="documentId" value={doc.id}/><input type="hidden" name="assigneeEmail" value={workflow?.assignee_email ?? ""}/><Button name="status" value="approved" size="sm">Approve</Button></form>
@@ -108,6 +117,8 @@ export default async function ReviewPage({
       qualityScore={typeof (doc.raw_extraction as { quality_score?: unknown } | null)?.quality_score === "number"
         ? (doc.raw_extraction as { quality_score: number }).quality_score
         : null}
+      initialPage={Number.isFinite(requestedPage) && requestedPage >= 1 ? requestedPage : 1}
+      initialEvidencePath={requestedFocus}
     />
     </div>
   );

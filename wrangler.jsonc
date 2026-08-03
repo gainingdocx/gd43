@@ -6,7 +6,8 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/downloads/*"]
   },
   "observability": {
     "enabled": true,
@@ -25,6 +26,40 @@
   },
   "triggers": {
     "crons": ["0 8 * * *"]
+  },
+  "vars": {
+    "EMAIL_INGEST_DOMAIN": "docs.gainingdocx.com",
+    "EMAIL_INGEST_FROM": "reports@docs.gainingdocx.com",
+    "NEXT_PUBLIC_APP_URL": "https://gainingdocx.com",
+    "PDF_OCR_ENGINE": "cloudflare-ai"
+  },
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "remote": true,
+      "allowed_sender_addresses": ["reports@docs.gainingdocx.com", "alerts@docs.gainingdocx.com"]
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "EMAIL_INGESTION_QUEUE",
+        "queue": "gainingdocx-email-ingestion"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "gainingdocx-email-ingestion",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "dead_letter_queue": "gainingdocx-email-ingestion-dlq",
+        "max_concurrency": 2
+      }
+    ]
+  },
+  "limits": {
+    "cpu_ms": 300000
   },
   "workers_dev": true,
   // Zone routes, not custom domains: the DNS records for apex + www already

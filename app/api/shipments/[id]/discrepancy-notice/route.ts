@@ -11,7 +11,17 @@ const TYPE_LABEL: Record<string, string> = {
   packing_list: "Packing List",
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
+  shipping_instructions: "Shipping Instructions",
+  certificate_of_origin: "Certificate of Origin",
+  quotation: "Freight Quotation",
+  rate_confirmation: "Rate Confirmation",
+  container_event: "Container Event",
+  demurrage_detention_invoice: "D&D Invoice",
   air_waybill: "Air Waybill",
+  shipper_letter_of_instruction: "Shipper's Letter of Instruction",
+  dangerous_goods_declaration: "Dangerous Goods Declaration",
+  air_cargo_manifest: "Air Cargo Manifest",
+  cargo_security_declaration: "Cargo Security Declaration",
   other: "Other document",
 };
 
@@ -26,7 +36,7 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
 
   const [{ data: docs }, { data: discrepancies }] = await Promise.all([
     supabase.from("documents").select("id, doc_type").eq("shipment_id", id),
-    supabase.from("discrepancies").select("severity, field, doc_a, doc_b, value_a, value_b, message").eq("shipment_id", id).eq("resolved", false).order("severity", { ascending: false }),
+    supabase.from("discrepancies").select("severity, field, workflow_key, rule_reason, source_evidence, questioned_amount, questioned_currency, doc_a, doc_b, value_a, value_b, message").eq("shipment_id", id).eq("resolved", false).order("severity", { ascending: false }),
   ]);
   if (!discrepancies?.length) return Response.json({ error: "no unresolved discrepancies" }, { status: 409 });
   const labels = new Map((docs ?? []).map((doc) => [doc.id, TYPE_LABEL[doc.doc_type] ?? "Document"]));
@@ -34,13 +44,19 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
   const pdf = await discrepancyNoticePdf({
     shipmentReference: reference,
     discrepancies: discrepancies.map((item) => ({
-      severity: item.severity as "red" | "amber",
+      severity: item.severity as "red" | "amber" | "info",
       field: item.field,
       documentA: labels.get(item.doc_a) ?? "Document A",
       documentB: labels.get(item.doc_b) ?? "Document B",
       valueA: item.value_a,
       valueB: item.value_b,
       message: item.message,
+      ruleReason: item.rule_reason,
+      workflow: item.workflow_key,
+      sourceA: (item.source_evidence as { a?: { page?: number; quote?: string | null } | null } | null)?.a,
+      sourceB: (item.source_evidence as { b?: { page?: number; quote?: string | null } | null } | null)?.b,
+      questionedAmount: item.questioned_amount ? Number(item.questioned_amount) : null,
+      questionedCurrency: item.questioned_currency,
     })),
   });
   await supabase.from("events").insert({ owner: user.id, type: "discrepancy_notice_exported", payload: { shipment_id: id, finding_count: discrepancies.length } });

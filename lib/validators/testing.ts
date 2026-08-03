@@ -84,9 +84,10 @@ export function makePO(over: Partial<PurchaseOrderFields> = {}): NormalizedExtra
 export function makeFreightInvoice(over: Partial<FreightInvoiceFields> = {}): NormalizedExtraction {
   return { detected_type: "freight_invoice", fields: {
     invoice_no: null, invoice_date: null, due_date: null, carrier_invoice_ref: null,
-    purchase_order_refs: [], bl_numbers: [], booking_refs: [], shipment_refs: [], container_refs: [],
+    purchase_order_refs: [], bl_numbers: [], awb_numbers: [], booking_refs: [], shipment_refs: [], container_refs: [],
     carrier: null, bill_to: null, remit_to: null, vessel_name: null, voyage_no: null,
-    port_of_load: null, port_of_discharge: null, service_period_start: null, service_period_end: null,
+    port_of_load: null, port_of_discharge: null, origin_airport: null, destination_airport: null,
+    total_chargeable_kg: null, service_period_start: null, service_period_end: null,
     currency: null, exchange_rate: null, charges: [], subtotal: null, discount_amount: null,
     tax_amount: null, total_amount: null, amount_paid: null, amount_due: null,
     payment_terms: null, payment_reference: null, bank_details: null,

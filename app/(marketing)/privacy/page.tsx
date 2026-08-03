@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Last updated: July 24, 2026
+        Last updated: July 30, 2026
       </p>
 
       <div className="mt-8 space-y-8 text-sm leading-6 text-foreground/90 [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary">
@@ -34,8 +34,16 @@ export default function PrivacyPage() {
           </p>
           <p>
             <strong>Usage and diagnostics:</strong> product analytics events
-            (e.g. &quot;document parsed&quot;, &quot;export downloaded&quot;)
-            and error reports, used to improve the Service.
+            (such as pages and features used), anonymous browser and session
+            identifiers, device class, referring website, campaign tags,
+            language and country code supplied by our hosting network. We do
+            not retain raw IP addresses in our product analytics database.
+          </p>
+          <p>
+            <strong>Feedback:</strong> the category, message, optional reply
+            email, page where it was submitted, country code, submission time
+            and workflow status used by our administrator to review and resolve
+            your request.
           </p>
         </section>
 
@@ -79,8 +87,10 @@ export default function PrivacyPage() {
             file storage) with access restricted to your account. The
             application runs on Cloudflare&apos;s network. Payments are handled
             by Paddle, our merchant of record — we never see your full card
-            details. Website analytics use Google Analytics. Transactional
-            email is sent via Resend.
+            details. Website analytics use Google Analytics and our
+            Supabase-backed first-party analytics. Transactional email and
+            forwarded-document intake use Cloudflare&apos;s email services; website feedback is stored directly in
+            Supabase for administrator review.
           </p>
         </section>
 
@@ -91,7 +101,9 @@ export default function PrivacyPage() {
             so you can search and re-export them. Deleting a document removes
             the stored file and its extracted data. Deleting your account
             removes your documents, extracted data and profile. Backups roll
-            off on a fixed schedule after deletion.
+            off on a fixed schedule after deletion. Feedback and aggregated
+            product analytics may be retained as operational records unless
+            deletion is required by law or requested through the contact page.
           </p>
         </section>
 
@@ -108,10 +120,12 @@ export default function PrivacyPage() {
           <h2>7. Cookies</h2>
           <p>
             We use essential cookies for authentication and anonymous usage
-            limits. Google Analytics may set analytics cookies so we can
-            understand website usage and improve the Service. Advertising
-            signals are disabled, and document contents and unique document,
-            shipment and share identifiers are not sent to Analytics.
+            limits. First-party browser and session identifiers are stored in
+            local and session storage to count anonymous visitors without
+            retaining raw IP addresses. Google Analytics may set analytics
+            cookies so we can understand website usage and improve the Service.
+            Advertising signals are disabled, and document contents and unique
+            document, shipment and share identifiers are not sent to Analytics.
           </p>
         </section>
 

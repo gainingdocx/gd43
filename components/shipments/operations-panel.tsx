@@ -15,8 +15,13 @@ import {
 
 const TYPE_LABEL: Record<string, string> = {
   bill_of_lading: "Bill of Lading", sea_waybill: "Sea Waybill", air_waybill: "Air Waybill",
+  shipper_letter_of_instruction: "Shipper's Letter of Instruction", dangerous_goods_declaration: "Dangerous Goods Declaration",
+  air_cargo_manifest: "Air Cargo Manifest", cargo_security_declaration: "Cargo Security Declaration",
   commercial_invoice: "Commercial Invoice", packing_list: "Packing List",
   arrival_notice: "Arrival Notice", booking_confirmation: "Booking Confirmation",
+  shipping_instructions: "Shipping Instructions", certificate_of_origin: "Certificate of Origin",
+  quotation: "Freight Quotation", rate_confirmation: "Rate Confirmation",
+  container_event: "Container Event", demurrage_detention_invoice: "D&D Invoice",
   purchase_order: "Purchase Order", freight_invoice: "Freight Invoice",
   goods_receipt: "Goods Receipt", other: "Other document",
 };
@@ -34,17 +39,21 @@ export async function ShipmentOperationsPanel({ shipmentId }: { shipmentId: stri
   const [{ data: shipment }, { data: documents }, { data: requirements }, { data: members },
     { data: workflows }, { data: comments }, { data: alerts }, { data: approvals }] = await Promise.all([
     supabase.from("shipments").select("id, owner, export_approval_required").eq("id", shipmentId).maybeSingle(),
-    supabase.from("documents").select("id, doc_type, status, source_filename, created_at").eq("shipment_id", shipmentId).order("created_at"),
+    supabase.from("documents").select("id, doc_type, status, source_filename, created_at, fields").eq("shipment_id", shipmentId).order("created_at"),
     supabase.from("shipment_requirements").select("requirement_key, label, accepted_types, required, filename_hint").eq("shipment_id", shipmentId),
     supabase.from("shipment_members").select("id, member_id, email, display_name, role, status").eq("shipment_id", shipmentId).neq("status", "removed").order("created_at"),
     supabase.from("document_workflows").select("document_id, assignee_email, status, due_at, updated_at").eq("shipment_id", shipmentId),
     supabase.from("document_comments").select("id, document_id, author_email, body, kind, created_at").eq("shipment_id", shipmentId).order("created_at"),
-    supabase.from("charge_alerts").select("id, alert_type, basis, free_until, notify_email, remind_days, sent_offsets, status, source_value").eq("shipment_id", shipmentId).neq("status", "dismissed").order("free_until"),
+    supabase.from("charge_alerts").select("id, document_id, alert_type, basis, free_until, notify_email, remind_days, sent_offsets, status, source_value").eq("shipment_id", shipmentId).neq("status", "dismissed").order("free_until"),
     supabase.from("export_approvals").select("id, status, decision_note, requested_at, decided_at, requested_by, decided_by").eq("shipment_id", shipmentId).order("requested_at", { ascending: false }).limit(5),
   ]);
   if (!shipment) return null;
   const selfMembership = (members ?? []).find((member) => member.member_id === user.id && member.status === "active");
   const role = shipment.owner === user.id ? "owner" : selfMembership?.role ?? "reviewer";
+  const { data: ownerProfile } = shipment.owner === user.id
+    ? await supabase.from("profiles").select("plan").eq("id", user.id).maybeSingle()
+    : { data: null };
+  const teamEnabled = role !== "owner" ? Boolean(selfMembership) : ownerProfile?.plan === "team";
   const canConfigure = ["owner", "editor"].includes(role);
   const completeness = assessCompleteness(documents ?? [], (requirements ?? []) as ShipmentRequirement[]);
   const workflowMap = new Map((workflows ?? []).map((workflow) => [workflow.document_id, workflow]));
@@ -70,15 +79,20 @@ export async function ShipmentOperationsPanel({ shipmentId }: { shipmentId: stri
         <div className="flex items-start gap-3"><BellRing className="mt-0.5 size-6 text-signal" aria-hidden/><div><h2 className="text-xl font-bold text-primary">Demurrage & detention watch</h2><p className="mt-1 text-sm text-muted-foreground">Arrival-notice last-free dates are scheduled automatically. Daily reminders run at 08:00 UTC, with webhook delivery and email when configured.</p></div></div>
         {(alerts ?? []).length === 0 ? <p className="mt-4 rounded-2xl border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">No charge clocks are active. Parsing an arrival notice with a last-free date creates one automatically.</p> : <ul className="mt-4 grid gap-3 sm:grid-cols-2">{(alerts ?? []).map((alert) => {
           const days = daysRemaining(alert.free_until);
+          const source = (documents ?? []).find((document) => document.id === alert.document_id)?.fields as { availability_date?: string | null; last_free_day?: string | null; containers?: Array<{ container_no?: string | null }> } | null;
+          const calculatorParams = new URLSearchParams({ last_free_day: source?.last_free_day ?? alert.free_until });
+          if (source?.availability_date) calculatorParams.set("availability", source.availability_date);
+          if (source?.containers?.[0]?.container_no) calculatorParams.set("container", source.containers[0].container_no);
           return <li key={alert.id} className={cn("rounded-2xl border p-4", days <= 1 ? "border-destructive/35 bg-destructive/5" : days <= 3 ? "border-warn/35 bg-warn/5" : "border-border bg-background")}>
             <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{alert.alert_type} · {alert.basis}</p><p className="mt-1 text-lg font-bold text-primary">{alert.free_until}</p><p className="text-xs text-muted-foreground">{days < 0 ? `Charges may have started ${Math.abs(days)} day${days === -1 ? "" : "s"} ago` : days === 0 ? "Last free day is today" : `${days} day${days === 1 ? "" : "s"} remaining`}</p></div>{canConfigure && <form action={dismissChargeAlert}><input type="hidden" name="shipmentId" value={shipmentId}/><input type="hidden" name="alertId" value={alert.id}/><button className="text-xs text-muted-foreground underline">Dismiss</button></form>}</div>
             <p className="mt-3 text-[0.7rem] text-muted-foreground">Reminder cadence: {(alert.remind_days ?? []).join(", ")} days · {(alert.sent_offsets ?? []).length} sent</p>
+            <Button render={<Link href={`/tools/demurrage-detention-calculator?${calculatorParams.toString()}`} />} size="sm" variant="outline" className="mt-3">Open in D&amp;D audit</Button>
           </li>;
         })}</ul>}
         {canConfigure && <form action={addChargeAlert} className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-[auto_1fr_1fr_auto]"><input type="hidden" name="shipmentId" value={shipmentId}/><select name="alertType" className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"><option value="demurrage">Demurrage</option><option value="detention">Detention</option></select><input name="freeUntil" type="date" required className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"/><input name="notifyEmail" type="email" defaultValue={user.email ?? ""} placeholder="Reminder email" className="min-h-11 rounded-xl border border-border bg-background px-3 text-sm"/><Button type="submit">Add alert</Button></form>}
       </section>
 
-      <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
+      {teamEnabled ? <><section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start gap-3"><UsersRound className="mt-0.5 size-6 text-signal" aria-hidden/><div><h2 className="text-xl font-bold text-primary">Team review</h2><p className="mt-1 text-sm text-muted-foreground">Assign ownership, keep correction requests beside the source document, and preserve every decision.</p></div></div>
         <div className="mt-4 grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
           <div>
@@ -105,7 +119,7 @@ export async function ShipmentOperationsPanel({ shipmentId }: { shipmentId: stri
       <section className="rounded-3xl border border-border bg-card p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-lg font-bold text-primary">Export approval gate</h2><p className="mt-1 text-sm text-muted-foreground">When enabled, consolidated shipment exports stay locked until an owner or approver signs off.</p></div>{role === "owner" && <form action={setExportApprovalRequired}><input type="hidden" name="shipmentId" value={shipmentId}/><input type="hidden" name="required" value={shipment.export_approval_required ? "false" : "true"}/><Button type="submit" variant="outline">{shipment.export_approval_required ? "Disable gate" : "Require approval"}</Button></form>}</div>
         {shipment.export_approval_required && <div className="mt-4 rounded-2xl border border-border bg-background p-4"><p className="text-sm font-semibold">Latest request: <span className="capitalize">{latestApproval?.status ?? "not requested"}</span></p><p className="mt-1 text-xs text-muted-foreground">{latestApproval ? new Date(latestApproval.requested_at).toLocaleString() : "Request approval after the documents are ready."}</p><div className="mt-3 flex flex-wrap gap-2"><form action={requestExportApproval}><input type="hidden" name="shipmentId" value={shipmentId}/><Button size="sm" variant="outline">Request export approval</Button></form>{latestApproval?.status === "pending" && ["owner", "approver"].includes(role) && <form action={decideExportApproval} className="flex flex-wrap gap-2"><input type="hidden" name="shipmentId" value={shipmentId}/><input type="hidden" name="approvalId" value={latestApproval.id}/><input name="note" maxLength={500} placeholder="Decision note" className="min-h-9 rounded-lg border border-border px-2 text-sm"/><Button name="decision" value="rejected" size="sm" variant="outline">Reject</Button><Button name="decision" value="approved" size="sm">Approve export</Button></form>}</div></div>}
-      </section>
+      </section></> : <section className="rounded-3xl border border-border bg-card p-5 shadow-sm"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><UsersRound className="mt-0.5 size-6 text-signal" aria-hidden/><div><h2 className="text-xl font-bold text-primary">Team review workspace</h2><p className="mt-1 text-sm text-muted-foreground">Assignments, reviewers, approval roles, comments and export gates are included with Team.</p></div></div><Button render={<Link href="/pricing" />} variant="outline">View Team plan</Button></div></section>}
     </div>
   );
 }

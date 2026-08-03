@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { ArrowRight, CircleCheck, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { FreightModeTag } from "@/components/ui/freight-mode-tag";
 import { PARSER_PAGES } from "@/content/parsers";
 import { PARSER_SEO } from "@/content/seo-copy";
 import { breadcrumbLd, faqLd, howToLd, JsonLd, serviceLd } from "@/lib/seo/jsonld";
+import { parserMode } from "@/lib/freight/mode";
 
 // Parser landing pages are statically generated from the document capability catalog.
 // Keep runtime param handling enabled: OpenNext serves these prerendered paths
@@ -51,6 +53,10 @@ const PARSER_HINTS: Record<string, string> = {
   "freight-invoice-parser": "freight_invoice",
   "goods-receipt-parser": "goods_receipt",
   "air-waybill-parser": "air_waybill",
+  "shipper-letter-of-instruction-parser": "shipper_letter_of_instruction",
+  "dangerous-goods-declaration-parser": "dangerous_goods_declaration",
+  "air-cargo-manifest-parser": "air_cargo_manifest",
+  "cargo-security-declaration-parser": "cargo_security_declaration",
 };
 
 export default async function ParserPage({
@@ -78,7 +84,7 @@ export default async function ParserPage({
         ]}
       />
 
-      <section className="border-b border-border bg-gradient-to-b from-background to-secondary/60">
+      <section className="section-edge bg-gradient-to-b from-background to-secondary/60">
         <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6 lg:py-20">
           <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
             <Link href="/" className="hover:underline">
@@ -86,6 +92,7 @@ export default async function ParserPage({
             </Link>{" "}
             / {page.h1}
           </nav>
+          <FreightModeTag mode={parserMode(page.slug)} className="mt-5" />
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-primary">
             {seo?.h1 ?? page.h1}
           </h1>

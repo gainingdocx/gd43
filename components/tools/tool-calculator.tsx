@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Copy, Download, Plus, Printer, Search, Trash2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DemurrageAuditCalculator } from "@/components/tools/demurrage-audit-calculator";
+import { AirCargoDocumentChecklist, AirWaybillNumberCheck } from "@/components/tools/air-cargo-tools";
+import { trackFeatureUse } from "@/lib/analytics/client";
 import {
   calculateContainerFit,
   calculateFreeTimeCharge,
@@ -26,18 +29,26 @@ type CargoRow = { l: string; w: string; h: string; qty: string; weight: string; 
 const cargoRow = (): CargoRow => ({ l: "", w: "", h: "", qty: "1", weight: "", description: "" });
 
 export function ToolCalculator({ slug }: { slug: string }) {
+  const started = useRef(false);
   let body: React.ReactNode;
   if (slug === "cbm-calculator") body = <CbmCalculator />;
   else if (slug === "container-load-calculator") body = <ContainerLoadCalculator />;
   else if (slug === "container-number-check") body = <ContainerNumberCheck />;
   else if (slug === "chargeable-weight-calculator") body = <ChargeableWeightCalculator />;
+  else if (slug === "air-waybill-number-check") body = <AirWaybillNumberCheck />;
+  else if (slug === "air-cargo-document-checklist") body = <AirCargoDocumentChecklist />;
   else if (slug === "lcl-freight-calculator") body = <LclFreightCalculator />;
-  else if (slug === "demurrage-detention-calculator") body = <DemurrageDetentionCalculator />;
+  else if (slug === "demurrage-detention-calculator") body = <DemurrageAuditCalculator />;
   else if (slug === "hs-code-finder") body = <HsCodeFinder />;
   else if (slug === "shipping-mark-generator") body = <ShippingMarkGenerator />;
   else body = <PortLookup />;
   const next = TOOL_NEXT_STEPS[slug] ?? { label: "Parse the supporting document", href: "/app/scan" };
-  return <div><div className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">{body}</div><div className="mt-6 rounded-xl border bg-secondary p-4"><p className="text-xs font-bold uppercase tracking-wider text-signal">Recommended next step</p><div className="mt-2 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">{next.label}</p><div className="flex flex-wrap gap-2"><Button render={<Link href={next.href} />} className="bg-signal text-signal-foreground hover:bg-signal/90">Continue workflow <ArrowRight aria-hidden/></Button><Button render={<Link href="/app/scan" />} variant="outline">Use document data</Button></div></div></div></div>;
+  function recordStart() {
+    if (started.current) return;
+    started.current = true;
+    trackFeatureUse(`Tool started: ${slug}`);
+  }
+  return <div><div onInputCapture={recordStart} onChangeCapture={recordStart} className="rounded-2xl border bg-card p-5 shadow-sm sm:p-7">{body}</div><div className="mt-6 rounded-xl border bg-secondary p-4"><p className="text-xs font-bold uppercase tracking-wider text-signal">Recommended next step</p><div className="mt-2 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">{next.label}</p><div className="flex flex-wrap gap-2"><Button render={<Link href={next.href} data-analytics-feature={`Tool next step: ${slug}`} />} className="bg-signal text-signal-foreground hover:bg-signal/90">Continue workflow <ArrowRight aria-hidden/></Button><Button render={<Link href="/app/scan" data-analytics-feature={`Tool to document scan: ${slug}`} />} variant="outline">Use document data</Button></div></div></div></div>;
 }
 
 const TOOL_NEXT_STEPS: Record<string, { label: string; href: string }> = {
@@ -46,6 +57,8 @@ const TOOL_NEXT_STEPS: Record<string, { label: string; href: string }> = {
   "container-number-check": { label: "Parse the B/L and compare its container and seal evidence.", href: "/bill-of-lading-parser" },
   "port-code-lookup": { label: "Use the verified UN/LOCODE in carrier shipping instructions.", href: "/templates/shipping-instructions-template" },
   "chargeable-weight-calculator": { label: "Audit the calculated weight against the freight invoice.", href: "/freight-invoice-parser" },
+  "air-waybill-number-check": { label: "Parse the complete AWB and review its route, weights and cargo lines.", href: "/air-waybill-parser" },
+  "air-cargo-document-checklist": { label: "Start the guided air-freight paperwork workspace.", href: "/app/air-freight" },
   "lcl-freight-calculator": { label: "Parse the freight invoice and match quoted versus billed charges.", href: "/freight-invoice-parser" },
   "demurrage-detention-calculator": { label: "Check dates and free time against the arrival notice before disputing charges.", href: "/arrival-notice-parser" },
   "hs-code-finder": { label: "Parse the commercial invoice and review codes beside each cargo line.", href: "/commercial-invoice-parser" },
@@ -107,19 +120,33 @@ function ChargeableWeightCalculator() {
   const [rows, setRows] = useState<CargoRow[]>([cargoRow()]);
   const [mode, setMode] = useState("express5000");
   const [unit, setUnit] = useState("cmkg");
-  const [actual, setActual] = useState("");
   const [custom, setCustom] = useState("5000");
+  const [rounding, setRounding] = useState("none");
+  const [rate, setRate] = useState("");
+  const [currency, setCurrency] = useState("USD");
   const dimensionUnit: DimensionUnit = unit === "inlb" ? "in" : "cm";
   const weightUnit: WeightUnit = unit === "inlb" ? "lb" : "kg";
   const divisorBasis = unit === "inlb" ? "in3_per_lb" as const : "cm3_per_kg" as const;
   const divisor = mode === "air6000" ? (unit === "inlb" ? 166 : 6000) : mode === "custom" ? Math.max(1,num(custom)) : unit === "inlb" ? 139 : 5000;
   const set = (i:number,key:keyof CargoRow,value:string)=>setRows((old)=>old.map((r,x)=>x===i?{...r,[key]:value}:r));
-  const detail = rows.map((r)=>({ ...r, volumetric: volumetricWeight(num(r.l), num(r.w), num(r.h), num(r.qty), dimensionUnit, divisor, weightUnit, divisorBasis) }));
+  const round = (value:number) => rounding === "1" ? Math.ceil(value) : rounding === "0.5" ? Math.ceil(value * 2) / 2 : value;
+  const detail = rows.map((r)=>{
+    const actual = num(r.weight) * num(r.qty);
+    const volumetric = volumetricWeight(num(r.l), num(r.w), num(r.h), num(r.qty), dimensionUnit, divisor, weightUnit, divisorBasis);
+    return { ...r, actual, volumetric, chargeable: round(chargeableWeight(actual, volumetric)) };
+  });
+  const actual = detail.reduce((s,r)=>s+r.actual,0);
   const volumetric = detail.reduce((s,r)=>s+r.volumetric,0);
-  const chargeable = chargeableWeight(num(actual),volumetric);
-  return <><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Tariff basis<select className={`${field} mt-1`} value={mode} onChange={(e)=>setMode(e.target.value)}><option value="express5000">Express courier — 5,000 cm³/kg or 139 in³/lb</option><option value="air6000">General air cargo — 6,000 cm³/kg or 166 in³/lb</option><option value="custom">Custom carrier divisor</option></select></label><label className="text-sm">Units<select className={`${field} mt-1`} value={unit} onChange={(e)=>{const next=e.target.value;setUnit(next);if(mode==="custom")setCustom(next==="inlb"?"139":"5000");}}><option value="cmkg">cm / kg</option><option value="inlb">in / lb</option></select></label>{mode==="custom"?<Input label={`Custom divisor (${unit === "inlb" ? "in³/lb" : "cm³/kg"})`} value={custom} set={setCustom}/>:<Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/>}</div>{mode==="custom"&&<div className="mt-3 max-w-sm"><Input label={`Total actual weight (${weightUnit})`} value={actual} set={setActual}/></div>}
-    <div className="mt-4 space-y-3">{detail.map((r,i)=><div key={i} className="grid gap-2 rounded-xl border p-3 sm:grid-cols-6"><Input label="Length" value={r.l} set={(x)=>set(i,"l",x)}/><Input label="Width" value={r.w} set={(x)=>set(i,"w",x)}/><Input label="Height" value={r.h} set={(x)=>set(i,"h",x)}/><Input label="Pieces" value={r.qty} set={(x)=>set(i,"qty",x)}/><div className="flex items-end rounded-lg bg-accent p-2 text-sm"><span><span className="block text-xs text-muted-foreground">Volumetric</span><strong>{fmt(r.volumetric,1)} {weightUnit}</strong></span></div><div className="flex items-end">{rows.length>1&&<Button size="icon" variant="ghost" aria-label={`Remove package group ${i+1}`} onClick={()=>setRows(rows.filter((_,x)=>x!==i))}><Trash2/></Button>}</div></div>)}</div><Button className="mt-3" variant="outline" onClick={()=>setRows([...rows,cargoRow()])}><Plus/> Add package group</Button>
-    <Result label="Chargeable weight" value={`${fmt(chargeable,1)} ${weightUnit}`} note={`Actual ${fmt(num(actual),1)} ${weightUnit}; volumetric ${fmt(volumetric,1)} ${weightUnit}; divisor ${divisor} ${unit === "inlb" ? "in³/lb" : "cm³/kg"}. The greater figure is chargeable.`}/><p className="mt-3 text-xs text-muted-foreground">Carrier rules, minimums, per-piece rating and rounding differ. Select the contracted tariff basis; do not use the express divisor for general air cargo or vice versa.</p></>;
+  const chargeable = detail.reduce((s,r)=>s+r.chargeable,0);
+  const estimatedCost = chargeable * num(rate);
+  function downloadCsv() {
+    const csv = ["Description,Length,Width,Height,Pieces,Actual per piece,Actual total,Volumetric,Chargeable,Unit,Divisor", ...detail.map((r)=>[r.description,r.l,r.w,r.h,r.qty,r.weight,r.actual,r.volumetric,r.chargeable,weightUnit,divisor].map((x)=>`"${String(x).replace(/"/g,'""')}"`).join(",")), `TOTAL,,,,,,${actual},${volumetric},${chargeable},${weightUnit},${divisor}`].join("\n");
+    downloadText("chargeable-weight-calculation.csv",csv,"text/csv");
+  }
+  return <><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-sm">Tariff basis<select className={`${field} mt-1`} value={mode} onChange={(e)=>setMode(e.target.value)}><option value="express5000">Express courier — 5,000 cm³/kg or 139 in³/lb</option><option value="air6000">General air cargo — 6,000 cm³/kg or 166 in³/lb</option><option value="custom">Custom carrier divisor</option></select></label><label className="text-sm">Units<select className={`${field} mt-1`} value={unit} onChange={(e)=>{const next=e.target.value;setUnit(next);if(mode==="custom")setCustom(next==="inlb"?"139":"5000");}}><option value="cmkg">cm / kg</option><option value="inlb">in / lb</option></select></label><label className="text-sm">Round each cargo line<select className={`${field} mt-1`} value={rounding} onChange={(e)=>setRounding(e.target.value)}><option value="none">No rounding</option><option value="0.5">Up to next 0.5 {weightUnit}</option><option value="1">Up to next whole {weightUnit}</option></select></label>{mode==="custom"?<Input label={`Custom divisor (${unit === "inlb" ? "in³/lb" : "cm³/kg"})`} value={custom} set={setCustom}/>:<div className="rounded-xl bg-accent p-3 text-sm"><span className="block text-xs text-muted-foreground">Applied divisor</span><strong>{divisor.toLocaleString()} {unit === "inlb" ? "in³/lb" : "cm³/kg"}</strong></div>}</div>
+    <div className="mt-4 space-y-3">{detail.map((r,i)=><div key={i} className="rounded-xl border p-3"><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7"><Input label="Description" type="text" value={r.description} set={(x)=>set(i,"description",x)}/><Input label={`Length (${dimensionUnit})`} value={r.l} set={(x)=>set(i,"l",x)}/><Input label={`Width (${dimensionUnit})`} value={r.w} set={(x)=>set(i,"w",x)}/><Input label={`Height (${dimensionUnit})`} value={r.h} set={(x)=>set(i,"h",x)}/><Input label="Pieces" value={r.qty} set={(x)=>set(i,"qty",x)}/><Input label={`Actual / piece (${weightUnit})`} value={r.weight} set={(x)=>set(i,"weight",x)}/><div className="flex items-end justify-between gap-2 rounded-lg bg-accent p-2 text-sm"><span><span className="block text-xs text-muted-foreground">Line chargeable</span><strong>{fmt(r.chargeable,1)} {weightUnit}</strong><span className="block text-xs text-muted-foreground">{fmt(r.actual,1)} actual / {fmt(r.volumetric,1)} volume</span></span>{rows.length>1&&<Button size="icon" variant="ghost" aria-label={`Remove package group ${i+1}`} onClick={()=>setRows(rows.filter((_,x)=>x!==i))}><Trash2/></Button>}</div></div></div>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" onClick={()=>setRows([...rows,cargoRow()])}><Plus/> Add package group</Button><Button data-analytics-feature="Chargeable weight CSV exported" variant="outline" onClick={downloadCsv}><Download/> Export CSV audit</Button></div>
+    <Result label="Total chargeable weight" value={`${fmt(chargeable,1)} ${weightUnit}`} note={`Line-by-line total: actual ${fmt(actual,1)} ${weightUnit}; volumetric ${fmt(volumetric,1)} ${weightUnit}; divisor ${divisor}. Each line uses the higher actual or volumetric result before the selected rounding.`}/>
+    <div className="mt-4 grid gap-3 sm:grid-cols-3"><Input label={`Freight rate per ${weightUnit} (optional)`} value={rate} set={setRate}/><Input label="Currency" type="text" value={currency} set={(value)=>setCurrency(value.toUpperCase().slice(0,3))}/><div className="rounded-xl bg-secondary p-3"><span className="text-xs text-muted-foreground">Estimated freight</span><strong className="block text-lg">{currency || "USD"} {fmt(estimatedCost,2)}</strong></div></div><p className="mt-3 text-xs text-muted-foreground">Carrier rules, minimums, per-piece rating and rounding differ. Select the contracted tariff basis; do not use the express divisor for general air cargo or vice versa.</p></>;
 }
 
 function LclFreightCalculator() {
@@ -139,20 +166,32 @@ function LclFreightCalculator() {
   </>;
 }
 
-function DemurrageDetentionCalculator() {
-  const [v, setV] = useState<Record<string, string>>({ currency: "USD", freeDays: "5", tierDays: "5" });
+/** @deprecated Kept only for backwards-compatible embedding; the public tool uses the multi-container audit above. */
+export function LegacyDemurrageDetentionCalculator() {
+  const [v, setV] = useState<Record<string, string>>({ currency: "USD", freeDays: "5", tierDays: "5", chargeType: "demurrage", dayBasis: "calendar", convention: "exclusive" });
   const update = (key: string, value: string) => setV((old) => ({ ...old, [key]: value }));
   const result = calculateFreeTimeCharge({
     startDate: v.startDate ?? "", endDate: v.endDate ?? "", freeDays: num(v.freeDays),
     firstTierDays: num(v.tierDays), firstTierDailyRate: num(v.firstRate),
     secondTierDailyRate: num(v.secondRate), fixedCharges: num(v.fixed),
+    dayBasis: v.dayBasis === "weekdays" ? "weekdays" : "calendar",
+    includeStartDate: v.convention === "inclusive",
   });
   const currency = (v.currency || "USD").toUpperCase().slice(0, 3);
+  const typeLabel = v.chargeType === "detention" ? "Detention" : v.chargeType === "combined" ? "Combined demurrage and detention" : "Demurrage";
+  const startLabel = v.chargeType === "detention" ? "Full-container gate-out date" : v.chargeType === "combined" ? "Combined free-time start date" : "Discharge / availability date";
+  const endLabel = v.chargeType === "detention" ? "Empty-return gate-in date" : v.chargeType === "combined" ? "Empty-return / final event date" : "Full-container gate-out date";
+  function downloadCsv() {
+    const csv = ["Charge type,Start date,End date,Day basis,Start convention,Elapsed days,Free days,Chargeable days,Tier 1 days,Tier 1 charge,Later days,Later charge,Fixed charges,Currency,Total", [typeLabel,v.startDate,v.endDate,v.dayBasis,v.convention,result.elapsedDays,result.freeDays,result.chargeableDays,result.firstTierDays,result.firstTierCharge,result.secondTierDays,result.secondTierCharge,result.fixedCharges,currency,result.total].map((x)=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")].join("\n");
+    downloadText("demurrage-detention-audit.csv",csv,"text/csv");
+  }
   return <>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label="Free-time start date" type="date" value={v.startDate} set={(x)=>update("startDate",x)}/><Input label="Pickup / return date" type="date" value={v.endDate} set={(x)=>update("endDate",x)}/><Input label="Contractual free days" value={v.freeDays} set={(x)=>update("freeDays",x)}/><Input label="First-tier days" value={v.tierDays} set={(x)=>update("tierDays",x)}/></div>
+    <div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Charge type<select className={`${field} mt-1`} value={v.chargeType} onChange={(e)=>update("chargeType",e.target.value)}><option value="demurrage">Demurrage — inside terminal</option><option value="detention">Detention — outside terminal</option><option value="combined">Combined D&amp;D</option></select></label><label className="text-sm">Tariff day basis<select className={`${field} mt-1`} value={v.dayBasis} onChange={(e)=>update("dayBasis",e.target.value)}><option value="calendar">Calendar days</option><option value="weekdays">Monday–Friday only</option></select></label><label className="text-sm">Start-date convention<select className={`${field} mt-1`} value={v.convention} onChange={(e)=>update("convention",e.target.value)}><option value="exclusive">Exclude start date</option><option value="inclusive">Include start date</option></select></label></div>
+    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label={startLabel} type="date" value={v.startDate} set={(x)=>update("startDate",x)}/><Input label={endLabel} type="date" value={v.endDate} set={(x)=>update("endDate",x)}/><Input label="Contractual free days" value={v.freeDays} set={(x)=>update("freeDays",x)}/><Input label="First-tier days" value={v.tierDays} set={(x)=>update("tierDays",x)}/></div>
     <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Input label={`First-tier daily rate (${currency})`} value={v.firstRate} set={(x)=>update("firstRate",x)}/><Input label={`Later daily rate (${currency})`} value={v.secondRate} set={(x)=>update("secondRate",x)}/><Input label="Fixed / administrative charges" value={v.fixed} set={(x)=>update("fixed",x)}/><Input label="Currency" type="text" value={v.currency} set={(x)=>update("currency",x)}/></div>
-    <Result label="Estimated time-based charges" value={`${currency} ${fmt(result.total,2)}`} note={`${result.elapsedDays} elapsed calendar days less ${result.freeDays} free days = ${result.chargeableDays} chargeable days. Tier 1: ${result.firstTierDays} days / ${currency} ${fmt(result.firstTierCharge,2)}; later tier: ${result.secondTierDays} days / ${currency} ${fmt(result.secondTierCharge,2)}; fixed charges ${currency} ${fmt(result.fixedCharges,2)}.`}/>
-    <p className="mt-3 text-xs text-muted-foreground">Date-counting conventions differ by carrier, terminal, equipment event and jurisdiction. Confirm whether the start day is included, whether free time uses calendar or working days, and whether demurrage, detention and storage are billed separately before relying on this audit.</p>
+    <Result label={`Estimated ${typeLabel.toLowerCase()} charges`} value={`${currency} ${fmt(result.total,2)}`} note={`${result.elapsedDays} ${v.dayBasis === "weekdays" ? "Monday–Friday" : "calendar"} days less ${result.freeDays} free days = ${result.chargeableDays} chargeable days. Tier 1: ${result.firstTierDays} days / ${currency} ${fmt(result.firstTierCharge,2)}; later tier: ${result.secondTierDays} days / ${currency} ${fmt(result.secondTierCharge,2)}; fixed charges ${currency} ${fmt(result.fixedCharges,2)}.`}/>
+    <Button data-analytics-feature="Demurrage calculation CSV exported" className="mt-3" variant="outline" onClick={downloadCsv}><Download/> Export calculation audit</Button>
+    <p className="mt-3 text-xs text-muted-foreground">Date-counting conventions differ by carrier, terminal, equipment event and jurisdiction. “Monday–Friday” does not remove local public holidays. Confirm the governing tariff, holiday calendar, event timestamps, combined-free-time terms and whether storage is billed separately before relying on this audit.</p>
   </>;
 }
 

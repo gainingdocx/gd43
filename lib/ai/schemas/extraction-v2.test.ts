@@ -111,6 +111,18 @@ describe("normalizeModelOutput — bill of lading", () => {
     assert.equal(out.fields._meta.prompt_version, PV);
   });
 
+  it("preserves only valid exact source evidence", () => {
+    const out = normalizeModelOutput({
+      detected_type: "other", fields: {},
+      source_evidence: {
+        bl_number: { page: 2, quote: "  B/L No. ABC 123  ", bbox: [8.5, 4, 20, 3.5] },
+        invalid_page: { page: 0, quote: "bad" },
+        empty: { page: 1, quote: "" },
+      },
+    }, "test");
+    assert.deepEqual(out.fields._meta.source_evidence, { bl_number: { page: 2, quote: "B/L No. ABC 123", bbox: [8.5, 4, 20, 3.5] } });
+  });
+
   it("counts zero empty critical fields (all present here)", () => {
     assert.equal(countEmptyCriticalFields(out), 0);
   });
@@ -155,6 +167,38 @@ describe("normalizeModelOutput — bill of lading", () => {
   });
 });
 
+describe("normalizeModelOutput — flagship workflow documents", () => {
+  it("normalizes shipping instructions without losing operational fields", () => {
+    const out = normalizeModelOutput({ detected_type: "shipping_instructions", fields: {
+      si_number: "SI-42", booking_no: "BK-42", shipper: { name: "Exporter Ltd" },
+      port_of_load: { name: "Shanghai", unlocode: "CNSHA" },
+      containers: [{ container_no: "MSCU6639871", gross_kg: "12000 KG" }],
+      requested_bl_type: "telex", total_gross_kg: "12000 KG",
+    } }, PV);
+    assert.equal(out.detected_type, "shipping_instructions");
+    if (out.detected_type !== "shipping_instructions") return;
+    assert.equal(out.fields.booking_no, "BK-42");
+    assert.equal(out.fields.containers[0].gross_kg, 12000);
+    assert.equal(out.fields.requested_bl_type, "telex");
+  });
+
+  it("normalizes rates, events and D&D invoices as dedicated records", () => {
+    const rate = normalizeModelOutput({ detected_type: "rate_confirmation", fields: {
+      rate_agreement_no: "RA-9", currency: "USD", charges: [{ charge_code: "OCEAN", amount: 1500 }],
+    } }, PV);
+    assert.equal(rate.detected_type, "rate_confirmation");
+    if (rate.detected_type === "rate_confirmation") assert.equal(rate.fields.charges[0].amount, 1500);
+    const event = normalizeModelOutput({ detected_type: "container_event", fields: {
+      container_no: "MSCU6639871", event_type: "empty_return", event_timestamp: "2026-08-02T14:30:00", timezone: "+08:00",
+    } }, PV);
+    assert.equal(event.detected_type, "container_event");
+    const invoice = normalizeModelOutput({ detected_type: "demurrage_detention_invoice", fields: {
+      invoice_no: "DD-1", bl_numbers: ["BL-1"], container_refs: ["MSCU6639871"], total_amount: 500,
+    } }, PV);
+    assert.equal(invoice.detected_type, "demurrage_detention_invoice");
+  });
+});
+
 describe("normalizeModelOutput — dedicated operational document types", () => {
   it("normalizes a sea waybill through the transport-document schema", () => {
     const out = normalizeModelOutput({ detected_type: "sea_waybill", fields: { bl_number: "SWB-77", shipper: { name: "EXPORTER" }, consignee: { name: "IMPORTER" }, port_of_load: { name: "Singapore", unlocode: "SGSIN" }, port_of_discharge: { name: "Helsinki", unlocode: "FIHEL" }, containers: [{ container_no: "MSCU6639870" }], bl_type: "seaway" } }, PV);
@@ -179,6 +223,34 @@ describe("normalizeModelOutput — dedicated operational document types", () => 
     if (out.detected_type !== "booking_confirmation") return;
     assert.equal(out.fields.documentation_cutoff, "19 JUL 2026 12:00");
     assert.equal(out.fields.equipment[0].iso_type, "40HC");
+  });
+});
+
+describe("normalizeModelOutput — air freight document set", () => {
+  it("normalizes AWB hierarchy, route and chargeable-weight evidence", () => {
+    const out = normalizeModelOutput({ detected_type: "air_waybill", fields: {
+      awb_number: "123-12345675", awb_type: "master", origin_airport: "del", destination_airport: "fra",
+      total_pieces: "5", total_gross_kg: "100", total_chargeable_kg: "120",
+    } }, "test");
+    assert.equal(out.detected_type, "air_waybill");
+    if (out.detected_type !== "air_waybill") return;
+    assert.equal(out.fields.awb_number, "123-12345675");
+    assert.equal(out.fields.origin_airport, "del");
+    assert.equal(out.fields.total_chargeable_kg, 120);
+  });
+
+  it("normalizes SLI, DGD, manifest and security declarations as dedicated records", () => {
+    const types = [
+      ["shipper_letter_of_instruction", { instruction_no: "SLI-1", awb_numbers: ["123-12345675"], origin_airport: "DEL" }],
+      ["dangerous_goods_declaration", { declaration_reference: "DGD-1", awb_numbers: ["123-12345675"], signatory_name: "A. Shipper" }],
+      ["air_cargo_manifest", { manifest_no: "M-1", awb_numbers: ["123-12345675"], total_shipments: "2" }],
+      ["cargo_security_declaration", { declaration_reference: "CSD-1", awb_numbers: ["123-12345675"], security_status: "SPX" }],
+    ] as const;
+    for (const [detected_type, fields] of types) {
+      const out = normalizeModelOutput({ detected_type, fields }, "test");
+      assert.equal(out.detected_type, detected_type);
+      assert.deepEqual((out.fields as unknown as { awb_numbers: string[] }).awb_numbers, ["123-12345675"]);
+    }
   });
 });
 
@@ -320,7 +392,7 @@ describe("normalizeModelOutput — cargo reconciliation", () => {
 describe("normalizeModelOutput — edge cases", () => {
   it("unknown detected_type becomes 'other' with raw preserved", () => {
     const out = normalizeModelOutput(
-      { detected_type: "certificate_of_origin", fields: { foo: "bar" } },
+      { detected_type: "unsupported_manifest", fields: { foo: "bar" } },
       PV
     );
     assert.equal(out.detected_type, "other");

@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bell, CheckCircle2, CreditCard, Database, KeyRound, Languages, LogOut, Mail, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { Bell, CheckCircle2, CreditCard, Database, KeyRound, Languages, LogOut, Mail, ShieldCheck, Sparkles, UserRound, UserRoundPlus, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { DangerZone } from "@/components/account/danger-zone";
 import { MfaManager } from "@/components/account/mfa-manager";
-import { PLAN_LIMITS } from "@/lib/plans";
+import { getUsageContext } from "@/lib/billing/usage";
 import { getEntitlement } from "@/lib/paddle/entitlements";
 import { ManageBillingButton } from "@/components/paddle/manage-billing-button";
-import { changeEmail, changePassword, updatePreferences, updateProfile } from "./actions";
+import { CheckoutStatus } from "@/components/paddle/checkout-status";
+import { changeEmail, changePassword, inviteWorkspaceMember, removeWorkspaceMember, updatePreferences, updateProfile, updateWorkspaceMember } from "./actions";
 import { signOut, signOutEverywhere } from "@/app/auth/actions";
 
 function formatDate(value: string | null) {
@@ -21,6 +22,9 @@ const MESSAGES: Record<string, string> = {
   preferences: "Preferences updated.",
   password: "Password updated.",
   email: "Check both your old and new inboxes to confirm the email change.",
+  "team-invite": "Team member invited. Existing users can access the workspace now; new users join after sign-up.",
+  "team-role": "Team role updated.",
+  "team-remove": "Team member removed.",
 };
 const ERRORS: Record<string, string> = {
   profile: "Complete the required profile fields.",
@@ -31,6 +35,10 @@ const ERRORS: Record<string, string> = {
   "password-save": "Password could not be changed. Sign in again and retry.",
   email: "Enter a different valid email address.",
   "email-save": "Email change could not be started.",
+  "team-invite": "Enter a valid colleague email and role.",
+  "team-plan": "An active Team subscription is required to manage the workspace.",
+  "team-seats": "All five Team seats are in use. Remove a member before inviting another.",
+  "team-save": "The team change could not be saved.",
 };
 
 const input = "mt-1.5 h-11 w-full rounded-xl border border-input bg-background px-3 text-sm font-normal outline-none focus-visible:border-ring";
@@ -42,29 +50,40 @@ const ACCOUNT_NOTIFICATIONS = [
 ] as const;
 
 export default async function AccountPage({ searchParams }: {
-  searchParams: Promise<{ message?: string; error?: string }>;
+  searchParams: Promise<{ message?: string; error?: string; checkout?: string }>;
 }) {
   const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?next=/app/account");
 
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-  const [{ data: profile }, { count: usedCount }, { data: aal }] = await Promise.all([
+  const [{ data: profile }, { data: aal }, usage] = await Promise.all([
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-    supabase.from("documents").select("id", { count: "exact", head: true }).eq("owner", user.id).eq("status", "parsed").gte("created_at", monthStart.toISOString()),
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    getUsageContext(user.id),
   ]);
   const entitlement = await getEntitlement();
-  const plan = profile?.plan ?? "free";
-  const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  const plan = entitlement.plan;
+  const limit = usage.limit;
+  const usedCount = usage.used;
   const renewsOn = formatDate(entitlement.currentPeriodEnd);
   const cancelsOn = formatDate(entitlement.scheduledChangeAt);
   const providers = Array.isArray(user.app_metadata.providers)
     ? user.app_metadata.providers as string[]
     : user.app_metadata.provider ? [String(user.app_metadata.provider)] : ["email"];
+  const { data: ownWorkspace } = entitlement.isTeam && entitlement.isWorkspaceOwner
+    ? await supabase.from("team_workspaces").select("id, name, seat_limit").eq("owner", user.id).maybeSingle()
+    : { data: null };
+  const { data: ownMembership } = entitlement.isTeam && !entitlement.isWorkspaceOwner
+    ? await supabase.from("team_members").select("workspace_id").eq("member_id", user.id).eq("status", "active").maybeSingle()
+    : { data: null };
+  const { data: memberWorkspace } = ownMembership
+    ? await supabase.from("team_workspaces").select("id, name, seat_limit").eq("id", ownMembership.workspace_id).maybeSingle()
+    : { data: null };
+  const workspace = ownWorkspace ?? memberWorkspace;
+  const { data: teamMembers } = workspace
+    ? await supabase.from("team_members").select("id, email, display_name, role, status").eq("workspace_id", workspace.id).neq("status", "removed").order("created_at")
+    : { data: [] };
 
   return (
     <div data-wide className="space-y-6">
@@ -74,10 +93,11 @@ export default async function AccountPage({ searchParams }: {
       </div>
       {params.message && MESSAGES[params.message] && <div role="status" className="rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-sm text-success">{MESSAGES[params.message]}</div>}
       {params.error && <div role="alert" className="rounded-xl border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm text-destructive">{ERRORS[params.error] ?? "That change could not be completed."}</div>}
+      {params.checkout === "success" && <CheckoutStatus isPaid={entitlement.isPaid} plan={entitlement.plan} />}
       {!profile?.onboarding_completed_at && <div className="flex flex-col justify-between gap-3 rounded-2xl border border-signal/30 bg-secondary/60 p-4 sm:flex-row sm:items-center"><div><p className="font-bold text-primary">Finish workspace setup</p><p className="mt-1 text-sm text-muted-foreground">Choose document workflows and notification defaults.</p></div><Button render={<Link href="/app/onboarding" />} size="sm">Continue setup</Button></div>}
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Plan</p><p className="mt-2 text-2xl font-black capitalize text-primary">{plan}</p><p className="mt-1 text-xs text-muted-foreground">{plan === "pro" ? (cancelsOn ? `Cancels ${cancelsOn}` : renewsOn ? `Renews ${renewsOn}` : "Active subscription") : "No card required"}</p></div>
+        <div className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Plan</p><p className="mt-2 text-2xl font-black capitalize text-primary">{plan}</p><p className="mt-1 text-xs text-muted-foreground">{entitlement.isPaid ? (cancelsOn ? `Cancels ${cancelsOn}` : renewsOn ? `Renews ${renewsOn}` : "Active subscription") : "No card required"}</p></div>
         <div className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Documents this month</p><p className="mt-2 text-2xl font-black text-primary">{usedCount ?? 0} <span className="text-base font-medium text-muted-foreground">/ {limit}</span></p><div className="mt-3 h-2 overflow-hidden rounded-full bg-accent"><div className="h-full rounded-full bg-signal" style={{ width: `${Math.min(100, ((usedCount ?? 0) / limit) * 100)}%` }} /></div></div>
         <div className="rounded-2xl border border-border bg-card p-5"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Account status</p><p className="mt-2 flex items-center gap-2 font-bold text-success"><CheckCircle2 className="size-5" aria-hidden /> Active</p><p className="mt-2 truncate text-xs text-muted-foreground">{user.email}</p></div>
       </section>
@@ -85,22 +105,31 @@ export default async function AccountPage({ searchParams }: {
       <section className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-6">
         <div>
           <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary"><CreditCard className="size-5" aria-hidden /></span><div><h2 className="text-lg font-bold text-primary">Billing &amp; plan</h2><p className="text-xs text-muted-foreground">
-            {plan === "pro"
+            {entitlement.isPaid
               ? cancelsOn
                 ? `Pro — access continues until ${cancelsOn}, then reverts to Free.`
                 : renewsOn
                   ? `Pro — renews ${renewsOn}. Cancel anytime from the billing portal.`
-                  : "Pro plan active."
-              : "You're on the Free plan. Upgrade for 200 documents/month, watermark-free exports and document generation."}
+                  : `${plan === "team" ? "Team" : "Pro"} plan active.`
+              : "You're on Free. Upgrade for higher limits, watermark-free output, automation or a shared team workspace."}
           </p></div></div>
           {entitlement.status === "past_due" && <p className="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-xs font-medium text-warning">A recent payment failed. Update your card in the billing portal to keep Pro.</p>}
         </div>
         <div className="shrink-0">
-          {plan === "pro" || entitlement.hasBillingAccount
+          {entitlement.hasBillingAccount
             ? <ManageBillingButton />
-            : <Button render={<Link href="/pricing" />} size="sm"><Sparkles className="size-4" aria-hidden /> Upgrade to Pro</Button>}
+            : entitlement.isTeam ? <span className="text-xs font-medium text-muted-foreground">Billing is managed by the workspace owner.</span>
+            : <Button render={<Link href="/pricing" />} size="sm"><Sparkles className="size-4" aria-hidden /> Upgrade plan</Button>}
         </div>
       </section>
+
+      {entitlement.isTeam ? <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-secondary text-primary"><UsersRound className="size-5" aria-hidden /></span><div><h2 className="text-lg font-bold text-primary">Team workspace</h2><p className="text-xs text-muted-foreground">Five seats share shipments, assignments, review decisions and approval gates.</p></div></div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
+          <div><div className="flex items-center justify-between"><p className="text-sm font-bold">{workspace?.name ?? "Team workspace"}</p><span className="text-xs text-muted-foreground">{1 + (teamMembers?.length ?? 0)} / {workspace?.seat_limit ?? 5} seats</span></div><ul className="mt-3 space-y-2"><li className="rounded-xl border border-border bg-background p-3"><p className="text-sm font-semibold">Workspace owner</p><p className="text-xs text-muted-foreground">Owner · billing administrator</p></li>{(teamMembers ?? []).map((member) => <li key={member.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-background p-3"><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{member.display_name || member.email}</p><p className="text-xs capitalize text-muted-foreground">{member.role} · {member.status}</p></div>{entitlement.isWorkspaceOwner && <><form action={updateWorkspaceMember} className="flex gap-2"><input type="hidden" name="memberId" value={member.id}/><select name="role" defaultValue={member.role} className="h-9 rounded-lg border border-border bg-card px-2 text-xs"><option value="editor">Editor</option><option value="reviewer">Reviewer</option><option value="approver">Approver</option></select><Button size="sm" variant="outline">Save</Button></form><form action={removeWorkspaceMember}><input type="hidden" name="memberId" value={member.id}/><Button size="sm" variant="outline">Remove</Button></form></>}</li>)}</ul></div>
+          {entitlement.isWorkspaceOwner ? <form action={inviteWorkspaceMember} className="rounded-2xl border border-dashed border-border bg-background p-4"><p className="flex items-center gap-2 text-sm font-bold"><UserRoundPlus className="size-4 text-signal" aria-hidden /> Invite team member</p><p className="mt-1 text-xs text-muted-foreground">Members automatically join every shipment in this workspace.</p><input name="email" type="email" required placeholder="colleague@company.com" className={`${input} mt-4`} /><select name="role" className={`${input} mt-3`}><option value="editor">Editor — configure and review</option><option value="reviewer">Reviewer — review and comment</option><option value="approver">Approver — review and approve exports</option></select><Button className="mt-3 w-full" disabled={(teamMembers?.length ?? 0) >= 4}>Invite member</Button></form> : <div className="rounded-2xl border border-border bg-background p-4 text-sm text-muted-foreground">You are a member of this workspace. The owner manages seats, roles and billing.</div>}
+        </div>
+      </section> : <section className="flex flex-col justify-between gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:p-6"><div><h2 className="flex items-center gap-2 text-lg font-bold text-primary"><UsersRound className="size-5" aria-hidden /> Team workspace</h2><p className="mt-1 text-sm text-muted-foreground">Shared shipments, five seats, role-based review, assignments and export approvals are available on Team.</p></div><Button render={<Link href="/pricing" />} variant="outline">Compare Team</Button></section>}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">

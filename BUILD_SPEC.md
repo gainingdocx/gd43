@@ -14,7 +14,7 @@ GainingDocx: mobile-first PWA that parses ocean shipping documents (Bill of Ladi
 7. Mobile-first: bottom nav (Home / Scan / Search / Account), one-thumb reach, 3-tap rule (upload → review → export).
 
 ## 2. STACK (pinned at scaffold time to latest stable, then frozen)
-Next.js 15 App Router + TypeScript strict + Tailwind + shadcn/ui + Framer Motion (sparingly). Deploy: Cloudflare Workers via @opennextjs/cloudflare + wrangler. DB/Auth/Storage/Realtime: Supabase (@supabase/supabase-js + @supabase/ssr). AI: OpenRouter (OpenAI-compatible fetch, streaming). Email: Resend. Analytics: PostHog. Errors: Sentry (@sentry/nextjs). Exports: exceljs (xlsx), papaparse (csv), pdf-lib or react-pdf for PDF reports. PWA: @serwist/next or next-pwa (choose the one currently maintained; verify docs).
+Next.js 15 App Router + TypeScript strict + Tailwind + shadcn/ui + Framer Motion (sparingly). Deploy: Cloudflare Workers via @opennextjs/cloudflare + wrangler. DB/Auth/Storage/Realtime: Supabase (@supabase/supabase-js + @supabase/ssr). AI: OpenRouter (OpenAI-compatible fetch, streaming). Email: Cloudflare Email Routing/Sending with Cloudflare Queues. Analytics: PostHog. Errors: Sentry (@sentry/nextjs). Exports: exceljs (xlsx), papaparse (csv), pdf-lib or react-pdf for PDF reports. PWA: @serwist/next or next-pwa (choose the one currently maintained; verify docs).
 
 ## 3. MILESTONES (build order — finish, verify, commit, then next)
 
@@ -27,7 +27,8 @@ NEXT_PUBLIC_SUPABASE_URL=""
 NEXT_PUBLIC_SUPABASE_ANON_KEY=""
 SUPABASE_SERVICE_ROLE_KEY=""
 CLOUDFLARE_ACCOUNT_ID=""
-RESEND_API_KEY=""
+EMAIL_INGEST_DOMAIN="docs.gainingdocx.com"
+EMAIL_INGEST_FROM="reports@docs.gainingdocx.com"
 NEXT_PUBLIC_POSTHOG_KEY=""
 NEXT_PUBLIC_POSTHOG_HOST="https://us.i.posthog.com"
 NEXT_PUBLIC_SENTRY_DSN=""

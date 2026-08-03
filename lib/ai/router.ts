@@ -47,25 +47,29 @@ export interface ParseCallbacks {
   requestId?: string;
 }
 
+export type DocumentInput =
+  | { kind: "image"; url: string }
+  | { kind: "pdf"; url: string; filename: string };
+
 interface Attempt {
   provider: ParseProvider;
   base: string;
   apiKey: string | undefined;
   model: string;
   stream: boolean;
+  pdfEngine?: "cloudflare-ai" | "mistral-ocr" | "native";
 }
 
-function buildMessages(imageUrls: string[], docTypeHint?: string) {
+function buildMessages(inputs: DocumentInput[], docTypeHint?: string) {
   return [
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
       content: [
         { type: "text", text: buildUserText(docTypeHint) },
-        ...imageUrls.map((url) => ({
-          type: "image_url",
-          image_url: { url, detail: "high" },
-        })),
+        ...inputs.map((input) => input.kind === "pdf"
+          ? { type: "file", file: { filename: input.filename, file_data: input.url } }
+          : { type: "image_url", image_url: { url: input.url, detail: "high" } }),
       ],
     },
   ];
@@ -73,7 +77,7 @@ function buildMessages(imageUrls: string[], docTypeHint?: string) {
 
 async function callModel(
   attempt: Attempt,
-  imageUrls: string[],
+  inputs: DocumentInput[],
   docTypeHint: string | undefined,
   useJsonSchema: boolean,
   onPartial?: (partial: unknown) => void
@@ -82,7 +86,7 @@ async function callModel(
 
   const body: Record<string, unknown> = {
     model: attempt.model,
-    messages: buildMessages(imageUrls, docTypeHint),
+    messages: buildMessages(inputs, docTypeHint),
     stream: attempt.stream,
     max_tokens: MAX_OUTPUT_TOKENS,
     temperature: 0,
@@ -95,6 +99,9 @@ async function callModel(
   }
   if (attempt.provider === "openrouter") {
     body.provider = PROVIDER_PREFS;
+    if (inputs.some((input) => input.kind === "pdf")) {
+      body.plugins = [{ id: "file-parser", pdf: { engine: attempt.pdfEngine ?? "mistral-ocr" } }];
+    }
   }
 
   const res = await fetch(`${attempt.base}/chat/completions`, {
@@ -231,6 +238,7 @@ function mergeComplementaryExtractions(
       ...primaryMeta,
       confidence_flags: [...new Set([...primaryFlags, ...secondaryFlags, ...conflicts.map((path) => `cross_model:${path}`)])],
       page_refs: { ...(isObject(secondaryMeta.page_refs) ? secondaryMeta.page_refs : {}), ...(isObject(primaryMeta.page_refs) ? primaryMeta.page_refs : {}) },
+      source_evidence: { ...(isObject(secondaryMeta.source_evidence) ? secondaryMeta.source_evidence : {}), ...(isObject(primaryMeta.source_evidence) ? primaryMeta.source_evidence : {}) },
     };
   }
   return a as unknown as NormalizedExtraction;
@@ -241,7 +249,21 @@ export async function parseDocument(
   docTypeHint?: string,
   callbacks?: ParseCallbacks
 ): Promise<ParseResult> {
+  return parseDocumentInputs(
+    imageUrls.map((url) => ({ kind: "image" as const, url })),
+    docTypeHint,
+    callbacks
+  );
+}
+
+export async function parseDocumentInputs(
+  inputs: DocumentInput[],
+  docTypeHint?: string,
+  callbacks?: ParseCallbacks
+): Promise<ParseResult> {
   const openrouterKey = process.env.OPENROUTER_API_KEY;
+  const hasPdf = inputs.some((input) => input.kind === "pdf");
+  const configuredPdfEngine = (process.env.PDF_OCR_ENGINE || "cloudflare-ai") as Attempt["pdfEngine"];
 
   const ladder: Attempt[] = [
     {
@@ -250,6 +272,7 @@ export async function parseDocument(
       apiKey: openrouterKey,
       model: MODEL_PRIMARY,
       stream: true,
+      pdfEngine: hasPdf ? configuredPdfEngine : undefined,
     },
     {
       provider: "openrouter" as const,
@@ -257,7 +280,18 @@ export async function parseDocument(
       apiKey: openrouterKey,
       model: MODEL_PRIMARY,
       stream: false,
+      pdfEngine: hasPdf ? configuredPdfEngine : undefined,
     },
+    ...(hasPdf && configuredPdfEngine !== "mistral-ocr"
+      ? [{
+          provider: "openrouter" as const,
+          base: OPENROUTER_BASE_URL,
+          apiKey: openrouterKey,
+          model: MODEL_PRIMARY,
+          stream: false,
+          pdfEngine: "mistral-ocr" as const,
+        }]
+      : []),
   ].filter((a) => a.apiKey);
 
   if (ladder.length === 0) {
@@ -273,7 +307,7 @@ export async function parseDocument(
     try {
       const rawText = await callModel(
         attempt,
-        imageUrls,
+        inputs,
         docTypeHint,
         useJsonSchema,
         attempt.stream ? callbacks?.onPartial : undefined
@@ -284,6 +318,7 @@ export async function parseDocument(
         provider: attempt.provider,
         model: attempt.model,
         streaming: attempt.stream,
+        pdfEngine: attempt.pdfEngine,
         durationMs: Date.now() - attemptStartedAt,
       });
       winner = { attempt, rawText };
@@ -299,6 +334,7 @@ export async function parseDocument(
         provider: attempt.provider,
         model: attempt.model,
         streaming: attempt.stream,
+        pdfEngine: attempt.pdfEngine,
         durationMs: Date.now() - attemptStartedAt,
         upstreamStatus: status,
         errorName: error instanceof Error ? error.name : undefined,
@@ -336,7 +372,7 @@ export async function parseDocument(
     try {
       const rawText = await callModel(
         escalationAttempt,
-        imageUrls,
+        inputs,
         docTypeHint,
         useJsonSchema
       );

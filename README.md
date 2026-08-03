@@ -6,7 +6,7 @@ Master specification: `BUILD_SPEC.md` (build strictly in milestone order).
 
 ## Stack
 
-Next.js 15 (App Router, TypeScript strict, Tailwind v4, shadcn/ui) deployed to Cloudflare Workers via `@opennextjs/cloudflare` + `wrangler`. Supabase (DB/Auth/Storage), OpenRouter (AI), Resend (email), PostHog (analytics), Sentry (errors), Paddle (billing).
+Next.js 15 (App Router, TypeScript strict, Tailwind v4, shadcn/ui) deployed to Cloudflare Workers via `@opennextjs/cloudflare` + `wrangler`. Supabase (DB/Auth/Storage), OpenRouter (AI), Cloudflare Email Routing/Sending and Queues (email-in), PostHog (analytics), Sentry (errors), Paddle (billing).
 
 Dependency versions are pinned exactly (`.npmrc` has `save-exact=true`). Never upgrade Next.js without confirming support in the [@opennextjs/cloudflare docs](https://opennext.js.org/cloudflare).
 
@@ -32,7 +32,8 @@ Copy `.env.example` to `.env.local` (already done locally) and fill values as ea
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page → Project API keys → `anon` `public` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Same page → `service_role` (server-only secret — never expose to browser) |
 | `CLOUDFLARE_ACCOUNT_ID` | dash.cloudflare.com → any page → Account ID in the right sidebar (or **Workers & Pages** overview) |
-| `RESEND_API_KEY` | resend.com → **API Keys** → Create API Key |
+| `EMAIL_INGEST_DOMAIN` | Cloudflare Email Routing subdomain; production uses `docs.gainingdocx.com` |
+| `EMAIL_INGEST_FROM` | Verified Cloudflare Email Sending sender; production uses `reports@docs.gainingdocx.com` |
 | `NEXT_PUBLIC_POSTHOG_KEY` | us.posthog.com → Project → **Settings → Project API key** |
 | `NEXT_PUBLIC_POSTHOG_HOST` | Leave as `https://us.i.posthog.com` (US cloud) |
 | `NEXT_PUBLIC_SENTRY_DSN` | sentry.io → your project → **Settings → Client Keys (DSN)** |

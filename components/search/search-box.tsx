@@ -30,6 +30,10 @@ const TYPE_LABEL: Record<string, string> = {
   arrival_notice: "Arrival",
   booking_confirmation: "Booking",
   air_waybill: "AWB",
+  shipper_letter_of_instruction: "Air SLI",
+  dangerous_goods_declaration: "DGD",
+  air_cargo_manifest: "Air Manifest",
+  cargo_security_declaration: "Security Declaration",
   other: "Other",
 };
 
@@ -45,6 +49,10 @@ const CHIPS = [
   ["arrival_notice", "Arrival"],
   ["booking_confirmation", "Booking"],
   ["air_waybill", "AWB"],
+  ["shipper_letter_of_instruction", "Air SLI"],
+  ["dangerous_goods_declaration", "DGD"],
+  ["air_cargo_manifest", "Air Manifest"],
+  ["cargo_security_declaration", "Security Declaration"],
 ] as const;
 
 export function SearchBox() {

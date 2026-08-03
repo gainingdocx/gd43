@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Calculator, FileSpreadsheet, FileStack, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { BackdropMark } from "@/components/ui/backdrop-mark";
+import { BackButton } from "@/components/ui/back-button";
 
 export const metadata: Metadata = {
   title: { default: "Account", template: "%s · GainingDocx" },
@@ -29,7 +30,7 @@ const USPS: { icon: typeof ScanLine; body: ReactNode }[] = [
     icon: ShieldCheck,
     body: (
       <>
-        <Mark>Auto-validated</Mark> container numbers, UN/LOCODE ports, weights and <Mark>dangerous goods</Mark>
+        <Mark>Auto-checked</Mark> container numbers, UN/LOCODE ports and weights, plus declared dangerous-goods format and consistency checks
       </>
     ),
   },
@@ -83,8 +84,13 @@ function ChipRow({ items, href, moreLabel }: { items: string[]; href: string; mo
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_15%_5%,rgba(1,59,179,0.16),transparent_34rem),linear-gradient(145deg,#f4f8ff,#fff_52%,#e9f1ff)]">
+      {/* The button is fixed, so both columns reserve top room for it rather
+          than letting it land on the wordmark. */}
+      <div className="fixed left-4 top-4 z-50 sm:left-5 sm:top-5">
+        <BackButton hideOnRoots={false} />
+      </div>
       <div className="mx-auto grid min-h-screen max-w-[86rem] lg:grid-cols-[1fr_1fr]">
-        <section className="relative hidden overflow-hidden bg-primary px-10 py-8 text-white lg:flex lg:flex-col xl:px-14">
+        <section className="relative hidden overflow-hidden bg-primary px-10 pb-8 pt-20 text-white lg:flex lg:flex-col xl:px-14">
           {/* Depth behind the brand wall without shipping an image. */}
           <div
             aria-hidden
@@ -130,7 +136,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
               </div>
               <div>
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-white">
-                  <Calculator className="size-3.5 text-[#f4c400]" aria-hidden /> 9 free calculators
+                  <Calculator className="size-3.5 text-[#f4c400]" aria-hidden /> 11 free calculators
                 </p>
                 <ChipRow items={TOOLS} href="/tools" moreLabel="+3 more" />
               </div>
@@ -138,7 +144,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
         </section>
 
-        <section className="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-8 lg:px-12">
+        <section className="flex min-h-screen flex-col items-center justify-center px-4 pb-8 pt-20 sm:px-8 lg:px-12 lg:pt-8">
           <Link href="/" className="mb-7 flex w-fit lg:hidden" aria-label="GainingDocx home">
             <BrandWordmark />
           </Link>
@@ -161,7 +167,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
 
           <p className="mt-7 text-center text-xs text-muted-foreground lg:hidden">
-            Parse, validate and generate shipping documents · 11 free templates · 9 free calculators
+            Parse, validate and generate shipping documents · 11 free templates · 11 free calculators
           </p>
         </section>
       </div>

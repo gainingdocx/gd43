@@ -54,6 +54,8 @@ interface Props {
   shipments: ShipmentOption[];
   shareToken: string | null;
   qualityScore: number | null;
+  initialPage?: number;
+  initialEvidencePath?: string;
   guest?: boolean;
   guestRemaining?: number | null;
   onGuestFieldsChange?: (fields: Record<string, unknown>, validation: ValidationResult[]) => void;
@@ -77,8 +79,13 @@ const GEN_LABEL: Record<string, string> = {
   sea_waybill: "Sea waybill",
   arrival_notice: "Arrival notice",
   booking_confirmation: "Booking confirmation",
-  commercial_invoice: "Commercial invoice",
   shipping_instructions: "Shipping instructions",
+  certificate_of_origin: "Certificate of origin",
+  quotation: "Freight quotation",
+  rate_confirmation: "Rate confirmation",
+  container_event: "Container event",
+  demurrage_detention_invoice: "D&D invoice",
+  commercial_invoice: "Commercial invoice",
 };
 
 function newShareToken(): string {
@@ -119,7 +126,17 @@ const TYPE_LABEL: Record<string, string> = {
   packing_list: "Packing List",
   arrival_notice: "Arrival Notice",
   booking_confirmation: "Booking Confirmation",
+  shipping_instructions: "Shipping Instructions",
+  certificate_of_origin: "Certificate of Origin",
+  quotation: "Freight Quotation",
+  rate_confirmation: "Rate Confirmation",
+  container_event: "Container Event",
+  demurrage_detention_invoice: "D&D Invoice",
   air_waybill: "Air Waybill",
+  shipper_letter_of_instruction: "Shipper's Letter of Instruction",
+  dangerous_goods_declaration: "Dangerous Goods Declaration",
+  air_cargo_manifest: "Air Cargo Manifest",
+  cargo_security_declaration: "Cargo Security Declaration",
   other: "Document",
 };
 
@@ -145,15 +162,24 @@ export function ReviewScreen(props: Props) {
   const [toast, setToast] = useState("");
   const [menu, setMenu] = useState<null | "export" | "generate" | "shipment">(null);
   const [shareToken, setShareToken] = useState(props.shareToken);
-  const [activePage, setActivePage] = useState(0);
+  const [activePage, setActivePage] = useState(() => Math.min(Math.max((props.initialPage ?? 1) - 1, 0), Math.max(0, props.pageUrls.length - 1)));
   const [zoom, setZoom] = useState(100);
-  const [mobilePanel, setMobilePanel] = useState<"source" | "fields">("fields");
+  const [mobilePanel, setMobilePanel] = useState<"source" | "fields">(props.initialEvidencePath ? "source" : "fields");
   const [fieldFilter, setFieldFilter] = useState<"all" | "attention" | "empty">("all");
+  const [activeEvidence, setActiveEvidence] = useState<{ page: number; quote: string; bbox?: [number, number, number, number] } | null>(() => {
+    if (!props.initialEvidencePath) return null;
+    const initialMeta = props.fields._meta && typeof props.fields._meta === "object"
+      ? props.fields._meta as { source_evidence?: Record<string, { page: number; quote: string; bbox?: [number, number, number, number] }> }
+      : null;
+    const top = props.initialEvidencePath.split(/[.[]/)[0];
+    return initialMeta?.source_evidence?.[props.initialEvidencePath] ?? initialMeta?.source_evidence?.[top] ?? null;
+  });
 
   const rows = useMemo(() => flattenFields(props.docType, fields), [props.docType, fields]);
   const meta = fields._meta && typeof fields._meta === "object"
     ? fields._meta as {
         source_languages?: string[];
+        source_evidence?: Record<string, { page: number; quote: string; bbox?: [number, number, number, number] }>;
         translation?: {
           target_language_name?: string;
           translated_fields?: Record<string, string>;
@@ -316,7 +342,11 @@ export function ReviewScreen(props: Props) {
     note("Link copied");
   }
 
-  function showSource(page: number | null) {
+  function showSource(page: number | null, path?: string) {
+    if (path) {
+      const top = path.split(/[.[]/)[0];
+      setActiveEvidence(meta?.source_evidence?.[path] ?? meta?.source_evidence?.[top] ?? null);
+    }
     if (page !== null && props.pageUrls.length > 0) {
       setActivePage(Math.min(Math.max(page - 1, 0), props.pageUrls.length - 1));
     }
@@ -349,17 +379,12 @@ export function ReviewScreen(props: Props) {
       ) : (
         <>
           <div className="flex h-[62vh] min-h-[28rem] items-start justify-center overflow-auto p-3 lg:h-[calc(100vh-12rem)] lg:min-h-[36rem]">
-            <a href={props.pageUrls[activePage]} target="_blank" rel="noreferrer" className="block w-full shrink-0" aria-label={`Open page ${activePage + 1} in a new tab`}>
-              <Image
-                src={props.pageUrls[activePage]}
-                alt={`Original document, page ${activePage + 1}`}
-                width={1100}
-                height={1500}
-                unoptimized
-                style={{ width: `${zoom}%`, maxWidth: "none", height: "auto" }}
-                className="block rounded-md bg-white shadow-xl"
-              />
-            </a>
+            <div className="relative shrink-0" style={{ width: `${zoom}%` }}>
+              <a href={props.pageUrls[activePage]} target="_blank" rel="noreferrer" className="block" aria-label={`Open page ${activePage + 1} in a new tab`}>
+                <Image src={props.pageUrls[activePage]} alt={`Original document, page ${activePage + 1}`} width={1100} height={1500} unoptimized className="block h-auto w-full rounded-md bg-white shadow-xl" />
+              </a>
+              {activeEvidence?.page === activePage + 1 && activeEvidence.bbox && <div aria-label={`Highlighted source text: ${activeEvidence.quote}`} title={activeEvidence.quote} className="pointer-events-none absolute border-2 border-[#f4c400] bg-[#f4c400]/30 shadow-[0_0_0_2px_rgba(7,27,78,0.45)]" style={{ left: `${activeEvidence.bbox[0]}%`, top: `${activeEvidence.bbox[1]}%`, width: `${activeEvidence.bbox[2]}%`, height: `${activeEvidence.bbox[3]}%` }} />}
+            </div>
           </div>
           {props.pageUrls.length > 1 && (
             <div className="flex gap-2 overflow-x-auto border-t border-border bg-white p-2">
@@ -374,6 +399,16 @@ export function ReviewScreen(props: Props) {
       )}
     </section>
   );
+
+  const arrivalAuditHref = (() => {
+    if (props.docType !== "arrival_notice") return null;
+    const params = new URLSearchParams();
+    const first = Array.isArray(fields.containers) ? fields.containers[0] as { container_no?: string | null } | undefined : undefined;
+    if (first?.container_no) params.set("container", first.container_no);
+    if (typeof fields.availability_date === "string" && fields.availability_date) params.set("availability", fields.availability_date);
+    if (typeof fields.last_free_day === "string" && fields.last_free_day) params.set("last_free_day", fields.last_free_day);
+    return `/tools/demurrage-detention-calculator${params.size ? `?${params.toString()}` : ""}`;
+  })();
 
   return (
     <div data-wide className="space-y-5 pb-20 lg:pb-16">
@@ -419,6 +454,8 @@ export function ReviewScreen(props: Props) {
           </Link>
         )}
       </div>
+
+      {arrivalAuditHref && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#f4c400]/60 bg-[#fffdf2] p-4"><div><p className="font-bold text-primary">Arrival notice â†’ free-time audit</p><p className="text-xs text-muted-foreground">Prefill the first container, availability date and printed last-free-day value, then add terminal events and the carrier tariff.</p></div><Button render={<Link href={arrivalAuditHref} />} className="bg-[#f4c400] text-[#071b4e] hover:bg-[#ffd83d]">Open D&amp;D audit <ChevronRight aria-hidden/></Button></div>}
 
       {props.guest && (
         <div className="rounded-2xl border border-success/30 bg-success/10 px-4 py-3 text-sm">
@@ -477,8 +514,8 @@ export function ReviewScreen(props: Props) {
                       <ChipIcon className={cn("size-3.5", chip.cls)} aria-label={chip.label} />
                       {row.label}
                       {row.page !== null && (
-                        <button type="button" onClick={() => showSource(row.page)} className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold normal-case text-primary hover:bg-secondary" aria-label={`Show source on page ${row.page}`}>
-                          source p.{row.page}
+                        <button type="button" onClick={() => showSource(row.page, row.path)} className="rounded bg-accent px-1.5 py-0.5 text-[10px] font-bold normal-case text-primary hover:bg-secondary" aria-label={`Show source on page ${row.page}`}>
+                          {meta?.source_evidence?.[row.path]?.bbox || meta?.source_evidence?.[row.path.split(/[.[]/)[0]]?.bbox ? "highlight" : "source"} p.{row.page}
                         </button>
                       )}
                     </p>

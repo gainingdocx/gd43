@@ -20,11 +20,14 @@ import {
 } from "@/lib/observability/logger";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { consumeGuestDocument } from "@/lib/guest-quota";
-import { GUEST_DAILY_DOCUMENT_LIMIT, PLAN_LIMITS } from "@/lib/plans";
+import { GUEST_DAILY_DOCUMENT_LIMIT } from "@/lib/plans";
+import { getUsageContext } from "@/lib/billing/usage";
 import { addHsSuggestions } from "@/lib/ai/hs-classifier";
 import { syncExtractedChargeAlert } from "@/lib/shipments/charge-alerts";
 import { isTranslationLanguage } from "@/lib/ai/languages";
 import { translateExtraction } from "@/lib/ai/translate";
+import { classifyPageGroups, type LogicalPageGroup } from "@/lib/ai/page-groups";
+import type { DetectedType } from "@/lib/ai/schemas/shared";
 
 // Parse a document from already-uploaded page images (SSE response).
 // Heavy bytes never touch this Worker (spec §1.5): the browser uploads pages
@@ -169,7 +172,7 @@ async function autoLink(
   }
 
   const [{ data: shipments }, { data: docs }] = await Promise.all([
-    supabase.from("shipments").select("id, bl_number").limit(200),
+    supabase.from("shipments").select("id, bl_number, ref").limit(200),
     supabase
       .from("documents")
       .select(
@@ -195,12 +198,24 @@ async function autoLink(
       .select("id")
       .single();
     shipmentId = created?.id ?? null;
+  } else if (decision.action === "create_ref") {
+    const { data: created } = await supabase
+      .from("shipments")
+      .insert({ owner: ownerId, ref: decision.ref })
+      .select("id")
+      .single();
+    shipmentId = created?.id ?? null;
   }
   if (shipmentId) {
     await supabase
       .from("documents")
       .update({ shipment_id: shipmentId })
       .eq("id", documentId);
+    await supabase.from("events").insert({
+      owner: ownerId,
+      type: "document_grouped",
+      payload: { document_id: documentId, shipment_id: shipmentId, decision: decision.action },
+    });
   }
 }
 
@@ -424,24 +439,11 @@ export async function POST(request: Request) {
   }
 
   if (user) {
-    const monthStart = new Date();
-    monthStart.setUTCDate(1);
-    monthStart.setUTCHours(0, 0, 0, 0);
-    const [{ data: profile }, { count }] = await Promise.all([
-      supabase.from("profiles").select("plan").eq("id", user.id).maybeSingle(),
-      supabase
-        .from("documents")
-        .select("id", { count: "exact", head: true })
-        .eq("owner", user.id)
-        .eq("status", "parsed")
-        .gte("created_at", monthStart.toISOString()),
-    ]);
-    const plan = profile?.plan ?? "free";
-    const limit = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
-    if ((count ?? 0) >= limit) {
+    const usage = await getUsageContext(user.id);
+    if (usage.used >= usage.limit) {
       return reject(
         "monthly_plan_limit",
-        `You've reached your ${limit}-document monthly allowance.`,
+        `You've reached your ${usage.limit}-document monthly allowance.`,
         429
       );
     }
@@ -509,8 +511,33 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(sse(event, data)));
 
       send("status", { state: "parsing", documentId, pages: pages.length });
+      const processingDocumentIds: string[] = documentId ? [documentId] : [];
       try {
-        const result = await parseDocument(imageUrls, docTypeHint, {
+        let groups: LogicalPageGroup[] = [{ pages: imageUrls.map((_, index) => index + 1), detectedType: (docTypeHint as DetectedType | undefined) ?? "other", documentKey: null }];
+        if (user && documentId && imageUrls.length > 1) {
+          send("status", { state: "Classifying pages into logical documents" });
+          try {
+            const classified = await classifyPageGroups(imageUrls);
+            if (classified.length > 0 && classified.length <= 8) groups = classified;
+          } catch (classificationError) {
+            logWarn("logical_document_classification_failed", { requestId, reference, message: classificationError instanceof Error ? classificationError.message : String(classificationError) });
+          }
+        }
+        if (user && documentId && groups.length > 1) {
+          const storagePath = typeof pages[0]?.storagePath === "string" ? pages[0].storagePath.split("/").slice(0, 2).join("/") : null;
+          await supabase.from("documents").update({ source_pages: groups[0].pages, logical_group_index: 1, logical_group_count: groups.length }).eq("id", documentId);
+          const { data: childRows, error: childError } = await supabase.from("documents").insert(groups.slice(1).map((group, index) => ({
+            owner: user.id, doc_type: group.detectedType, status: "parsing", page_count: group.pages.length,
+            storage_path: storagePath, source_pages: group.pages, source_document_id: documentId,
+            logical_group_index: index + 2, logical_group_count: groups.length, logical_child: true,
+          }))).select("id, logical_group_index").order("logical_group_index");
+          if (childError || (childRows ?? []).length !== groups.length - 1) throw new Error("Could not create logical document records");
+          processingDocumentIds.push(...(childRows ?? []).map((row) => row.id as string));
+          await supabase.from("events").insert({ owner: user.id, type: "mixed_file_split", payload: { source_document_id: documentId, groups: groups.map((group, index) => ({ document_id: processingDocumentIds[index], pages: group.pages, detected_type: group.detectedType, document_key: group.documentKey })) } });
+          send("status", { state: `Split into ${groups.length} logical documents` });
+        }
+        const primaryGroup = groups[0];
+        const result = await parseDocument(primaryGroup.pages.map((page) => imageUrls[page - 1]), primaryGroup.detectedType !== "other" ? primaryGroup.detectedType : docTypeHint, {
           onPartial: (partial) => send("fields", partial),
           onStatus: (status) =>
             send("status", {
@@ -549,8 +576,26 @@ export async function POST(request: Request) {
           );
         }
 
+        const logicalDocuments: Array<{ documentId: string | null; detectedType: string; pages: number[] }> = [{ documentId, detectedType: result.extraction.detected_type, pages: primaryGroup.pages }];
+        if (user && groups.length > 1) {
+          send("status", { state: `Extracting ${groups.length - 1} additional logical documents` });
+          const additional = await Promise.all(groups.slice(1).map(async (group, offset) => {
+            const logicalId = processingDocumentIds[offset + 1];
+            const parsed = await parseDocument(group.pages.map((page) => imageUrls[page - 1]), group.detectedType !== "other" ? group.detectedType : undefined, { requestId });
+            if (targetLanguage) {
+              try { await translateExtraction(parsed.extraction, targetLanguage); } catch { /* Original legal text remains available when assistance fails. */ }
+            }
+            await addHsSuggestions(parsed.extraction);
+            const logicalValidation = validateDocument(parsed.extraction);
+            await persistResult(supabase, user.id, logicalId, parsed, logicalValidation);
+            return { documentId: logicalId, detectedType: parsed.extraction.detected_type, pages: group.pages };
+          }));
+          logicalDocuments.push(...additional);
+        }
+
         send("done", {
           documentId,
+          logicalDocuments,
           extraction: result.extraction,
           validation,
           escalated: result.escalated,
@@ -562,6 +607,7 @@ export async function POST(request: Request) {
           documentId,
           signedIn: Boolean(user),
           pageCount: pages.length,
+          logicalDocumentCount: logicalDocuments.length,
           detectedType: result.extraction.detected_type,
           escalated: result.escalated,
           qualityScore: result.qualityScore,
@@ -580,7 +626,7 @@ export async function POST(request: Request) {
           await supabase
             .from("documents")
             .update({ status: "failed" })
-            .eq("id", documentId);
+            .in("id", processingDocumentIds);
           await emitWebhook(user.id, "document.failed", { document_id: documentId, reference });
         }
         send("error", {

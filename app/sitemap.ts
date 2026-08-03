@@ -7,8 +7,8 @@ import { TOOLS } from "@/content/tools";
 import { SITE_URL } from "@/lib/seo/jsonld";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastSignificantUpdate = new Date("2026-07-22T00:00:00.000Z");
-  const fixed = ["", "/about", "/pricing", "/contact", "/privacy", "/terms", "/features", "/templates", "/tools", "/guides"];
+  const lastSignificantUpdate = new Date("2026-08-03T00:00:00.000Z");
+  const fixed = ["", "/air-freight", "/ocean-freight", "/about", "/pricing", "/contact", "/privacy", "/terms", "/features", "/templates", "/tools", "/guides", "/sample-discrepancy-report", "/trust", "/security", "/accuracy-and-limitations", "/standards"];
   const paths = [
     ...fixed,
     ...FEATURES.map((feature) => `/features/${feature.slug}`),

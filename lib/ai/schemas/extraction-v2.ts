@@ -7,7 +7,13 @@ import {
   type BillOfLadingFields,
   type ArrivalNoticeFields,
   type AirWaybillFields,
+  type ShipperLetterOfInstructionFields,
+  type DangerousGoodsDeclarationFields,
+  type AirCargoManifestFields,
+  type CargoSecurityDeclarationFields,
   type BookingConfirmationFields,
+  type CertificateOfOriginFields,
+  type ContainerEventFields,
   type CommercialInvoiceFields,
   type PurchaseOrderFields,
   type FreightInvoiceFields,
@@ -23,6 +29,8 @@ import {
   type PackingListFields,
   type Party,
   type PortRef,
+  type QuotationFields,
+  type ShippingInstructionsFields,
 } from "./shared";
 
 export { DETECTED_TYPES } from "./shared";
@@ -65,6 +73,15 @@ export const EXTRACTION_JSON_SCHEMA = {
           "For each filled top-level field: the 1-based page number it was read from.",
         additionalProperties: { type: "integer" },
       },
+      source_evidence: {
+        type: "object",
+        description: "For each populated top-level field: its source page and a short exact quote from the document.",
+        additionalProperties: {
+          type: "object",
+          properties: { page: { type: "integer" }, quote: { type: "string" }, bbox: { type: "array", minItems: 4, maxItems: 4, items: { type: "number" } } },
+          required: ["page", "quote"],
+        },
+      },
       fields: {
         type: "object",
         properties: {
@@ -94,16 +111,31 @@ export const EXTRACTION_JSON_SCHEMA = {
           invoice_ref: str,
           notice_no: str,
           booking_no: str,
+          si_number: str,
+          certificate_no: str,
+          quotation_no: str,
+          rate_agreement_no: str,
           service_contract_no: str,
           bl_numbers: { type: "array", items: { type: "string" } },
           booking_refs: { type: "array", items: { type: "string" } },
           shipment_refs: { type: "array", items: { type: "string" } },
           delivery_note_refs: { type: "array", items: { type: "string" } },
           awb_number: str,
+          awb_numbers: { type: "array", items: { type: "string" } },
           master_awb_number: str,
           house_awb_number: str,
           airline_name: str,
           airline_prefix: str,
+          instruction_no: str,
+          declaration_reference: str,
+          manifest_no: str,
+          security_status: str,
+          screening_method: str,
+          issued_by: str,
+          signatory_name: str,
+          signed_date: str,
+          emergency_contact: str,
+          invoice_refs: { type: "array", items: { type: "string" } },
           dangerous_goods: {
             type: "array",
             items: {
@@ -111,11 +143,20 @@ export const EXTRACTION_JSON_SCHEMA = {
               properties: {
                 un_number: str,
                 proper_shipping_name: str,
+                technical_name: str,
                 hazard_class: str,
                 subsidiary_risk: str,
                 packing_group: {
                   type: ["string", "null"],
                   enum: ["I", "II", "III", null],
+                },
+                packing_instruction: str,
+                quantity_and_type_of_packing: str,
+                net_quantity: num,
+                net_quantity_unit: str,
+                aircraft_limitation: {
+                  type: ["string", "null"],
+                  enum: ["passenger_and_cargo", "cargo_aircraft_only", "forbidden", "unknown", null],
                 },
                 marine_pollutant: bool,
                 flash_point_c: num,
@@ -139,7 +180,10 @@ export const EXTRACTION_JSON_SCHEMA = {
           remit_to: partySchema,
           supplier: partySchema,
           receiver: partySchema,
+          exporter: partySchema,
+          customer: partySchema,
           issuing_carrier_agent: partySchema,
+          regulated_agent: partySchema,
           // voyage
           vessel_name: str,
           imo_number: str,
@@ -165,7 +209,12 @@ export const EXTRACTION_JSON_SCHEMA = {
           promised_delivery_date: str,
           service_period_start: str,
           service_period_end: str,
+          valid_from: str,
+          valid_to: str,
+          event_timestamp: str,
           flight_date: str,
+          requested_flight_no: str,
+          requested_flight_date: str,
           // commercial
           freight_terms: { type: ["string", "null"], enum: ["prepaid", "collect", null] },
           incoterm: str,
@@ -183,6 +232,9 @@ export const EXTRACTION_JSON_SCHEMA = {
           payment_terms: str,
           lc_number: str,
           country_of_origin: str,
+          destination_country: str,
+          transport_details: str,
+          certification_body: str,
           bank_details: str,
           pickup_reference: str,
           freight_due: num,
@@ -207,6 +259,11 @@ export const EXTRACTION_JSON_SCHEMA = {
           declared_value_customs: str,
           insurance_amount: num,
           handling_information: str,
+          timezone: str,
+          location: str,
+          source_system: str,
+          free_time_demurrage_days: num,
+          free_time_detention_days: num,
           // totals as printed (never computed)
           total_packages: num,
           total_cartons: num,
@@ -218,6 +275,7 @@ export const EXTRACTION_JSON_SCHEMA = {
           total_rejected_quantity: num,
           total_pieces: num,
           total_chargeable_kg: num,
+          total_shipments: num,
           total_prepaid: num,
           total_collect: num,
           // B/L specifics
@@ -225,6 +283,18 @@ export const EXTRACTION_JSON_SCHEMA = {
           bl_type: {
             type: ["string", "null"],
             enum: ["original", "seaway", "telex", null],
+          },
+          requested_bl_type: {
+            type: ["string", "null"],
+            enum: ["original", "seaway", "telex", null],
+          },
+          document_stage: {
+            type: ["string", "null"],
+            enum: ["draft", "final", "unknown", null],
+          },
+          event_type: {
+            type: ["string", "null"],
+            enum: ["discharged", "available", "full_gate_out", "empty_return", "full_gate_in", "other", null],
           },
           bl_level: {
             type: ["string", "null"],
@@ -501,9 +571,15 @@ function cDangerousGoods(v: unknown): DangerousGoodsItem | null {
   const row: DangerousGoodsItem = {
     un_number: digits.length === 4 ? `UN${digits}` : printedUn,
     proper_shipping_name: cStr(v.proper_shipping_name),
+    technical_name: cStr(v.technical_name),
     hazard_class: cStr(v.hazard_class),
     subsidiary_risk: cStr(v.subsidiary_risk),
     packing_group: cEnum(v.packing_group, ["I", "II", "III"] as const),
+    packing_instruction: cStr(v.packing_instruction),
+    quantity_and_type_of_packing: cStr(v.quantity_and_type_of_packing),
+    net_quantity: cNum(v.net_quantity),
+    net_quantity_unit: cStr(v.net_quantity_unit),
+    aircraft_limitation: cEnum(v.aircraft_limitation, ["passenger_and_cargo", "cargo_aircraft_only", "forbidden", "unknown"] as const),
     marine_pollutant: typeof v.marine_pollutant === "boolean" ? v.marine_pollutant : null,
     flash_point_c: cNum(v.flash_point_c),
     emergency_contact: cStr(v.emergency_contact),
@@ -538,6 +614,22 @@ function cPageRefs(v: unknown): Record<string, number> {
   return out;
 }
 
+function cSourceEvidence(v: unknown): Record<string, { page: number; quote: string; bbox?: [number, number, number, number] }> {
+  if (!isObj(v)) return {};
+  const out: Record<string, { page: number; quote: string; bbox?: [number, number, number, number] }> = {};
+  for (const [key, value] of Object.entries(v)) {
+    if (!isObj(value)) continue;
+    const page = cNum(value.page);
+    const quote = cStr(value.quote)?.replace(/\s+/g, " ").trim().slice(0, 500);
+    const rawBox = Array.isArray(value.bbox) ? value.bbox.map(cNum) : [];
+    const bbox = rawBox.length === 4 && rawBox.every((item) => item !== null && item >= 0 && item <= 100)
+      ? rawBox as [number, number, number, number]
+      : undefined;
+    if (page !== null && Number.isInteger(page) && page >= 1 && quote) out[key] = { page, quote, ...(bbox ? { bbox } : {}) };
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Normalization: raw model output -> exact per-type shape.
 // ---------------------------------------------------------------------------
@@ -560,6 +652,7 @@ export function normalizeModelOutput(
     detected_type,
     confidence_flags: cNameArray(raw.confidence_flags),
     page_refs: cPageRefs(raw.page_refs),
+    source_evidence: cSourceEvidence(raw.source_evidence),
     prompt_version: promptVersion,
     source_languages: cNameArray(raw.source_languages).map((language) => language.toLowerCase()),
   };
@@ -604,6 +697,7 @@ export function normalizeModelOutput(
         total_volume_cbm: cNum(f.total_volume_cbm),
         originals_count: cNum(f.originals_count),
         bl_type: cEnum(f.bl_type, ["original", "seaway", "telex"] as const),
+        document_stage: cEnum(f.document_stage, ["draft", "final", "unknown"] as const),
         clauses: cStrArray(f.clauses),
         dangerous_goods: cArray(f.dangerous_goods, cDangerousGoods),
         _meta,
@@ -760,15 +854,18 @@ export function normalizeModelOutput(
       };
       return { detected_type, fields };
     }
-    case "freight_invoice": {
+    case "freight_invoice":
+    case "demurrage_detention_invoice": {
       const fields: FreightInvoiceFields = {
         invoice_no: cStr(f.invoice_no), invoice_date: cStr(f.invoice_date), due_date: cStr(f.due_date),
         carrier_invoice_ref: cStr(f.carrier_invoice_ref), purchase_order_refs: cStrArray(f.purchase_order_refs ?? (f.po_no ? [f.po_no] : [])),
-        bl_numbers: cStrArray(f.bl_numbers), booking_refs: cStrArray(f.booking_refs),
+        bl_numbers: cStrArray(f.bl_numbers), awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])), booking_refs: cStrArray(f.booking_refs),
         shipment_refs: cStrArray(f.shipment_refs), container_refs: cStrArray(f.container_refs),
         carrier: cParty(f.carrier ?? f.seller), bill_to: cParty(f.bill_to ?? f.buyer), remit_to: cParty(f.remit_to),
         vessel_name: cStr(f.vessel_name), voyage_no: cStr(f.voyage_no),
         port_of_load: cPort(f.port_of_load), port_of_discharge: cPort(f.port_of_discharge),
+        origin_airport: cStr(f.origin_airport), destination_airport: cStr(f.destination_airport),
+        total_chargeable_kg: cNum(f.total_chargeable_kg),
         service_period_start: cStr(f.service_period_start), service_period_end: cStr(f.service_period_end),
         currency: cStr(f.currency), exchange_rate: cNum(f.exchange_rate), charges: cArray(f.charges ?? f.line_items, cCharge),
         subtotal: cNum(f.subtotal), discount_amount: cNum(f.discount_amount), tax_amount: cNum(f.tax_amount),
@@ -839,6 +936,60 @@ export function normalizeModelOutput(
       };
       return { detected_type, fields };
     }
+    case "shipping_instructions": {
+      const fields: ShippingInstructionsFields = {
+        si_number: cStr(f.si_number), booking_no: cStr(f.booking_no), bl_number: cStr(f.bl_number),
+        shipper_reference: cStr(f.shipper_reference), shipper: cParty(f.shipper), consignee: cConsignee(f.consignee),
+        notify: cParty(f.notify), carrier_name: cStr(f.carrier_name), vessel_name: cStr(f.vessel_name), voyage_no: cStr(f.voyage_no),
+        port_of_load: cPort(f.port_of_load), port_of_discharge: cPort(f.port_of_discharge),
+        place_of_receipt: cStr(f.place_of_receipt), place_of_delivery: cStr(f.place_of_delivery),
+        containers: cArray(f.containers ?? f.equipment, cContainer), cargo: cArray(f.cargo ?? f.line_items, cLineItem),
+        cargo_raw_text: cStr(f.cargo_raw_text), total_packages: cNum(f.total_packages), total_net_kg: cNum(f.total_net_kg),
+        total_gross_kg: cNum(f.total_gross_kg), total_volume_cbm: cNum(f.total_volume_cbm),
+        freight_terms: cEnum(f.freight_terms, ["prepaid", "collect"] as const),
+        requested_bl_type: cEnum(f.requested_bl_type ?? f.bl_type, ["original", "seaway", "telex"] as const),
+        originals_count: cNum(f.originals_count), dangerous_goods: cArray(f.dangerous_goods, cDangerousGoods), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "certificate_of_origin": {
+      const fields: CertificateOfOriginFields = {
+        certificate_no: cStr(f.certificate_no), issue_date: cStr(f.issue_date), invoice_refs: cStrArray(f.invoice_refs),
+        bl_numbers: cStrArray(f.bl_numbers), exporter: cParty(f.exporter ?? f.shipper ?? f.seller),
+        consignee: cParty(f.consignee ?? f.buyer), country_of_origin: cStr(f.country_of_origin),
+        destination_country: cStr(f.destination_country), transport_details: cStr(f.transport_details),
+        certification_body: cStr(f.certification_body), line_items: cArray(f.line_items, cLineItem),
+        total_packages: cNum(f.total_packages), total_gross_kg: cNum(f.total_gross_kg), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "quotation":
+    case "rate_confirmation": {
+      const fields: QuotationFields = {
+        quotation_no: cStr(f.quotation_no), rate_agreement_no: cStr(f.rate_agreement_no),
+        booking_refs: cStrArray(f.booking_refs), awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])), valid_from: cStr(f.valid_from), valid_to: cStr(f.valid_to),
+        carrier: cParty(f.carrier ?? f.seller), customer: cParty(f.customer ?? f.buyer),
+        port_of_load: cPort(f.port_of_load), port_of_discharge: cPort(f.port_of_discharge),
+        origin_airport: cStr(f.origin_airport), destination_airport: cStr(f.destination_airport),
+        total_chargeable_kg: cNum(f.total_chargeable_kg),
+        place_of_receipt: cStr(f.place_of_receipt), place_of_delivery: cStr(f.place_of_delivery),
+        equipment: cArray(f.equipment ?? f.containers, cContainer), currency: cStr(f.currency),
+        charges: cArray(f.charges ?? f.line_items, cCharge), free_time_demurrage_days: cNum(f.free_time_demurrage_days),
+        free_time_detention_days: cNum(f.free_time_detention_days), subtotal: cNum(f.subtotal),
+        tax_amount: cNum(f.tax_amount), total_amount: cNum(f.total_amount), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "container_event": {
+      const fields: ContainerEventFields = {
+        container_no: cStr(f.container_no),
+        event_type: cEnum(f.event_type, ["discharged", "available", "full_gate_out", "empty_return", "full_gate_in", "other"] as const),
+        event_timestamp: cStr(f.event_timestamp), timezone: cStr(f.timezone), location: cStr(f.location),
+        terminal: cStr(f.terminal), port: cPort(f.port), bl_number: cStr(f.bl_number), booking_no: cStr(f.booking_no),
+        vessel_name: cStr(f.vessel_name), voyage_no: cStr(f.voyage_no), source_system: cStr(f.source_system), _meta,
+      };
+      return { detected_type, fields };
+    }
     case "air_waybill": {
       const fields: AirWaybillFields = {
         awb_number: cStr(f.awb_number),
@@ -873,6 +1024,61 @@ export function normalizeModelOutput(
       };
       return { detected_type, fields };
     }
+    case "shipper_letter_of_instruction": {
+      const fields: ShipperLetterOfInstructionFields = {
+        instruction_no: cStr(f.instruction_no ?? f.si_number),
+        awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])),
+        shipper: cParty(f.shipper), consignee: cParty(f.consignee),
+        issuing_carrier_agent: cParty(f.issuing_carrier_agent ?? f.agent),
+        origin_airport: cStr(f.origin_airport), destination_airport: cStr(f.destination_airport),
+        requested_flight_no: cStr(f.requested_flight_no ?? f.flight_no),
+        requested_flight_date: cStr(f.requested_flight_date ?? f.flight_date),
+        incoterm: cStr(f.incoterm), currency: cStr(f.currency),
+        handling_information: cStr(f.handling_information ?? f.special_instructions),
+        line_items: cArray(f.line_items ?? f.cargo, cLineItem),
+        total_pieces: cNum(f.total_pieces ?? f.total_packages), total_gross_kg: cNum(f.total_gross_kg),
+        total_chargeable_kg: cNum(f.total_chargeable_kg),
+        dangerous_goods: cArray(f.dangerous_goods, cDangerousGoods),
+        signatory_name: cStr(f.signatory_name), signed_date: cStr(f.signed_date), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "dangerous_goods_declaration": {
+      const fields: DangerousGoodsDeclarationFields = {
+        declaration_reference: cStr(f.declaration_reference),
+        awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])),
+        shipper: cParty(f.shipper), consignee: cParty(f.consignee),
+        origin_airport: cStr(f.origin_airport), destination_airport: cStr(f.destination_airport),
+        handling_information: cStr(f.handling_information),
+        dangerous_goods: cArray(f.dangerous_goods, cDangerousGoods),
+        signatory_name: cStr(f.signatory_name), signed_date: cStr(f.signed_date),
+        emergency_contact: cStr(f.emergency_contact), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "air_cargo_manifest": {
+      const fields: AirCargoManifestFields = {
+        manifest_no: cStr(f.manifest_no),
+        awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])),
+        airline_name: cStr(f.airline_name ?? f.carrier_name), flight_no: cStr(f.flight_no),
+        flight_date: cStr(f.flight_date), origin_airport: cStr(f.origin_airport),
+        destination_airport: cStr(f.destination_airport), line_items: cArray(f.line_items ?? f.cargo, cLineItem),
+        total_shipments: cNum(f.total_shipments), total_pieces: cNum(f.total_pieces ?? f.total_packages),
+        total_gross_kg: cNum(f.total_gross_kg), _meta,
+      };
+      return { detected_type, fields };
+    }
+    case "cargo_security_declaration": {
+      const fields: CargoSecurityDeclarationFields = {
+        declaration_reference: cStr(f.declaration_reference),
+        awb_numbers: cStrArray(f.awb_numbers ?? (f.awb_number ? [f.awb_number] : [])),
+        regulated_agent: cParty(f.regulated_agent ?? f.agent), security_status: cStr(f.security_status),
+        screening_method: cStr(f.screening_method), issued_by: cStr(f.issued_by),
+        issue_date: cStr(f.issue_date), total_pieces: cNum(f.total_pieces ?? f.total_packages),
+        total_gross_kg: cNum(f.total_gross_kg), _meta,
+      };
+      return { detected_type, fields };
+    }
     default:
       return { detected_type: "other", fields: { raw: f, _meta } };
   }
@@ -881,7 +1087,8 @@ export function normalizeModelOutput(
 /** Container rows to persist for a document (B/L only). */
 export function containersOf(extraction: NormalizedExtraction): ContainerRow[] {
   if (extraction.detected_type === "bill_of_lading" || extraction.detected_type === "sea_waybill" || extraction.detected_type === "arrival_notice") return extraction.fields.containers;
-  if (extraction.detected_type === "booking_confirmation") return extraction.fields.equipment;
+  if (extraction.detected_type === "shipping_instructions") return extraction.fields.containers;
+  if (extraction.detected_type === "booking_confirmation" || extraction.detected_type === "quotation" || extraction.detected_type === "rate_confirmation") return extraction.fields.equipment;
   return [];
 }
 

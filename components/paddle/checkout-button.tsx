@@ -16,9 +16,10 @@ type ButtonProps = React.ComponentProps<typeof Button>;
  */
 export function CheckoutButton({
   priceId,
+  plan,
   children,
   ...buttonProps
-}: { priceId: string } & ButtonProps) {
+}: { priceId: string; plan: "pro" | "team" } & ButtonProps) {
   const paddleRef = useRef<Paddle | undefined>(undefined);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -49,13 +50,27 @@ export function CheckoutButton({
         window.location.href = "/auth/sign-up?next=/pricing";
         return;
       }
+      const statusResponse = await fetch("/api/billing/status", { cache: "no-store" });
+      if (statusResponse.ok) {
+        const status = await statusResponse.json() as { isPaid?: boolean; plan?: string };
+        if (status.isPaid) {
+          if (status.plan === plan) {
+            window.location.href = "/app/account";
+            return;
+          }
+          const portalResponse = await fetch("/api/billing/portal", { method: "POST" });
+          const portal = await portalResponse.json() as { url?: string };
+          window.location.href = portal.url ?? "/app/account";
+          return;
+        }
+      }
       paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
         customer: user.email ? { email: user.email } : undefined,
-        customData: { userId: user.id },
+        customData: { userId: user.id, plan },
         settings: {
           displayMode: "overlay",
-          successUrl: `${window.location.origin}/app?upgraded=1`,
+          successUrl: `${window.location.origin}/app/account?checkout=success`,
         },
       });
     } finally {
