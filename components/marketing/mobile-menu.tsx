@@ -31,7 +31,7 @@ export function MobileMenu() {
   return (
     <div className="flex items-center gap-2 lg:hidden">
       <details ref={detailsRef} className="relative">
-      <summary className="flex size-12 cursor-pointer list-none items-center justify-center rounded-full border-2 border-white/70 bg-[#ffe500] text-[#d40505] shadow-sm [&::-webkit-details-marker]:hidden">
+      <summary className="flex size-12 cursor-pointer list-none items-center justify-center rounded-full border-2 border-white/70 bg-amber text-brand-deep shadow-sm [&::-webkit-details-marker]:hidden">
         <Menu className="size-6" aria-hidden />
         <span className="sr-only">Open navigation</span>
       </summary>
