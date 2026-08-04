@@ -37,6 +37,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     entry("/tools", 0.8, "weekly"),
     entry("/templates", 0.8, "weekly"),
     entry("/guides", 0.8, "weekly"),
+    entry("/developers", 0.8, "monthly"),
 
     // Detail pages, ordered by the search intent they serve. Tools and
     // templates attract the highest non-brand volume, so they lead.
