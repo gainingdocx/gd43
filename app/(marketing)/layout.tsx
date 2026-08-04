@@ -111,6 +111,11 @@ function Footer() {
               </Link>
             </li>
             <li>
+              <Link href="/document-parsers" className="inline-flex min-h-11 items-center hover:underline">
+                Document parsers
+              </Link>
+            </li>
+            <li>
               <Link href="/app/scan" className="inline-flex min-h-11 items-center hover:underline">
                 Parse a document
               </Link>

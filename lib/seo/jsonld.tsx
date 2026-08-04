@@ -78,6 +78,58 @@ export function collectionPageLd(name: string, path: string, items: { name: stri
   return { "@context": "https://schema.org", "@type": "CollectionPage", name, url: `${SITE_URL}${path}`, hasPart: items.map((item) => ({ "@type": "WebPage", name: item.name, url: `${SITE_URL}${item.path}` })) };
 }
 
+/**
+ * Ordered list of the entries on a hub page. Paired with `collectionPageLd`,
+ * this is what lets a category page win a sitelinks-style result instead of a
+ * single bare blue link.
+ */
+export function itemListLd(name: string, path: string, items: { name: string; path: string; description?: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    url: `${SITE_URL}${path}`,
+    numberOfItems: items.length,
+    itemListOrder: "https://schema.org/ItemListOrderAscending",
+    itemListElement: items.map((item, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: item.name,
+      url: `${SITE_URL}${item.path}`,
+      ...(item.description ? { description: item.description } : {}),
+    })),
+  };
+}
+
+/**
+ * Reference/how-it-works pages that are documentation rather than news. Google
+ * treats TechArticle as an Article subtype, so it keeps date and publisher
+ * eligibility while describing the content honestly.
+ */
+export function techArticleLd(opts: {
+  headline: string;
+  description: string;
+  path: string;
+  dateModified?: string;
+  keywords?: string[];
+  sections?: string[];
+}) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    headline: opts.headline,
+    description: opts.description,
+    url: `${SITE_URL}${opts.path}`,
+    inLanguage: "en",
+    ...(opts.dateModified ? { dateModified: opts.dateModified } : {}),
+    ...(opts.keywords?.length ? { keywords: opts.keywords.join(", ") } : {}),
+    ...(opts.sections?.length ? { articleSection: opts.sections } : {}),
+    isAccessibleForFree: true,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${opts.path}` },
+  };
+}
+
 export interface Faq {
   q: string;
   a: string;

@@ -10,6 +10,7 @@ const LINKS = [
   ["Ocean freight", "/ocean-freight"],
   ["Email-in", "/app/email-in"],
   ["Features", "/features"],
+  ["Document parsers", "/document-parsers"],
   ["Free tools", "/tools"],
   ["Templates", "/templates"],
   ["Guides", "/guides"],

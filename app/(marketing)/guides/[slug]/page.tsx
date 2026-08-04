@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, BookOpenCheck, ChevronRight, ExternalLink } from "lucide-react";
 
+import { DataTable, FaqList, RelatedLinks } from "@/components/marketing/deep-content";
 import { GUIDES } from "@/content/guides";
-import { articleLd, breadcrumbLd, faqLd, JsonLd } from "@/lib/seo/jsonld";
+import { articleLd, breadcrumbLd, faqLd, JsonLd, techArticleLd } from "@/lib/seo/jsonld";
 
 export const dynamicParams = true;
 export function generateStaticParams() { return GUIDES.map((guide) => ({ slug: guide.slug })); }
@@ -16,6 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: { absolute: `${guide.seoTitle ?? guide.title} | GainingDocx` },
     description: guide.description,
+    keywords: guide.keywords,
     alternates: { canonical: `/guides/${slug}` },
     openGraph: {
       type: "article",
@@ -24,6 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       url: `/guides/${slug}`,
       modifiedTime: guide.updated,
     },
+    twitter: { card: "summary_large_image", title: guide.seoTitle ?? guide.title, description: guide.description },
   };
 }
 
@@ -34,6 +37,14 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
   const structuredData = [
     breadcrumbLd([{ name: "Home", path: "/" }, { name: "Guides", path: "/guides" }, { name: guide.title, path: `/guides/${slug}` }]),
     articleLd({ headline: guide.title, description: guide.description, path: `/guides/${slug}`, datePublished: guide.updated ?? "2026-07-20", dateModified: guide.updated }),
+    techArticleLd({
+      headline: guide.title,
+      description: guide.description,
+      path: `/guides/${slug}`,
+      dateModified: guide.updated,
+      keywords: guide.keywords,
+      sections: guide.sections.map((section) => section.heading),
+    }),
     ...(guide.faqs ? [faqLd(guide.faqs)] : []),
   ];
 
@@ -63,7 +74,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             <p className="font-bold text-primary">On this page</p>
             <ol className="mt-4 space-y-2 text-sm leading-5 text-muted-foreground">
               {guide.sections.map((section, index) => <li key={section.heading}><a className="hover:text-primary" href={`#section-${index + 1}`}>{section.heading}</a></li>)}
-              {guide.faqs && <li><a className="hover:text-primary" href="#frequently-asked-questions">Frequently asked questions</a></li>}
+              {guide.faqs && <li><a className="hover:text-primary" href="#faq">Frequently asked questions</a></li>}
             </ol>
           </div>
         </aside>
@@ -79,10 +90,11 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
           <div className="space-y-12">
             {guide.sections.map((section, index) => <section id={`section-${index + 1}`} key={section.heading} className="scroll-mt-24">
               <h2 className="text-2xl font-extrabold tracking-tight text-brand-deep sm:text-3xl">{section.heading}</h2>
-              {section.paragraphs.map((paragraph) => <p key={paragraph.slice(0, 40)} className="mt-4 text-base leading-8 text-muted-foreground">{paragraph}</p>)}
+              {section.paragraphs?.map((paragraph) => <p key={paragraph.slice(0, 40)} className="mt-4 text-base leading-8 text-muted-foreground">{paragraph}</p>)}
               {section.bullets && <ul className="mt-5 space-y-3 rounded-2xl bg-secondary p-5 text-muted-foreground">
                 {section.bullets.map((bullet) => <li key={bullet} className="flex gap-3 leading-7"><BookOpenCheck className="mt-1 size-5 shrink-0 text-primary" aria-hidden /><span>{bullet}</span></li>)}
               </ul>}
+              {section.table && <DataTable table={section.table} />}
             </section>)}
           </div>
 
@@ -92,12 +104,13 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
             <Link href={guide.tool.href} data-analytics-feature={`Guide CTA to tool: ${guide.slug}`} className="mt-5 inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 font-bold text-white">{guide.tool.label}<ArrowRight className="size-4" aria-hidden /></Link>
           </section>}
 
-          {guide.faqs && <section id="frequently-asked-questions" className="mt-14 scroll-mt-24">
-            <h2 className="text-3xl font-extrabold text-brand-deep">Frequently asked questions</h2>
-            <div className="mt-6 divide-y divide-border border-y border-border">
-              {guide.faqs.map((faq) => <details key={faq.q} className="py-5"><summary className="cursor-pointer font-bold text-primary">{faq.q}</summary><p className="mt-3 leading-7 text-muted-foreground">{faq.a}</p></details>)}
-            </div>
-          </section>}
+          {guide.faqs && <div className="mt-14">
+            <FaqList faqs={guide.faqs} intro="Direct answers to the questions this topic raises most often in day-to-day operations." />
+          </div>}
+
+          {guide.related && <div className="mt-14">
+            <RelatedLinks links={guide.related} heading="Related tools, templates and guides" />
+          </div>}
 
           {guide.sources && <section className="mt-14 border-t pt-8">
             <h2 className="text-xl font-extrabold text-brand-deep">Research sources and further reading</h2>

@@ -31,6 +31,19 @@ import { collectionPageLd, JsonLd, webApplicationLd } from "@/lib/seo/jsonld";
 import { cn } from "@/lib/utils";
 import { FLAGSHIP_WORKFLOWS, workflowLaunchHref } from "@/lib/workflows/flagship";
 
+/**
+ * The six guides surfaced on the homepage — one per major intent, spanning both
+ * freight modes. Everything else lives on the categorised /guides hub.
+ */
+const HOMEPAGE_GUIDE_SLUGS = [
+  "how-to-read-a-bill-of-lading",
+  "incoterms-2020-explained",
+  "chargeable-weight-calculation-air-freight",
+  "demurrage-detention-calculation-guide",
+  "hs-code-classification-guide",
+  "how-to-calculate-cbm-for-shipping",
+];
+
 export const metadata: Metadata = {
   title: { absolute: "GainingDocx — Freight Document Manager" },
   description:
@@ -142,6 +155,9 @@ function Eyebrow({ children, className }: { children: React.ReactNode; className
 }
 
 export default function HomePage() {
+  const HOMEPAGE_GUIDES = HOMEPAGE_GUIDE_SLUGS.map((slug) => GUIDES.find((guide) => guide.slug === slug)).filter(
+    (guide): guide is NonNullable<typeof guide> => Boolean(guide),
+  );
   return (
     <>
       <JsonLd
@@ -159,6 +175,7 @@ export default function HomePage() {
               ...FEATURES.map((item) => ({ name: item.name, path: `/features/${item.slug}` })),
               ...TOOLS.map((item) => ({ name: item.name, path: `/tools/${item.slug}` })),
               ...TEMPLATES.map((item) => ({ name: item.name, path: `/templates/${item.slug}` })),
+              ...GUIDES.map((item) => ({ name: item.title, path: `/guides/${item.slug}` })),
             ],
           ),
         ]}
@@ -548,11 +565,13 @@ export default function HomePage() {
               Plain-language guides connect shipping concepts to the parsers, calculators and templates you can use next.
             </p>
             <Button render={<Link href="/guides" />} variant="outline" size="lg" className="mt-6 bg-card font-semibold">
-              Browse all guides
+              Browse all {GUIDES.length} guides
             </Button>
           </div>
+          {/* The library outgrew the homepage: show a representative handful and
+              send the rest of the traffic to the categorised hub. */}
           <div className="grid gap-4 sm:grid-cols-2">
-            {GUIDES.map((guide) => (
+            {HOMEPAGE_GUIDES.map((guide) => (
               <Link
                 key={guide.slug}
                 href={`/guides/${guide.slug}`}
