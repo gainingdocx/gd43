@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BarChart3, FileText, House } from "lucide-react";
 
+import { CommandPalette } from "@/components/search/command-palette";
 import { BackButton } from "@/components/ui/back-button";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { DesktopAppNav } from "@/components/ui/app-shell-nav";
@@ -33,7 +34,10 @@ export default async function AppLayout({
         <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-12 items-center px-2">
           <BrandWordmark compact inverse />
         </Link>
-        <div className="mt-9">
+        <div className="mt-6 px-1">
+          <CommandPalette includeDocuments triggerClassName="w-full sm:w-full" />
+        </div>
+        <div className="mt-7">
           <p className="mb-3 px-3 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-white/55">Workspace</p>
           <DesktopAppNav showAdmin={showAdmin} inverse />
         </div>
@@ -53,6 +57,7 @@ export default async function AppLayout({
             <BrandWordmark compact inverse />
           </Link>
           <div className="flex items-center gap-2">
+            <CommandPalette includeDocuments triggerClassName="size-11 justify-center rounded-full px-0 sm:w-11 sm:justify-center sm:px-0" />
             <Link
               href="/app"
               aria-label="Workspace home"

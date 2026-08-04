@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { MobileMenu } from "@/components/marketing/mobile-menu";
+import { CommandPalette } from "@/components/search/command-palette";
 import { BackButton } from "@/components/ui/back-button";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { BackdropMark } from "@/components/ui/backdrop-mark";
@@ -29,6 +30,7 @@ function Header() {
           <BrandWordmark compact inverse />
         </Link>
         <nav aria-label="Main" className="flex items-center gap-0.5 sm:gap-1">
+          <CommandPalette />
           {NAV_LINKS.map((link) => (
             <Link
               key={link.href}
