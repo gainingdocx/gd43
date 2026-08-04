@@ -135,7 +135,14 @@ export function QuickAnswerCard({ content }: { content: DeepContent }) {
   const { quickAnswer } = content;
   return (
     <div className="rounded-3xl border border-amber/45 bg-white p-6 shadow-sm sm:p-8">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-signal">Short answer</p>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-signal">Short answer</p>
+        {content.updated && (
+          <time dateTime={content.updated} className="text-xs font-medium text-muted-foreground">
+            Updated {new Date(`${content.updated}T00:00:00Z`).toLocaleDateString("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}
+          </time>
+        )}
+      </div>
       <h2 className="mt-2 text-2xl font-extrabold text-brand-deep">{quickAnswer.heading}</h2>
       <p className="mt-3 max-w-3xl text-base leading-8 text-muted-foreground">{quickAnswer.body}</p>
       {quickAnswer.bullets && (
