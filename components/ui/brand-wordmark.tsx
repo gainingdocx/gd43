@@ -11,12 +11,16 @@ interface BrandWordmarkProps {
 /**
  * Shared brand lockup so every surface uses the same name and promise.
  *
- * "Gaining" is red on every surface. The exact red shifts by ground because one
- * value cannot serve both: the original `#ef1b16` scored 2.1:1 on the deep blue
- * header — below even the 3:1 large-text floor. Dark grounds get `#ff6b6b`,
- * which clears 3:1 on the lightest ground it lands on (`#013bb3` in the app and
- * auth shells, 3.3:1) and reaches 6.0:1 on the marketing header's `#001a4d`.
- * Light grounds keep the deeper `#d40505` (5.5:1). Both read unmistakably red.
+ * "Gaining" is red on every surface, and that red is the site's `signal` red
+ * rather than a value invented for the logo. Light grounds use the token
+ * directly (`#d40505`, 5.5:1 on white), so the wordmark tracks the theme.
+ *
+ * Dark grounds hardcode `#ff5a5a` — the dark-theme value of the same token —
+ * because `inverse` is about the *ground*, not the theme: these lockups sit on
+ * deep blue even while the page is in light mode, where `--signal` would still
+ * resolve to `#d40505` and score 1.7:1. The hardcoded value gives 5.5:1 on the
+ * marketing header's `#001a4d` and 3.0:1 on `#013bb3` in the app and auth
+ * shells, clearing the 3:1 floor the 20px bold lockup qualifies for.
  *
  * "Docx" follows the same rule: amber on dark (10.7:1), and a deeper bronze on
  * light, because the original gold `#f4c400` scored 1.7:1 on white and needed a
@@ -39,7 +43,7 @@ export function BrandWordmark({ compact = false, inverse = false, className }: B
       />
       <span className="min-w-0 leading-none">
         <span className="block whitespace-nowrap text-xl font-extrabold tracking-[-0.04em]">
-          <span className={inverse ? "text-[#ff6b6b]" : "text-[#d40505]"}>Gaining</span>
+          <span className={inverse ? "text-[#ff5a5a]" : "text-signal"}>Gaining</span>
           <span className={inverse ? "text-amber" : "text-[#9a6b00]"}>Docx</span>
         </span>
         <span
