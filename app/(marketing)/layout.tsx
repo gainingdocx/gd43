@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { MobileMenu } from "@/components/marketing/mobile-menu";
+import { NavDropdown, type NavItem } from "@/components/marketing/nav-dropdown";
 import { CommandPalette } from "@/components/search/command-palette";
 import { BackButton } from "@/components/ui/back-button";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
@@ -9,16 +10,34 @@ import { BackdropMark } from "@/components/ui/backdrop-mark";
 import { Button } from "@/components/ui/button";
 import { JsonLd, organizationLd, websiteLd } from "@/lib/seo/jsonld";
 
-/** `wide` links appear one breakpoint later, matching the old xl-only Email-in. */
-const NAV_LINKS: { href: string; label: string; wide?: boolean }[] = [
-  { href: "/", label: "Home" },
-  { href: "/air-freight", label: "Air" },
-  { href: "/ocean-freight", label: "Ocean" },
+// Navigation groups.
+//
+// This was nine flat links, which is more than any comparable product ships and
+// still left `/document-parsers` — the highest commercial-intent hub on the
+// site — out of the bar entirely. Grouping follows the pattern every peer uses:
+// solutions by document type, then the product, then everything educational
+// under one heading.
+//
+// Grouping is presentational only. Every hub keeps its own URL because the three
+// resource hubs answer genuinely different queries ("free CBM calculator" vs
+// "bill of lading template" vs "how to read a bill of lading"), and collapsing
+// them would throw away the pages that rank for each.
+const SOLUTIONS: NavItem[] = [
+  { href: "/document-parsers", label: "Document parsers", blurb: "A dedicated parser for each of 14 freight document types." },
+  { href: "/ocean-freight", label: "Ocean freight", blurb: "Bills of lading, containers and arrival notices." },
+  { href: "/air-freight", label: "Air freight", blurb: "Air waybills, chargeable weight and dangerous goods." },
+];
+
+const RESOURCES: NavItem[] = [
+  { href: "/tools", label: "Free tools", blurb: "Calculators and check-digit validators, no account needed." },
+  { href: "/templates", label: "Templates", blurb: "Editable worksheets for freight paperwork." },
+  { href: "/guides", label: "Guides", blurb: "How the documents, charges and trade rules actually work." },
+  { href: "/developers", label: "API reference", blurb: "REST endpoints, authentication and the OpenAPI spec." },
+];
+
+/** Links that stay flat because they are destinations, not categories. */
+const FLAT_LINKS: { href: string; label: string }[] = [
   { href: "/features", label: "Features" },
-  { href: "/app/email-in", label: "Email-in", wide: true },
-  { href: "/tools", label: "Tools" },
-  { href: "/templates", label: "Templates" },
-  { href: "/guides", label: "Guides" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -31,15 +50,16 @@ function Header() {
         </Link>
         <nav aria-label="Main" className="flex items-center gap-0.5 sm:gap-1">
           <CommandPalette />
-          {NAV_LINKS.map((link) => (
+          <NavDropdown label="Solutions" items={SOLUTIONS} className="hidden lg:block" />
+          <NavDropdown label="Resources" items={RESOURCES} className="hidden lg:block" />
+          {FLAT_LINKS.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               className={cn(
                 // Was a saturated yellow fill with dark-red text, which flashed
                 // an alarm-level chip on every hover.
-                "hidden min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15",
-                link.wide ? "xl:flex" : "lg:flex"
+                "hidden min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15 lg:flex"
               )}
             >
               {link.label}
