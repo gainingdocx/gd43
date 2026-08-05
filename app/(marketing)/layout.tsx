@@ -30,7 +30,6 @@ const SOLUTIONS: NavItem[] = [
 
 const RESOURCES: NavItem[] = [
   { href: "/tools", label: "Free tools", blurb: "Calculators and check-digit validators, no account needed." },
-  { href: "/templates", label: "Templates", blurb: "Editable worksheets for freight paperwork." },
   { href: "/guides", label: "Guides", blurb: "How the documents, charges and trade rules actually work." },
   { href: "/developers", label: "API reference", blurb: "REST endpoints, authentication and the OpenAPI spec." },
 ];
@@ -38,18 +37,33 @@ const RESOURCES: NavItem[] = [
 /** Links that stay flat because they are destinations, not categories. */
 const FLAT_LINKS: { href: string; label: string }[] = [
   { href: "/features", label: "Features" },
+  // Promoted out of Resources. Free templates are the strongest no-account
+  // entry point on the site — "bill of lading template" is a high-volume,
+  // ready-to-convert query — and burying an acquisition surface one hover deep
+  // costs more than a fifth nav item does. Listed here only, not in both.
+  { href: "/templates", label: "Templates" },
   { href: "/pricing", label: "Pricing" },
 ];
 
 function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-brand-deep">
-      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" aria-label="GainingDocx home" className="flex min-h-12 items-center">
-          <BrandWordmark compact inverse />
-        </Link>
-        <nav aria-label="Main" className="flex items-center gap-0.5 sm:gap-1">
-          <CommandPalette />
+      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
+        {/* Back sits in the header bar rather than in a band above the page.
+            It previously had its own full-width row, which pushed every page
+            down by roughly 60px to hold one 44px control. In the bar it costs
+            no vertical space at all, which is where iOS puts it too. */}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <BackButton className="size-9 shrink-0 sm:size-11" />
+          <Link href="/" aria-label="GainingDocx home" className="flex min-h-12 items-center">
+            <BrandWordmark compact inverse onDeep />
+          </Link>
+        </div>
+        {/* Gap is widest where the bar is emptiest. Below lg the row is just
+            search, the auth buttons and the menu, so they get room; at lg the
+            two dropdowns and two links join and the spacing tightens to fit. */}
+        <nav aria-label="Main" className="flex items-center gap-2 lg:gap-1">
+          <CommandPalette triggerClassName="lg:w-56 lg:justify-between lg:pl-3.5 lg:pr-2" />
           <NavDropdown label="Solutions" items={SOLUTIONS} className="hidden lg:block" />
           <NavDropdown label="Resources" items={RESOURCES} className="hidden lg:block" />
           {FLAT_LINKS.map((link) => (
@@ -95,9 +109,9 @@ function Footer() {
       <BackdropMark />
       <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <div className="space-y-3 sm:col-span-2">
-          <BrandWordmark inverse />
+          <BrandWordmark inverse onDeep />
           <p className="max-w-md text-base leading-7 text-white">
-            Air and ocean freight document QA for forwarders and exporters.
+            Shipping document automation for freight forwarders and exporters.
             Connect shipment documents, review source-linked discrepancies and
             export corrected operational data.
           </p>
@@ -236,9 +250,6 @@ export default function MarketingLayout({
       <JsonLd data={[organizationLd(), websiteLd()]} />
       <Header />
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 pt-4 empty:hidden sm:px-6">
-          <BackButton />
-        </div>
         {children}
       </main>
       <Footer />

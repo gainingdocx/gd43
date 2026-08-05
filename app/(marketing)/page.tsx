@@ -198,7 +198,11 @@ export default function HomePage() {
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-[#a80404] bg-[linear-gradient(180deg,#e81111,#b80404)] px-4 py-2 text-xs font-bold uppercase tracking-[0.13em] text-white shadow-[0_6px_18px_-8px_rgba(232,17,17,0.9),inset_0_1px_0_rgba(255,255,255,0.3)]">
                 <Sparkles className="size-3.5" aria-hidden />
-                Freight document QA
+                {/* "Freight document QA" was our word, not the customer's. No
+                    exporter searches for document QA; they search for shipping
+                    document automation, which is also what the parser, feature
+                    and hub pages are already written to rank for. */}
+                Shipping document automation
               </span>
               <h1 className="mt-6 max-w-2xl text-4xl font-extrabold leading-[1.06] tracking-[-0.035em] text-white sm:text-5xl lg:text-[3.4rem]">
                 Choose the freight mode.{" "}
@@ -559,7 +563,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[.72fr_1.28fr] lg:py-20">
           <div>
             <LibraryBig className="size-8 text-signal" aria-hidden />
-            <Eyebrow className="mt-5">Practical knowledge</Eyebrow>
+            <Eyebrow className="mt-5">Freight documentation guides</Eyebrow>
             <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-brand">Know what every field means.</h2>
             <p className="mt-4 leading-7 text-muted-foreground">
               Plain-language guides connect shipping concepts to the parsers, calculators and templates you can use next.

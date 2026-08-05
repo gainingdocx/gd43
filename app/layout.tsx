@@ -23,8 +23,12 @@ export const metadata: Metadata = {
     default: "GainingDocx — Freight Document Manager",
     template: "%s | GainingDocx",
   },
+  // Leads with the phrase people actually search. "Document QA" is internal
+  // vocabulary — nobody types it — and this string is the site-wide fallback
+  // description, so it was spending the most valuable snippet we own on a term
+  // with no search demand.
   description:
-    "Air and ocean freight document QA that extracts shipment data and catches AWB, B/L, invoice, packing-list and declaration discrepancies before they delay cargo.",
+    "Shipping document automation for freight forwarders and exporters. Extract data from bills of lading, air waybills, commercial invoices and packing lists, then catch discrepancies before they delay cargo.",
   applicationName: "GainingDocx",
   category: "Shipping document software",
   keywords: ["air freight document automation", "air waybill parser", "MAWB HAWB reconciliation", "shipping document parser", "Bill of Lading parser", "commercial invoice parser", "packing list parser", "shipping document templates", "shipping calculators"],

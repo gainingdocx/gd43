@@ -95,27 +95,27 @@ export function NavDropdown({
         <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} aria-hidden />
       </button>
 
-      {open && (
-        <div
-          id={menuId}
-          className="absolute left-0 top-full z-50 w-80 pt-2"
-        >
-          <ul className="overflow-hidden rounded-2xl border border-border bg-card p-2 shadow-xl shadow-brand-deep/20">
-            {items.map((item) => (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className="block rounded-xl px-3 py-2.5 hover:bg-accent"
-                  onClick={() => setOpen(false)}
-                >
-                  <span className="block text-sm font-bold text-brand-deep">{item.label}</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.blurb}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {/* Always rendered, hidden with `display:none` when closed rather than
+          unmounted. That keeps every destination in the HTML source so crawlers
+          follow them from the header, while `display:none` still removes them
+          from the tab order — so a keyboard user cannot tab into a menu that is
+          not visible. */}
+      <div id={menuId} className={cn("absolute left-0 top-full z-50 w-80 pt-2", !open && "hidden")}>
+        <ul className="overflow-hidden rounded-2xl border border-border bg-card p-2 shadow-xl shadow-brand-deep/20">
+          {items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="block rounded-xl px-3 py-2.5 hover:bg-accent"
+                onClick={() => setOpen(false)}
+              >
+                <span className="block text-sm font-bold text-brand-deep">{item.label}</span>
+                <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.blurb}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

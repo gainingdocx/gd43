@@ -138,6 +138,18 @@ const STATIC_PAGES: { url: string; title: string; description: string; keywords:
   { url: "/sample-discrepancy-report", title: "Sample Discrepancy Report", description: "An example of the review output produced for a shipment.", keywords: ["sample", "example", "report", "discrepancy", "demo"], kind: "page" },
 ];
 
+/**
+ * Slug words, added to a page's keywords.
+ *
+ * Slugs are hand-written and keyword-dense — `packing-list-template`,
+ * `chargeable-weight-calculator` — so they carry the exact nouns people type
+ * when they are naming a thing rather than asking about it. Indexing them costs
+ * nothing and rewards the page whose slug is the tightest match.
+ */
+function slugWords(url: string): string[] {
+  return url.split("/").filter(Boolean).flatMap((segment) => segment.split("-"));
+}
+
 let cached: SearchDoc[] | null = null;
 
 export function buildCorpus(): SearchDoc[] {
@@ -158,7 +170,7 @@ export function buildCorpus(): SearchDoc[] {
       title: seo?.h1 ?? tool.name,
       url,
       description: tool.description,
-      keywords: [tool.name, ...(deep?.keywords ?? [])],
+      keywords: [tool.name, ...slugWords(url), ...(deep?.keywords ?? [])],
       headings,
       body: `${tool.intro} ${body}`,
       updated: deep?.updated,
@@ -177,7 +189,7 @@ export function buildCorpus(): SearchDoc[] {
       title: seo?.h1 ?? template.name,
       url,
       description: template.description,
-      keywords: [template.name, "template", ...(deep?.keywords ?? [])],
+      keywords: [template.name, "template", ...slugWords(url), ...(deep?.keywords ?? [])],
       headings,
       body,
       updated: deep?.updated,
@@ -196,7 +208,7 @@ export function buildCorpus(): SearchDoc[] {
       title: seo?.h1 ?? parser.h1,
       url,
       description: parser.metaDescription,
-      keywords: [parser.h1, "parser", "ocr", "extract", ...(deep?.keywords ?? [])],
+      keywords: [parser.h1, "parser", "ocr", "extract", ...slugWords(url), ...(deep?.keywords ?? [])],
       headings: [...headings, ...(seo?.headings ?? [])],
       body: [...parser.intro, ...parser.extracted, ...parser.checks, body].join(" "),
       updated: deep?.updated,
@@ -229,7 +241,7 @@ export function buildCorpus(): SearchDoc[] {
       title: seo?.h1 ?? feature.name,
       url,
       description: feature.description,
-      keywords: [feature.name, feature.eyebrow, ...(deep?.keywords ?? [])],
+      keywords: [feature.name, feature.eyebrow, ...slugWords(url), ...(deep?.keywords ?? [])],
       headings,
       body: [...feature.overview, ...feature.benefits, ...feature.workflow, body].join(" "),
       updated: deep?.updated,
@@ -271,7 +283,7 @@ export function buildCorpus(): SearchDoc[] {
       title: guide.title,
       url,
       description: guide.description,
-      keywords: [...(guide.keywords ?? []), "guide"],
+      keywords: [...(guide.keywords ?? []), "guide", ...slugWords(url)],
       headings,
       body: parts.join(" "),
       updated: guide.updated,

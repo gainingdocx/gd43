@@ -38,15 +38,19 @@ interface DocumentHit {
   createdAt: string;
 }
 
+// Destinations first, prose last. Someone typing into the palette is usually
+// trying to *get somewhere*; the direct-answer card above the list already
+// serves the case where they wanted prose, so answers do not also need to lead
+// the list.
 const KIND_META: Record<SearchKind, { label: string; icon: typeof Search; order: number }> = {
-  answer: { label: "Answers", icon: Lightbulb, order: 1 },
-  tool: { label: "Tools & calculators", icon: Calculator, order: 2 },
-  parser: { label: "Document parsers", icon: FileSearch, order: 3 },
-  guide: { label: "Guides", icon: BookOpen, order: 4 },
-  template: { label: "Templates", icon: FileText, order: 5 },
-  feature: { label: "Features", icon: Sparkles, order: 6 },
-  hub: { label: "Sections", icon: Layers, order: 7 },
-  page: { label: "Pages", icon: Layers, order: 8 },
+  tool: { label: "Tools & calculators", icon: Calculator, order: 1 },
+  parser: { label: "Document parsers", icon: FileSearch, order: 2 },
+  template: { label: "Templates", icon: FileText, order: 3 },
+  feature: { label: "Features", icon: Sparkles, order: 4 },
+  hub: { label: "Sections", icon: Layers, order: 5 },
+  guide: { label: "Guides", icon: BookOpen, order: 6 },
+  page: { label: "Pages", icon: Layers, order: 7 },
+  answer: { label: "Answers", icon: Lightbulb, order: 8 },
 };
 
 const SUGGESTIONS = [
@@ -290,16 +294,20 @@ export function CommandPalette({
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Search the site"
+        // Defaults to a compact icon pill and stays that way unless the host
+        // shell asks for more. It previously forced `sm:w-64`, which put a
+        // 256px box next to Sign in, Create account and the hamburger between
+        // 640px and 1024px — the widths fit, but nothing had room to breathe.
         className={cn(
-          "group inline-flex h-10 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 text-sm font-medium text-white/85 transition hover:bg-white/20 hover:text-white sm:w-64 sm:justify-between sm:pl-3.5 sm:pr-2",
+          "group inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 text-sm font-medium text-white/85 transition hover:bg-white/20 hover:text-white",
           triggerClassName
         )}
       >
         <span className="flex items-center gap-2">
           <Search className="size-4" aria-hidden />
-          <span className="hidden sm:inline">Search</span>
+          <span className="hidden lg:inline">Search</span>
         </span>
-        <kbd className="hidden rounded border border-white/25 bg-white/10 px-1.5 py-0.5 font-sans text-[0.65rem] font-bold tracking-wide sm:inline">
+        <kbd className="hidden rounded border border-white/25 bg-white/10 px-1.5 py-0.5 font-sans text-[0.65rem] font-bold tracking-wide lg:inline">
           ⌘K
         </kbd>
       </button>

@@ -80,7 +80,7 @@ export default function AboutPage() {
       </section>
 
       <section id="inside" className="mx-auto max-w-6xl scroll-mt-24 px-4 py-16 sm:px-6 lg:py-24">
-        <div className="max-w-3xl"><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">The information journey</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-brand-deep sm:text-4xl">From page image to usable shipment record.</h2><p className="mt-4 leading-7 text-muted-foreground">The workflow keeps the human reviewer in control while automating the mechanical work around them.</p></div>
+        <div className="max-w-3xl"><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">How document extraction works</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-brand-deep sm:text-4xl">From page image to usable shipment record.</h2><p className="mt-4 leading-7 text-muted-foreground">The workflow keeps the human reviewer in control while automating the mechanical work around them.</p></div>
         <ol className="relative mt-12 grid gap-5 lg:grid-cols-4">
           <div className="absolute left-[12%] right-[12%] top-7 hidden h-0.5 bg-border lg:block" aria-hidden />
           {journey.map(({ icon: Icon, title, text }, index) => <li key={title} className="relative rounded-3xl border border-amber/45 bg-white p-6 shadow-sm"><span className="relative flex size-14 items-center justify-center rounded-2xl bg-primary text-white ring-8 ring-background"><Icon className="size-6" aria-hidden /></span><p className="mt-6 text-xs font-extrabold uppercase tracking-widest text-signal">0{index + 1}</p><h3 className="mt-2 text-xl font-extrabold text-brand-deep">{title}</h3><p className="mt-3 text-sm leading-6 text-muted-foreground">{text}</p></li>)}
@@ -115,7 +115,7 @@ export default function AboutPage() {
 
       <section className="section-edge border-t border-border bg-white px-4 py-14 sm:px-6">
         <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-2">
-          <div><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">Product and operator status</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-brand-deep">A public-beta product, described without inflated claims.</h2></div>
+          <div><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">Product status</p><h2 className="mt-3 text-3xl font-extrabold tracking-tight text-brand-deep">A public-beta product, described without inflated claims.</h2></div>
           <div className="space-y-3 text-sm leading-7 text-muted-foreground"><p>GainingDocx is an independently developed freight-document software product. Core parsing, deterministic checks, shipment matching, reviewer workflows and exports are available in public beta. Business identity, contracting and data-processing details are supplied during commercial onboarding.</p><p>The service is not a carrier, customs broker, freight forwarder, bank, insurer, certification body or legally transferable electronic Bill of Lading platform. Users remain responsible for confirming operational and regulated decisions.</p><div className="flex flex-wrap gap-4"><Link href="/trust" className="font-bold text-primary underline">Visit the Trust Center</Link><Link href="/accuracy-and-limitations" className="font-bold text-primary underline">Read accuracy and limitations</Link></div></div>
         </div>
       </section>

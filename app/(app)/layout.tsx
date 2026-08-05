@@ -31,11 +31,16 @@ export default async function AppLayout({
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_72%_0%,rgba(255,229,0,0.18),transparent_32rem)] lg:grid lg:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen flex-col border-r-4 border-[#ffe500] bg-primary px-5 py-6 lg:flex">
-        <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-12 items-center px-2">
-          <BrandWordmark compact inverse />
-        </Link>
+        {/* Shares the brand row instead of taking a row of its own above the
+            page content. */}
+        <div className="flex min-w-0 items-center gap-2 px-2">
+          <BackButton className="size-10 shrink-0" />
+          <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-12 min-w-0 items-center">
+            <BrandWordmark compact inverse />
+          </Link>
+        </div>
         <div className="mt-6 px-1">
-          <CommandPalette includeDocuments triggerClassName="w-full sm:w-full" />
+          <CommandPalette includeDocuments triggerClassName="w-full justify-between pl-3.5 pr-2" />
         </div>
         <div className="mt-7">
           <p className="mb-3 px-3 text-[0.68rem] font-bold uppercase tracking-[0.16em] text-white/55">Workspace</p>
@@ -53,11 +58,14 @@ export default async function AppLayout({
       <div className="flex min-h-screen min-w-0 flex-col">
       <header className="sticky top-0 z-40 border-b-4 border-[#ffe500] bg-primary shadow-[0_8px_30px_-24px_rgba(1,59,179,0.9)] lg:hidden">
         <div className="flex h-16 items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-11 items-center">
-            <BrandWordmark compact inverse />
-          </Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <BackButton className="size-9 shrink-0" />
+            <Link href="/app" aria-label="GainingDocx workspace home" className="flex min-h-11 min-w-0 items-center">
+              <BrandWordmark compact inverse />
+            </Link>
+          </div>
           <div className="flex items-center gap-2">
-            <CommandPalette includeDocuments triggerClassName="size-11 justify-center rounded-full px-0 sm:w-11 sm:justify-center sm:px-0" />
+            <CommandPalette includeDocuments triggerClassName="size-11 justify-center rounded-full px-0" />
             <Link
               href="/app"
               aria-label="Workspace home"
@@ -87,7 +95,6 @@ export default async function AppLayout({
       </header>
       <main className="w-full flex-1 px-4 py-6 pb-24 sm:px-6 lg:px-10 lg:py-9 lg:pb-10 xl:px-14">
         <div className="mx-auto w-full max-w-5xl [&:has([data-wide])]:max-w-6xl">
-          <BackButton className="mb-5" />
           {children}
         </div>
       </main>

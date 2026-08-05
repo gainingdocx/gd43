@@ -25,16 +25,36 @@ const ALIAS_WEIGHT = 0.45;
 const K1 = 1.4;
 const B = 0.7;
 
-const KIND_PRIOR: Record<SearchKind, number> = {
-  tool: 1.14,
-  parser: 1.12,
-  answer: 1.08,
-  feature: 1.04,
-  template: 1.04,
-  guide: 1.0,
-  hub: 1.06,
-  page: 1.02,
+/**
+ * Destinations outrank prose.
+ *
+ * The palette is first a way to *reach* a tool, template, parser or feature, and
+ * only second a way to read about one. Early tuning had answers only a hair
+ * below tools, and because an FAQ title is short it wins the title field on
+ * term density alone — "container number check" returned three answers and left
+ * the actual calculator off the first page. These priors are wide enough that a
+ * page beats its own FAQ on a naming query, and narrow enough that a genuinely
+ * better prose match still surfaces.
+ *
+ * `answer` is scored separately in ANSWER_PRIOR because its value depends
+ * entirely on whether the user asked a question.
+ */
+const KIND_PRIOR: Record<Exclude<SearchKind, "answer">, number> = {
+  tool: 1.5,
+  parser: 1.45,
+  template: 1.4,
+  feature: 1.35,
+  hub: 1.25,
+  page: 1.12,
+  guide: 1.05,
 };
+
+/**
+ * A question ("how is chargeable weight calculated") wants the prose. A name
+ * ("chargeable weight calculator") wants the tool. Same corpus, opposite intent,
+ * so the answer prior flips with the shape of the query.
+ */
+const ANSWER_PRIOR = { question: 1.3, lookup: 0.72 } as const;
 
 /**
  * Exact-query shortcuts. Trade shorthand is unambiguous to the person typing it
@@ -261,7 +281,9 @@ export function search(rawQuery: string, options: SearchOptions = {}): SearchHit
   if (query.length < 2) return [];
 
   const idx = getIndex();
-  const { terms, aliases, phrase } = expandQuery(query);
+  const { terms, aliases, phrase, isQuestion } = expandQuery(query);
+  const answerPrior = isQuestion ? ANSWER_PRIOR.question : ANSWER_PRIOR.lookup;
+  const priorFor = (kind: SearchKind) => (kind === "answer" ? answerPrior : KIND_PRIOR[kind]);
   if (terms.length === 0 && aliases.length === 0) return [];
 
   // Resolve each typed term, falling back to a fuzzy neighbour only when the
@@ -310,14 +332,14 @@ export function search(rawQuery: string, options: SearchOptions = {}): SearchHit
     }
   }
 
-  const results: SearchHit[] = [];
+  let results: SearchHit[] = [];
   for (const [docId, { score, matched }] of scores) {
     const entry = idx.docs[docId];
     if (kinds && !kinds.includes(entry.doc.kind)) continue;
 
     // Coverage: reward documents that matched more of what the user typed.
     const coverage = typedTerms.size > 0 ? matched.size / typedTerms.size : 1;
-    let final = score * (0.35 + 0.65 * coverage) * KIND_PRIOR[entry.doc.kind];
+    let final = score * (0.35 + 0.65 * coverage) * priorFor(entry.doc.kind);
 
     // Exact phrase in the title is the strongest navigational signal there is,
     // but an answer earns less from it than a page does: generic SaaS questions
@@ -346,6 +368,14 @@ export function search(rawQuery: string, options: SearchOptions = {}): SearchHit
   }
 
   results.sort((a, b) => b.score - a.score);
+
+  // On a naming query, a page speaks for its own FAQs. Without this, searching
+  // "air waybill parser" could return that page's FAQ above the page itself —
+  // the right destination wearing the wrong label, and a wasted slot.
+  if (!isQuestion) {
+    const destinations = new Set(results.filter((hit) => hit.kind !== "answer").map((hit) => hit.url));
+    results = results.filter((hit) => hit.kind !== "answer" || !destinations.has(hit.url));
+  }
 
   // Collapse near-duplicate answers pointing at the same page: the best one
   // represents it, so one page cannot occupy five slots.

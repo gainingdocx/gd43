@@ -21,7 +21,6 @@ const GROUPS: { heading: string; links: readonly (readonly [string, string])[] }
     heading: "Resources",
     links: [
       ["Free tools", "/tools"],
-      ["Templates", "/templates"],
       ["Guides", "/guides"],
       ["API reference", "/developers"],
     ],
@@ -39,6 +38,7 @@ const GROUPS: { heading: string; links: readonly (readonly [string, string])[] }
 /** Top-level destinations, shown above the grouped sections. */
 const PRIMARY = [
   ["Features", "/features"],
+  ["Templates", "/templates"],
   ["Pricing", "/pricing"],
 ] as const;
 
@@ -52,7 +52,11 @@ export function MobileMenu() {
   }, [pathname]);
 
   return (
-    <div className="flex items-center gap-2 lg:hidden">
+    // Extra left margin on top of the nav gap: the trigger is a filled amber
+    // circle sitting next to the search pill, and two adjacent circles need
+    // more separation than a row of text links does to stop reading as one
+    // control.
+    <div className="ml-1 flex items-center gap-2 lg:hidden">
       <details ref={detailsRef} className="relative">
       <summary className="flex size-12 cursor-pointer list-none items-center justify-center rounded-full border-2 border-white/70 bg-amber text-brand-deep shadow-sm [&::-webkit-details-marker]:hidden">
         <Menu className="size-6" aria-hidden />
