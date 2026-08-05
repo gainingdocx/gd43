@@ -12,4 +12,12 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 
 // Makes Cloudflare bindings (env, ctx) available during `next dev`.
-initOpenNextCloudflareForDev();
+//
+// Guarded to dev because next.config is evaluated on every invocation, so an
+// unguarded call also opened a remote binding proxy during production builds —
+// where it is not used and where a failure to start it ("write EOF",
+// "the service was stopped") aborts the whole build. The production bundle gets
+// its bindings from the OpenNext pipeline, not from here.
+if (process.env.NODE_ENV === "development") {
+  initOpenNextCloudflareForDev();
+}

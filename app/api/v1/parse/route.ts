@@ -10,6 +10,7 @@ import { translateExtraction } from "@/lib/ai/translate";
 import { authenticate, rateHeaders } from "@/lib/api/auth";
 import { ApiError, badRequest, notFound, serverError } from "@/lib/api/errors";
 import { handler, json, preflight, readJson } from "@/lib/api/respond";
+import { assertDocumentQuota, quotaHeaders } from "@/lib/api/quota";
 import { serializeDocument } from "@/lib/api/serialize";
 
 export const maxDuration = 120;
@@ -20,6 +21,9 @@ export const OPTIONS = preflight;
 
 export const POST = handler(async (request, id) => {
   const caller = await authenticate(request);
+  // Documents parsed through the API draw on the same monthly allowance as the
+  // web app. Checked before any AI work so a blocked request costs nothing.
+  const quota = await assertDocumentQuota(caller.owner);
   const body = await readJson<{
     pages?: unknown;
     document_type?: unknown;
@@ -112,7 +116,16 @@ export const POST = handler(async (request, id) => {
         validation,
         quality_score: result.qualityScore,
       },
-      { id, headers: { ...rateHeaders(caller), "X-GainingDocx-Document-ID": document.id } }
+      {
+        id,
+        headers: {
+          ...rateHeaders(caller),
+          // Reflects state before this document; the caller can see how close
+          // it is to the allowance without a second call.
+          ...quotaHeaders(quota),
+          "X-GainingDocx-Document-ID": document.id,
+        },
+      }
     );
   } catch (error) {
     // Leave a durable record of the failure so the document does not sit in

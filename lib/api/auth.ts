@@ -7,11 +7,13 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sha256 } from "@/lib/integrations/webhooks";
+import { normalizePlan, PLAN_API_RATE_LIMIT, type PlanId } from "@/lib/plans";
 import { ApiError, unauthorized } from "./errors";
 
 export interface ApiCaller {
   keyId: string;
   owner: string;
+  plan: PlanId;
   /** Requests remaining in the current window, for response headers. */
   remaining: number;
   resetAt: string;
@@ -20,8 +22,12 @@ export interface ApiCaller {
 
 const KEY_PREFIX = "gdx_live_";
 
-/** Requests per key per window. Generous for document work, low enough to bound abuse. */
-export const RATE_LIMIT = 120;
+/**
+ * Documented default, used where a plan is not in hand (the OpenAPI description
+ * and the docs page). The limit actually enforced is per plan — see
+ * PLAN_API_RATE_LIMIT.
+ */
+export const RATE_LIMIT = PLAN_API_RATE_LIMIT.pro;
 export const RATE_WINDOW_SECONDS = 60;
 
 function bearer(request: Request): string {
@@ -61,10 +67,17 @@ export async function authenticate(request: Request): Promise<ApiCaller> {
   if (!key) throw unauthorized("This API key is invalid.");
   if (key.revoked_at) throw unauthorized("This API key has been revoked.", "revoked_api_key");
 
+  // The rate a key may call at is a property of the account's plan, so this
+  // costs one indexed lookup per request. Embedding it in the key row instead
+  // would go stale the moment a subscription changes.
+  const { data: profile } = await admin.from("profiles").select("plan").eq("id", key.owner).maybeSingle();
+  const plan = normalizePlan(profile?.plan);
+  const rateLimit = PLAN_API_RATE_LIMIT[plan];
+
   const { data: quota, error } = await admin
     .rpc("api_rate_limit", {
       p_key_id: key.id,
-      p_limit: RATE_LIMIT,
+      p_limit: rateLimit,
       p_window_seconds: RATE_WINDOW_SECONDS,
     })
     .maybeSingle<{ allowed: boolean; used: number; remaining: number; reset_at: string }>();
@@ -77,9 +90,10 @@ export async function authenticate(request: Request): Promise<ApiCaller> {
     return {
       keyId: key.id,
       owner: key.owner,
-      remaining: RATE_LIMIT,
+      plan,
+      remaining: rateLimit,
       resetAt: new Date(Date.now() + RATE_WINDOW_SECONDS * 1000).toISOString(),
-      limit: RATE_LIMIT,
+      limit: rateLimit,
     };
   }
 
@@ -89,10 +103,12 @@ export async function authenticate(request: Request): Promise<ApiCaller> {
     throw new ApiError({
       type: "rate_limit_error",
       code: "rate_limit_exceeded",
-      message: `Rate limit of ${RATE_LIMIT} requests per ${RATE_WINDOW_SECONDS}s exceeded. Retry after ${retryAfter}s.`,
+      message:
+        `Rate limit of ${rateLimit} requests per ${RATE_WINDOW_SECONDS}s exceeded on the ${plan} plan. ` +
+        `Retry after ${retryAfter}s.`,
       headers: {
         "Retry-After": String(retryAfter),
-        "X-RateLimit-Limit": String(RATE_LIMIT),
+        "X-RateLimit-Limit": String(rateLimit),
         "X-RateLimit-Remaining": "0",
         "X-RateLimit-Reset": resetAt,
       },
@@ -102,7 +118,7 @@ export async function authenticate(request: Request): Promise<ApiCaller> {
   // Recorded for the caller's own usage reporting; best-effort by design.
   void admin.from("api_keys").update({ last_used_at: new Date().toISOString() }).eq("id", key.id);
 
-  return { keyId: key.id, owner: key.owner, remaining: quota.remaining, resetAt, limit: RATE_LIMIT };
+  return { keyId: key.id, owner: key.owner, plan, remaining: quota.remaining, resetAt, limit: rateLimit };
 }
 
 /** Rate-limit headers to attach to a successful response. */
