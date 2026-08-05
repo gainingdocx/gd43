@@ -6,6 +6,7 @@ import { ArrowRight, BookOpenCheck, ChevronRight, ExternalLink } from "lucide-re
 import { DataTable, FaqList, RelatedLinks } from "@/components/marketing/deep-content";
 import { GUIDES } from "@/content/guides";
 import { articleLd, breadcrumbLd, faqLd, JsonLd, techArticleLd } from "@/lib/seo/jsonld";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 export const dynamicParams = true;
 export function generateStaticParams() { return GUIDES.map((guide) => ({ slug: guide.slug })); }
@@ -53,11 +54,11 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
     <article>
       <header className="border-b border-border bg-white">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:py-16">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
+          <BreadcrumbBar>
             <Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden />
             <Link href="/guides">Guides</Link><ChevronRight className="size-3" aria-hidden />
             <span className="line-clamp-1">{guide.title}</span>
-          </nav>
+          </BreadcrumbBar>
           <p className="mt-8 text-sm font-bold uppercase tracking-[0.16em] text-signal">{guide.readMinutes} minute practical guide</p>
           <h1 className="mt-3 max-w-4xl text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">{guide.title}</h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{guide.description}</p>

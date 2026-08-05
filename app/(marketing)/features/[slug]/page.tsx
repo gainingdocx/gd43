@@ -11,6 +11,7 @@ import { FEATURES } from "@/content/features";
 import { FEATURE_SEO } from "@/content/seo-copy";
 import { breadcrumbLd, faqLd, howToLd, JsonLd, serviceLd, techArticleLd } from "@/lib/seo/jsonld";
 import { featureMode } from "@/lib/freight/mode";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 export const dynamicParams = true;
 export function generateStaticParams() { return FEATURES.map((feature) => ({ slug: feature.slug })); }
@@ -54,7 +55,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
     ]} />
     <section className="section-edge bg-[radial-gradient(circle_at_82%_10%,rgba(1,59,179,0.13),transparent_28rem)]">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-medium text-muted-foreground"><Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden /><Link href="/features">Features</Link><ChevronRight className="size-3" aria-hidden /><span>{feature.name}</span></nav>
+        <BreadcrumbBar><Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden /><Link href="/features">Features</Link><ChevronRight className="size-3" aria-hidden /><span>{feature.name}</span></BreadcrumbBar>
         <div className="mt-8 flex items-center gap-2"><FreightModeTag mode={featureMode(feature.slug)} /><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">{feature.eyebrow}</p></div>
         <h1 className="mt-3 max-w-4xl text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">{seo?.h1 ?? feature.name}</h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{seo?.intro ?? feature.description}</p>

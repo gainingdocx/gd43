@@ -4,7 +4,6 @@ import { cn } from "@/lib/utils";
 import { MobileMenu } from "@/components/marketing/mobile-menu";
 import { NavDropdown, type NavItem } from "@/components/marketing/nav-dropdown";
 import { CommandPalette } from "@/components/search/command-palette";
-import { BackButton } from "@/components/ui/back-button";
 import { BrandWordmark } from "@/components/ui/brand-wordmark";
 import { BackdropMark } from "@/components/ui/backdrop-mark";
 import { Button } from "@/components/ui/button";
@@ -35,13 +34,15 @@ const RESOURCES: NavItem[] = [
 ];
 
 /** Links that stay flat because they are destinations, not categories. */
-const FLAT_LINKS: { href: string; label: string }[] = [
+const FLAT_LINKS: { href: string; label: string; wide?: boolean }[] = [
   { href: "/features", label: "Features" },
   // Promoted out of Resources. Free templates are the strongest no-account
   // entry point on the site — "bill of lading template" is a high-volume,
   // ready-to-convert query — and burying an acquisition surface one hover deep
   // costs more than a fifth nav item does. Listed here only, not in both.
-  { href: "/templates", label: "Templates" },
+  // `wide` because at exactly lg the bar is already carrying two dropdowns,
+  // two links and both auth buttons; this is the one that waits for xl.
+  { href: "/templates", label: "Templates", wide: true },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -49,21 +50,17 @@ function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-brand-deep">
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between gap-2 px-4 sm:gap-4 sm:px-6">
-        {/* Back sits in the header bar rather than in a band above the page.
-            It previously had its own full-width row, which pushed every page
-            down by roughly 60px to hold one 44px control. In the bar it costs
-            no vertical space at all, which is where iOS puts it too. */}
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <BackButton className="size-9 shrink-0 sm:size-11" />
-          <Link href="/" aria-label="GainingDocx home" className="flex min-h-12 items-center">
-            <BrandWordmark compact inverse onDeep />
-          </Link>
-        </div>
-        {/* Gap is widest where the bar is emptiest. Below lg the row is just
-            search, the auth buttons and the menu, so they get room; at lg the
-            two dropdowns and two links join and the spacing tightens to fit. */}
-        <nav aria-label="Main" className="flex items-center gap-2 lg:gap-1">
-          <CommandPalette triggerClassName="lg:w-56 lg:justify-between lg:pl-3.5 lg:pr-2" />
+        <Link href="/" aria-label="GainingDocx home" className="flex min-h-12 shrink-0 items-center">
+          <BrandWordmark compact inverse onDeep />
+        </Link>
+        {/* Spacing is budgeted per breakpoint rather than set once. Below lg the
+            row holds only search, the auth buttons and the menu, so items get
+            real room. At lg two dropdowns and two links join and everything
+            tightens. The search box only grows into a labelled field at xl,
+            because at lg those 180 extra pixels are exactly what made the
+            controls collide. */}
+        <nav aria-label="Main" className="flex min-w-0 items-center gap-2 lg:gap-0.5 xl:gap-1">
+          <CommandPalette triggerClassName="xl:w-44 xl:justify-between xl:pl-3.5 xl:pr-2" />
           <NavDropdown label="Solutions" items={SOLUTIONS} className="hidden lg:block" />
           <NavDropdown label="Resources" items={RESOURCES} className="hidden lg:block" />
           {FLAT_LINKS.map((link) => (
@@ -73,7 +70,8 @@ function Header() {
               className={cn(
                 // Was a saturated yellow fill with dark-red text, which flashed
                 // an alarm-level chip on every hover.
-                "hidden min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-white transition-colors hover:bg-white/15 lg:flex"
+                "hidden min-h-11 items-center whitespace-nowrap rounded-lg px-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/15 xl:px-3",
+                link.wide ? "xl:flex" : "lg:flex"
               )}
             >
               {link.label}

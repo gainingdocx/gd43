@@ -9,6 +9,7 @@ import { PARSER_PAGES } from "@/content/parsers";
 import { PARSER_SEO } from "@/content/seo-copy";
 import { breadcrumbLd, collectionPageLd, faqLd, itemListLd, JsonLd } from "@/lib/seo/jsonld";
 import { parserMode, type FreightMode } from "@/lib/freight/mode";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 const TITLE = "Shipping Document Parsers: OCR & AI Data Extraction";
 const DESCRIPTION =
@@ -114,11 +115,11 @@ export default function DocumentParsersPage() {
 
       <section className="section-edge bg-[radial-gradient(circle_at_80%_8%,rgba(1,59,179,0.13),transparent_28rem)]">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <BreadcrumbBar>
             <Link href="/">Home</Link>
             <ChevronRight className="size-3" aria-hidden />
             <span>Document parsers</span>
-          </nav>
+          </BreadcrumbBar>
           <p className="mt-8 text-sm font-bold uppercase tracking-[0.16em] text-signal">
             {PARSER_PAGES.length} document-specific parsers
           </p>

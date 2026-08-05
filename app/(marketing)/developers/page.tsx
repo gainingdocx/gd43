@@ -9,6 +9,7 @@ import Link from "next/link";
 import { ChevronRight, KeyRound, ShieldAlert, Terminal, Webhook, Zap } from "lucide-react";
 
 import { breadcrumbLd, collectionPageLd, faqLd, JsonLd } from "@/lib/seo/jsonld";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 const TITLE = "GainingDocx API: Freight Document Extraction & Validation";
 const DESCRIPTION =
@@ -241,11 +242,11 @@ export default function ApiDocsPage() {
         ]}
       />
 
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+      <BreadcrumbBar>
         <Link href="/">Home</Link>
         <ChevronRight className="size-3" aria-hidden />
         <span>API</span>
-      </nav>
+      </BreadcrumbBar>
 
       <p className="mt-6 text-xs font-bold uppercase tracking-[0.16em] text-signal">Developer reference</p>
       <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">

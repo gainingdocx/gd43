@@ -7,6 +7,7 @@ import { FreightModeTag } from "@/components/ui/freight-mode-tag";
 import { TOOLS } from "@/content/tools";
 import { toolMode } from "@/lib/freight/mode";
 import { breadcrumbLd, collectionPageLd, faqLd, itemListLd, JsonLd } from "@/lib/seo/jsonld";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 const TITLE = "Free Air & Ocean Freight Calculators and Tools";
 const DESCRIPTION =
@@ -81,9 +82,9 @@ export default function ToolsHub() {
     ]} />
     <section className="section-edge bg-[radial-gradient(circle_at_82%_8%,rgba(1,59,179,0.12),transparent_28rem)]">
       <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+        <BreadcrumbBar>
           <Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden /><span>Tools</span>
-        </nav>
+        </BreadcrumbBar>
         <p className="mt-8 text-sm font-bold uppercase tracking-[0.16em] text-signal">{TOOLS.length} free tools · no login required</p>
         <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">Free freight calculators and reference tools</h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">

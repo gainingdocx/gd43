@@ -12,6 +12,7 @@ import { TOOLS } from "@/content/tools";
 import { TOOL_SEO } from "@/content/seo-copy";
 import { breadcrumbLd, faqLd, howToLd, JsonLd, techArticleLd, webApplicationLd } from "@/lib/seo/jsonld";
 import { toolMode } from "@/lib/freight/mode";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 export const dynamicParams = true;
 export function generateStaticParams() { return TOOLS.map((tool) => ({ slug: tool.slug })); }
@@ -81,7 +82,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
     ]} />
     <section className="section-edge bg-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:py-16">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground"><Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden /><Link href="/tools">Tools</Link><ChevronRight className="size-3" aria-hidden /><span>{tool.name}</span></nav>
+        <BreadcrumbBar><Link href="/">Home</Link><ChevronRight className="size-3" aria-hidden /><Link href="/tools">Tools</Link><ChevronRight className="size-3" aria-hidden /><span>{tool.name}</span></BreadcrumbBar>
         <div className="mt-7 grid items-end gap-8 lg:grid-cols-[1fr_auto]"><div><div className="flex items-center gap-2"><FreightModeTag mode={toolMode(slug)} /><p className="text-sm font-bold uppercase tracking-[0.16em] text-signal">Free freight tool</p></div><h1 className="mt-3 text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">{seo?.h1 ?? tool.name}</h1><p className="mt-5 max-w-3xl text-lg leading-8 text-muted-foreground">{seo?.intro ?? tool.intro}</p></div><span className="hidden size-20 items-center justify-center rounded-3xl bg-secondary text-primary lg:flex"><Calculator className="size-9" aria-hidden /></span></div>
       </div>
     </section>

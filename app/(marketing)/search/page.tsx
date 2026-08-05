@@ -14,6 +14,7 @@ import { ChevronRight, Lightbulb, Search as SearchIcon, SearchX } from "lucide-r
 import { SearchInput } from "@/components/search/search-input";
 import type { SearchKind } from "@/lib/search/corpus";
 import { directAnswer, search, type Segment } from "@/lib/search/engine";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 export const metadata: Metadata = {
   title: { absolute: "Search | GainingDocx" },
@@ -74,11 +75,11 @@ export default async function SearchPage({
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:py-14">
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+      <BreadcrumbBar>
         <Link href="/">Home</Link>
         <ChevronRight className="size-3" aria-hidden />
         <span>Search</span>
-      </nav>
+      </BreadcrumbBar>
 
       <h1 className="mt-6 text-3xl font-extrabold tracking-tight text-brand-deep sm:text-4xl">
         {query ? <>Results for “{query}”</> : "Search GainingDocx"}

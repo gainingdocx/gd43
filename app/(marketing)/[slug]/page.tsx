@@ -11,6 +11,7 @@ import { PARSER_PAGES } from "@/content/parsers";
 import { PARSER_SEO } from "@/content/seo-copy";
 import { breadcrumbLd, faqLd, howToLd, JsonLd, serviceLd, techArticleLd } from "@/lib/seo/jsonld";
 import { parserMode } from "@/lib/freight/mode";
+import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
 
 // Parser landing pages are statically generated from the document capability catalog.
 // Keep runtime param handling enabled: OpenNext serves these prerendered paths
@@ -108,13 +109,13 @@ export default async function ParserPage({
 
       <section className="section-edge bg-gradient-to-b from-background to-secondary/60">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs text-muted-foreground">
+          <BreadcrumbBar>
             <Link href="/" className="hover:underline">Home</Link>
             <ChevronRight className="size-3" aria-hidden />
             <Link href="/document-parsers" className="hover:underline">Document parsers</Link>
             <ChevronRight className="size-3" aria-hidden />
             <span>{page.h1}</span>
-          </nav>
+          </BreadcrumbBar>
           <FreightModeTag mode={parserMode(page.slug)} className="mt-5" />
           <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-brand-deep sm:text-5xl">
             {seo?.h1 ?? page.h1}

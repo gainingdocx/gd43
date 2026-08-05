@@ -307,7 +307,10 @@ export function CommandPalette({
           <Search className="size-4" aria-hidden />
           <span className="hidden lg:inline">Search</span>
         </span>
-        <kbd className="hidden rounded border border-white/25 bg-white/10 px-1.5 py-0.5 font-sans text-[0.65rem] font-bold tracking-wide lg:inline">
+        {/* The shortcut hint waits for xl. At lg the header is already carrying
+            two dropdowns, three links and both auth buttons, and this is the
+            least useful 40px in the row. */}
+        <kbd className="hidden rounded border border-white/25 bg-white/10 px-1.5 py-0.5 font-sans text-[0.65rem] font-bold tracking-wide xl:inline">
           ⌘K
         </kbd>
       </button>
