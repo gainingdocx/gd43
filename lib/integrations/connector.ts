@@ -70,6 +70,22 @@ export interface ConnectorDeclaration {
   docsPath?: string;
   /** Set only where a connector cannot be self-served. */
   partnerNote?: string;
+  /**
+   * Whether customers are shown this entry at all.
+   *
+   * `internal` means the declaration and its code exist but nothing about it is
+   * published — not the marketplace page, not `/v1/integrations`, not search.
+   * It is for connectors that are built or half-built but cannot yet be
+   * delivered, usually because the OAuth application behind them has not been
+   * registered and approved.
+   *
+   * This is deliberately distinct from `status: "planned"`. Planned is a public
+   * promise: "we have not built this, tell us if you need it". When we cannot
+   * yet say when something will work, even that promise is more than we can
+   * honour, and the honest move is silence rather than a roadmap entry the
+   * customer might plan around. Omitted means public.
+   */
+  visibility?: "public" | "internal";
 }
 
 export interface ConnectionHealth {

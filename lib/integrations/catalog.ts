@@ -222,6 +222,10 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "gmail",
     provider: "Gmail",
+    // Hidden until the Google application behind it is registered and its
+    // restricted-scope assessment passed. Until then we cannot say when this
+    // will work, and a "Planned" badge invites a customer to plan around it.
+    visibility: "internal",
     category: "email",
     status: "planned",
     access: "read_only",
@@ -258,6 +262,10 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "google_drive",
     provider: "Google Drive",
+    // Built and tested against a stub, but never authenticated against Google.
+    // Publish this the moment a real connection succeeds — see
+    // lib/integrations/oauth/.
+    visibility: "internal",
     category: "cloud_storage",
     status: "planned",
     access: "read_write",
@@ -274,6 +282,8 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "onedrive_sharepoint",
     provider: "OneDrive / SharePoint",
+    // Registry entry exists; no file client, and no Entra application.
+    visibility: "internal",
     category: "cloud_storage",
     status: "planned",
     access: "read_write",
@@ -306,6 +316,10 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "sftp",
     provider: "SFTP drop folder",
+    // Cannot run on the current stack at all: Workers exposes raw TCP but has
+    // no SSH-2/SFTP client, so this needs a different execution target before
+    // it can be promised to anyone.
+    visibility: "internal",
     category: "cloud_storage",
     status: "planned",
     access: "write_only",
@@ -419,6 +433,10 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "magaya",
     provider: "Magaya",
+    // Needs a live Magaya tenant to build and test against. Writing it blind
+    // from published docs would be the unverified connector this catalogue
+    // exists to prevent.
+    visibility: "internal",
     category: "tms",
     status: "planned",
     access: "read_write",
@@ -470,29 +488,52 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   },
 ] as const;
 
+/**
+ * The entries customers may see.
+ *
+ * Every public surface — the marketplace page, `/v1/integrations`, site search —
+ * reads through this, never `INTEGRATION_CATALOG` directly. One filter in one
+ * place is the only way an `internal` connector cannot leak out of a surface
+ * someone forgot to update.
+ */
+export function publicCatalog(): readonly ConnectorDeclaration[] {
+  return INTEGRATION_CATALOG.filter((entry) => entry.visibility !== "internal");
+}
+
+/**
+ * Look up one entry.
+ *
+ * Searches the public list only, so an internal id is `null` here exactly as an
+ * unknown id is — a caller asking about a hidden connector learns nothing about
+ * whether it exists.
+ */
 export function catalogEntry(id: string): ConnectorDeclaration | null {
-  return INTEGRATION_CATALOG.find((entry) => entry.id === id) ?? null;
+  return publicCatalog().find((entry) => entry.id === id) ?? null;
 }
 
 export function catalogByCategory() {
+  const visible = publicCatalog();
   return (Object.keys(CATEGORY_LABELS) as Array<keyof typeof CATEGORY_LABELS>)
     .map((category) => ({
       category,
       label: CATEGORY_LABELS[category],
-      entries: INTEGRATION_CATALOG.filter((entry) => entry.category === category),
+      entries: visible.filter((entry) => entry.category === category),
     }))
+    // A category whose only members are hidden disappears rather than
+    // rendering an empty heading.
     .filter((group) => group.entries.length > 0);
 }
 
 /** Headline counts for the marketplace page. Derived, never hand-written. */
 export function catalogCounts() {
-  const count = (status: ConnectorStatus) => INTEGRATION_CATALOG.filter((entry) => entry.status === status).length;
+  const visible = publicCatalog();
+  const count = (status: ConnectorStatus) => visible.filter((entry) => entry.status === status).length;
   return {
     live: count("live"),
     beta: count("beta"),
     via_api: count("via_api"),
     partner: count("partner"),
     planned: count("planned"),
-    total: INTEGRATION_CATALOG.length,
+    total: visible.length,
   };
 }

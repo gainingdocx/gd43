@@ -11,6 +11,13 @@
 // CargoWise and NetSuite regardless. Answering "here is exactly how that is
 // delivered, and here is what we have not built" wins more of those
 // conversations than a grid of logos that all silently mean "possible via API".
+//
+// The exception is `visibility: "internal"`, which publishes nothing at all.
+// "Planned" is still a promise — it tells a customer this is coming and invites
+// them to plan around it. Where we cannot yet say *when* something will work,
+// even that is more than we can honour, so those entries are silent until they
+// are real. Everything on this page renders from `publicCatalog()` for that
+// reason; reading `INTEGRATION_CATALOG` directly here would leak them.
 
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -21,7 +28,7 @@ import {
   CATEGORY_LABELS,
   catalogByCategory,
   catalogCounts,
-  INTEGRATION_CATALOG,
+  publicCatalog,
   STATUS_BLURBS,
   STATUS_LABELS,
 } from "@/lib/integrations/catalog";
@@ -221,12 +228,12 @@ export default function IntegrationsPage() {
           collectionPageLd(
             "GainingDocx integrations",
             "/integrations",
-            INTEGRATION_CATALOG.map((entry) => ({ name: entry.provider, path: `/integrations#${entry.id}` }))
+            publicCatalog().map((entry) => ({ name: entry.provider, path: `/integrations#${entry.id}` }))
           ),
           itemListLd(
             "Freight document automation integrations",
             "/integrations",
-            INTEGRATION_CATALOG.map((entry) => ({
+            publicCatalog().map((entry) => ({
               name: entry.provider,
               path: `/integrations#${entry.id}`,
               description: entry.summary,

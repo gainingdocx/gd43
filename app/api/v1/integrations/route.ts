@@ -10,7 +10,7 @@
 
 import { authenticate, rateHeaders } from "@/lib/api/auth";
 import { handler, json, list, preflight } from "@/lib/api/respond";
-import { INTEGRATION_CATALOG, STATUS_BLURBS, catalogCounts } from "@/lib/integrations/catalog";
+import { publicCatalog, STATUS_BLURBS, catalogCounts } from "@/lib/integrations/catalog";
 
 export const OPTIONS = preflight;
 
@@ -28,7 +28,7 @@ export const GET = handler(async (request, id) => {
     headers = {};
   }
 
-  const entries = INTEGRATION_CATALOG.filter(
+  const entries = publicCatalog().filter(
     (entry) => (!status || entry.status === status) && (!category || entry.category === category)
   );
 
