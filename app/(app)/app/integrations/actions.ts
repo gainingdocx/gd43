@@ -206,3 +206,65 @@ export async function pushShipmentToConnection(formData: FormData) {
   revalidatePath(`/app/shipments/${shipmentId}`);
   revalidatePath("/app/integrations");
 }
+
+/**
+ * Set the Drive folder a connection watches.
+ *
+ * Takes the folder id rather than a picker for now: with the `drive.file`
+ * scope the customer has to grant access to the folder anyway, and asking them
+ * to paste the id from the address bar is honest about that rather than
+ * pretending we can browse their Drive.
+ */
+export async function setCloudFolder(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const connectionId = String(formData.get("connectionId") ?? "");
+  const raw = String(formData.get("folderId") ?? "").trim();
+  // Accept a pasted Drive URL as well as a bare id — everyone copies the URL.
+  const folderId = (raw.match(/[-\w]{25,}/) ?? [raw])[0];
+  if (!connectionId || !folderId) return;
+
+  const admin = createAdminClient();
+  const { data: connection } = await admin
+    .from("oauth_connections")
+    .select("id, config")
+    .eq("id", connectionId)
+    .eq("owner", user.id)
+    .maybeSingle();
+  if (!connection) return;
+
+  await admin
+    .from("oauth_connections")
+    .update({
+      config: { ...(connection.config as Record<string, unknown> ?? {}), inbox_folder_id: folderId },
+      // Clear the stale complaint: the folder they just set has not failed yet.
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", connectionId)
+    .eq("owner", user.id);
+  revalidatePath("/app/integrations");
+}
+
+/**
+ * Disconnect a cloud account.
+ *
+ * Deletes the row, which cascades the import ledger. Documents already imported
+ * stay — they are the customer's work, not the connection's.
+ */
+export async function disconnectCloudAccount(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const connectionId = String(formData.get("connectionId") ?? "");
+  if (!connectionId) return;
+
+  await createAdminClient()
+    .from("oauth_connections")
+    .delete()
+    .eq("id", connectionId)
+    .eq("owner", user.id);
+  revalidatePath("/app/integrations");
+}

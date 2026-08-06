@@ -10,6 +10,7 @@
 // exactly the first backoff step, so the first retry lands when it is promised.
 
 import { runDueDeliveries } from "@/lib/integrations/delivery";
+import { runDueCloudSyncs } from "@/lib/integrations/oauth/sync";
 
 export const maxDuration = 60;
 
@@ -23,8 +24,20 @@ export async function POST(request: Request) {
     // One sweep sends at most 50 deliveries. At one run a minute that is far
     // above any realistic backlog, and it bounds a single invocation's runtime
     // so a slow endpoint cannot make the sweep miss its next tick.
-    const result = await runDueDeliveries(50);
-    return Response.json(result);
+    const deliveries = await runDueDeliveries(50);
+
+    // Watched folders ride the same tick. They are rate-limited to one poll per
+    // connection every five minutes inside `runDueCloudSyncs`, so running them
+    // here costs one cheap query a minute rather than a second cron schedule.
+    //
+    // Settled, not awaited together: a Drive outage must not stop the delivery
+    // sweep from reporting what it did.
+    const [syncs] = await Promise.allSettled([runDueCloudSyncs(20)]);
+
+    return Response.json({
+      ...deliveries,
+      cloud_sync: syncs.status === "fulfilled" ? syncs.value : { error: "sync failed" },
+    });
   } catch (error) {
     // A failed sweep must not look like success: the rows stay `pending` and
     // the next tick retries them, but the log has to say what went wrong.

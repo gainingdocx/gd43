@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, CircleX, Clock, Code2, ExternalLink, LockKeyhole, SkipForward } from "lucide-react";
+import { CheckCircle2, CircleX, Clock, Cloud, Code2, ExternalLink, LockKeyhole, SkipForward } from "lucide-react";
 import { CredentialForms } from "@/components/integrations/credential-forms";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
-import { removeWebhook, revokeApiKey, removeIntegrationConnection, replayWebhookDelivery, testIntegrationConnection, testWebhookEndpoint } from "./actions";
+import { configuredProviders, PROVIDERS } from "@/lib/integrations/oauth/providers";
+import { disconnectCloudAccount, removeWebhook, revokeApiKey, removeIntegrationConnection, replayWebhookDelivery, setCloudFolder, testIntegrationConnection, testWebhookEndpoint } from "./actions";
 
 const DESTINATION_LABEL = { webhook: "Signed HTTPS webhook", slack: "Slack channel", teams: "Microsoft Teams channel" };
 
@@ -19,15 +20,22 @@ export default async function IntegrationsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login?next=/app/integrations");
-  const [{ data: keys }, { data: hooks }, { data: deliveries }, { data: connections }, { data: pushes }, { data: profile }] = await Promise.all([
+  const [{ data: keys }, { data: hooks }, { data: deliveries }, { data: connections }, { data: pushes }, { data: profile }, { data: cloud }] = await Promise.all([
     supabase.from("api_keys").select("id, name, key_prefix, last_used_at, created_at, revoked_at").order("created_at", { ascending: false }),
     supabase.from("webhook_endpoints").select("id, url, description, enabled, created_at, kind, min_severity").order("created_at", { ascending: false }),
     supabase.from("webhook_deliveries").select("id, event_type, status, response_status, error, attempt, next_attempt_at, attempted_at").order("attempted_at", { ascending: false }).limit(15),
     supabase.from("integration_connections").select("id, name, profile, endpoint_url, auth_type, auth_header, enabled, last_test_status, last_tested_at, created_at").order("created_at", { ascending: false }),
     supabase.from("integration_pushes").select("id, connection_id, shipment_id, status, response_status, error, attempted_at").order("attempted_at", { ascending: false }).limit(10),
     supabase.from("profiles").select("plan").eq("id", user.id).maybeSingle(),
+    // Token columns are not granted to `authenticated`, so naming them here
+    // would fail the whole select rather than omitting them.
+    supabase.from("oauth_connections").select("id, provider, account_label, status, last_error, config, last_synced_at").order("created_at", { ascending: false }),
   ]);
   const automationEnabled = profile?.plan === "pro" || profile?.plan === "team";
+  // Only providers this deployment has registered an OAuth app for. Offering a
+  // Connect button that leads to a broken consent screen is worse than not
+  // offering it at all.
+  const cloudProviders = configuredProviders();
   return (
     <div data-wide className="space-y-7">
       <div>
@@ -37,6 +45,66 @@ export default async function IntegrationsPage() {
       </div>
       {automationEnabled ? <CredentialForms /> : <section className="flex flex-col justify-between gap-4 rounded-2xl border border-signal/30 bg-secondary p-5 sm:flex-row sm:items-center"><div className="flex items-start gap-3"><LockKeyhole className="mt-0.5 size-5 text-signal" aria-hidden/><div><h2 className="font-bold text-primary">Automation is available on Pro and Team</h2><p className="mt-1 text-sm text-muted-foreground">Upgrade to create API keys, signed webhooks and direct ERP/TMS connections.</p></div></div><Button render={<Link href="/pricing" />}>Compare plans</Button></section>}
       <section><h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Direct TMS/ERP connections</h2><ul className="mt-2 space-y-2">{(connections ?? []).map((connection) => <li key={connection.id} className="rounded-xl border border-border bg-card p-4"><div className="flex flex-wrap items-center gap-3"><ExternalLink className="size-4 text-signal" aria-hidden/><div className="min-w-0 flex-1"><p className="font-semibold">{connection.name}</p><p className="truncate text-xs text-muted-foreground">{connection.profile.replace(/_/g, " ")} · {connection.auth_type.replace(/_/g, " ")} · {connection.endpoint_url}</p>{connection.last_tested_at && <p className={`mt-1 text-xs ${connection.last_test_status >= 200 && connection.last_test_status < 300 ? "text-success" : "text-destructive"}`}>Last test: HTTP {connection.last_test_status || "network error"} · {new Date(connection.last_tested_at).toLocaleString()}</p>}</div><form action={testIntegrationConnection}><input type="hidden" name="id" value={connection.id}/><Button size="sm" variant="outline">Test</Button></form><form action={removeIntegrationConnection}><input type="hidden" name="id" value={connection.id}/><Button size="sm" variant="outline">Remove</Button></form></div></li>)}{(connections ?? []).length === 0 && <li className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">No direct push connection configured yet.</li>}</ul></section>
+      {automationEnabled && (cloudProviders.length > 0 || (cloud ?? []).length > 0) && (
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Cloud folders</h2>
+            <p className="text-xs text-muted-foreground">New files in a watched folder are imported and parsed automatically, once each.</p>
+          </div>
+          <ul className="mt-2 space-y-2">
+            {(cloud ?? []).map((account) => (
+              <li key={account.id} className="rounded-xl border border-border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Cloud className="size-4 shrink-0 text-signal" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">
+                      {PROVIDERS[account.provider as keyof typeof PROVIDERS]?.label ?? account.provider}
+                      {account.account_label && <span className="font-normal text-muted-foreground"> · {account.account_label}</span>}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {account.status === "needs_reauth"
+                        ? "Reconnect required"
+                        : (account.config as { inbox_folder_id?: string } | null)?.inbox_folder_id
+                          ? `Watching · ${account.last_synced_at ? `last checked ${new Date(account.last_synced_at).toLocaleTimeString()}` : "not checked yet"}`
+                          : "Connected — choose a folder to watch"}
+                    </p>
+                  </div>
+                  {account.status === "needs_reauth" && (
+                    <Button size="sm" variant="outline" render={<Link href={`/api/integrations/oauth/${account.provider}/start`} />}>Reconnect</Button>
+                  )}
+                  <form action={disconnectCloudAccount}>
+                    <input type="hidden" name="connectionId" value={account.id} />
+                    <Button size="sm" variant="outline">Disconnect</Button>
+                  </form>
+                </div>
+                {account.last_error && <p className="mt-2 text-xs text-destructive">{account.last_error}</p>}
+                <form action={setCloudFolder} className="mt-3 flex flex-wrap gap-2">
+                  <input type="hidden" name="connectionId" value={account.id} />
+                  <input
+                    name="folderId"
+                    defaultValue={(account.config as { inbox_folder_id?: string } | null)?.inbox_folder_id ?? ""}
+                    placeholder="Paste the folder's URL or id"
+                    className="min-h-11 flex-1 rounded-xl border border-border bg-background px-3 text-sm"
+                  />
+                  <Button size="sm" variant="outline">Save folder</Button>
+                </form>
+              </li>
+            ))}
+            {(cloud ?? []).length === 0 && (
+              <li className="rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">No cloud account connected yet.</li>
+            )}
+          </ul>
+          {cloudProviders.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {cloudProviders.map((provider) => (
+                <Button key={provider} size="sm" variant="outline" render={<Link href={`/api/integrations/oauth/${provider}/start`} />}>
+                  Connect {PROVIDERS[provider].label}
+                </Button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       <section className="rounded-2xl border border-border bg-primary p-5 text-white">
         <div className="flex items-start gap-3"><Code2 className="mt-0.5 size-5 text-signal" aria-hidden /><div>
           <h2 className="font-bold">Parse endpoint</h2>
