@@ -52,6 +52,16 @@ test("integration catalogue", async (t) => {
     }
   });
 
+  await t.test("something is actually published", () => {
+    // Hiding is one edit away from hiding everything, and a marketplace page
+    // with no entries would still build and still return 200.
+    assert.ok(publicCatalog().length > 0, "the marketplace page would render with no connectors at all");
+    assert.ok(
+      catalogCounts().live > 0,
+      "nothing is marked live — the page would claim zero working connectors"
+    );
+  });
+
   await t.test("every published /integrations anchor resolves to a published entry", () => {
     const ids = new Set(publicCatalog().map((entry) => entry.id));
     const categories = new Set(publicCatalog().map((entry) => entry.category));

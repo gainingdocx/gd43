@@ -242,6 +242,9 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "microsoft_365_mail",
     provider: "Microsoft 365 mailbox",
+    // Same position as Gmail: needs an Entra application and admin consent
+    // nobody has obtained yet.
+    visibility: "internal",
     category: "email",
     status: "planned",
     access: "read_only",
@@ -300,6 +303,8 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "dropbox",
     provider: "Dropbox",
+    // Registry entry exists; no file client, and no Dropbox application.
+    visibility: "internal",
     category: "cloud_storage",
     status: "planned",
     access: "read_write",
@@ -474,6 +479,8 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "container_tracking",
     provider: "Container tracking (Vizion / SeaRates)",
+    // Needs a paid carrier-data subscription before any of it can be built.
+    visibility: "internal",
     category: "visibility",
     status: "planned",
     access: "read_only",

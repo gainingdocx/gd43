@@ -38,7 +38,7 @@ import { breadcrumbLd, collectionPageLd, faqLd, itemListLd, JsonLd } from "@/lib
 
 const TITLE = "Freight Software Integrations: TMS, Accounting, Slack & API";
 const DESCRIPTION =
-  "Connect GainingDocx to your TMS, accounting system, cloud storage and chat. Signed webhooks with automatic retries, CargoWise and Tally exports, Slack and Teams alerts, and a documented REST API.";
+  "Connect GainingDocx to your TMS, accounting system and chat. Signed webhooks with automatic retries and replay, CargoWise and Tally exports, QuickBooks and Xero bill payloads, Slack and Teams alerts, and a documented REST API.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -110,7 +110,7 @@ const FAQS = [
   },
   {
     q: "Do document images ever leave GainingDocx?",
-    a: "Only where a connector's declaration says so — the cloud-storage connectors write the original file into your own drive. Webhook and chat deliveries carry identifiers, field names and values, never file contents. Every entry on this page lists exactly what it transmits.",
+    a: "No. Every connector listed here sends identifiers, field names and values — a shipment reference, a field that disagrees, both conflicting readings — and never the document image or file contents. Each entry on this page states exactly what it transmits, and that list is generated from the same declaration the code runs on.",
   },
   {
     q: "Can you stop a bad value reaching my accounting system?",
@@ -278,12 +278,16 @@ export default function IntegrationsPage() {
       <section className="mt-12">
         <h2 className="text-2xl font-extrabold text-brand-deep sm:text-3xl">What each label means</h2>
         <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
-          These five words are used the same way on every card, on the{" "}
+          These labels are used the same way on every card, on the{" "}
           <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">/v1/integrations</code> endpoint and
           inside the product. If a connector is labelled here as doing something, it does it.
         </p>
         <dl className="mt-6 space-y-3">
-          {STATUS_ORDER.map((status) => (
+          {/* Only the labels actually in use. Explaining "Planned — not built,
+              listed so you can plan" while nothing is planned would put the
+              roadmap back on the page in prose after removing it from the
+              cards. */}
+          {STATUS_ORDER.filter((status) => publicCatalog().some((entry) => entry.status === status)).map((status) => (
             <div key={status} className="flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 sm:flex-row sm:items-baseline sm:gap-4">
               <dt className="shrink-0 sm:w-44">
                 <StatusBadge status={status} />
