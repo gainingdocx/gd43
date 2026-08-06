@@ -22,6 +22,7 @@ const GROUPS: { heading: string; links: readonly (readonly [string, string])[] }
     links: [
       ["Free tools", "/tools"],
       ["Guides", "/guides"],
+      ["Integrations", "/integrations"],
       ["API reference", "/developers"],
     ],
   },

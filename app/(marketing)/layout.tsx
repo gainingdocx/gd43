@@ -30,6 +30,7 @@ const SOLUTIONS: NavItem[] = [
 const RESOURCES: NavItem[] = [
   { href: "/tools", label: "Free tools", blurb: "Calculators and check-digit validators, no account needed." },
   { href: "/guides", label: "Guides", blurb: "How the documents, charges and trade rules actually work." },
+  { href: "/integrations", label: "Integrations", blurb: "TMS, accounting, storage and chat — and what each one really does." },
   { href: "/developers", label: "API reference", blurb: "REST endpoints, authentication and the OpenAPI spec." },
 ];
 
@@ -147,6 +148,11 @@ function Footer() {
             <li>
               <Link href="/document-parsers" className="inline-flex min-h-11 items-center hover:underline">
                 Document parsers
+              </Link>
+            </li>
+            <li>
+              <Link href="/integrations" className="inline-flex min-h-11 items-center hover:underline">
+                Integrations
               </Link>
             </li>
             <li>

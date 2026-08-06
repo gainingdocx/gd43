@@ -23,6 +23,17 @@ interface GainingDocxEnv {
   EMAIL_INGESTION_QUEUE: QueueBinding<EmailQueueBody>;
 }
 
+// Keyed by the exact expression in wrangler.jsonc `triggers.crons`. Adding a
+// schedule there without adding it here silently falls through to the daily
+// job, so the two lists are meant to be read side by side.
+const DAILY_CRON = "0 8 * * *";
+const MINUTELY_CRON = "* * * * *";
+
+const CRON_ROUTES: Record<string, string> = {
+  [DAILY_CRON]: "/api/cron/charge-alerts",
+  [MINUTELY_CRON]: "/api/cron/deliveries",
+};
+
 function isPrivateIntakeAddress(value: string, domain: string) {
   const escapedDomain = domain.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`^[a-z0-9]{24,64}@${escapedDomain}$`, "i").test(value.trim());
@@ -79,8 +90,12 @@ export default {
 
     return handler.fetch(request, env, ctx);
   },
-  async scheduled(_event: unknown, env: GainingDocxEnv, ctx: { waitUntil(task: Promise<unknown>): void }) {
-    const request = new Request("https://gainingdocx.internal/api/cron/charge-alerts", {
+  async scheduled(event: { cron: string }, env: GainingDocxEnv, ctx: { waitUntil(task: Promise<unknown>): void }) {
+    // Dispatch on the cron expression rather than running everything on every
+    // tick: the delivery sweep has to run each minute to honour its backoff,
+    // and free-time alerts must not email a customer 1,440 times a day.
+    const path = CRON_ROUTES[event.cron] ?? CRON_ROUTES[DAILY_CRON];
+    const request = new Request(`https://gainingdocx.internal${path}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${env.CRON_SECRET}` },
     });

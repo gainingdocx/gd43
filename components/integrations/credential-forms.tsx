@@ -1,11 +1,19 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Copy, KeyRound, RadioTower, Send } from "lucide-react";
 import { createApiKey, createWebhook, createIntegrationConnection, type CredentialState } from "@/app/(app)/app/integrations/actions";
 import { Button } from "@/components/ui/button";
 
 const initial: CredentialState = {};
+
+type Kind = "webhook" | "slack" | "teams";
+
+const URL_PLACEHOLDER: Record<Kind, string> = {
+  webhook: "https://tms.example.com/gainingdocx",
+  slack: "https://hooks.slack.com/services/T000/B000/xxxx",
+  teams: "https://tenant.webhook.office.com/webhookb2/…",
+};
 
 function Secret({ value, label }: { value: string; label: string }) {
   return (
@@ -26,6 +34,7 @@ export function CredentialForms() {
   const [keyState, keyAction, keyPending] = useActionState(createApiKey, initial);
   const [hookState, hookAction, hookPending] = useActionState(createWebhook, initial);
   const [connectorState, connectorAction, connectorPending] = useActionState(createIntegrationConnection, initial);
+  const [kind, setKind] = useState<Kind>("webhook");
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <form action={keyAction} className="rounded-2xl border border-border bg-card p-5">
@@ -42,15 +51,41 @@ export function CredentialForms() {
 
       <form action={hookAction} className="rounded-2xl border border-border bg-card p-5">
         <RadioTower className="size-6 text-signal" aria-hidden />
-        <h2 className="mt-3 text-lg font-bold text-primary">Add webhook</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Receive signed events for parses, failures, and HS decisions.</p>
-        <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-url">Endpoint URL</label>
-        <input id="hook-url" name="url" type="url" required placeholder="https://tms.example.com/gainingdocx"
+        <h2 className="mt-3 text-lg font-bold text-primary">Add destination</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          A signed HTTPS webhook, or a Slack or Teams channel. Failed deliveries retry
+          for about seven hours and can be replayed by hand.
+        </p>
+        <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-kind">Destination type</label>
+        <select id="hook-kind" name="kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)}
+          className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+          <option value="webhook">Signed HTTPS webhook</option>
+          <option value="slack">Slack channel</option>
+          <option value="teams">Microsoft Teams channel</option>
+        </select>
+        <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-url">
+          {kind === "webhook" ? "Endpoint URL" : "Incoming webhook URL"}
+        </label>
+        <input id="hook-url" name="url" type="url" required placeholder={URL_PLACEHOLDER[kind]}
           className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" />
-        <input name="description" maxLength={120} placeholder="Production TMS (optional)"
+        {kind !== "webhook" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {kind === "slack"
+              ? "Slack → Apps → Incoming Webhooks → Add to a channel, then paste the hooks.slack.com URL."
+              : "Teams → channel → Connectors → Incoming Webhook, then paste the office.com URL."}
+          </p>
+        )}
+        <input name="description" maxLength={120} placeholder={kind === "webhook" ? "Production TMS (optional)" : "#freight-exceptions (optional)"}
           className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm" />
-        <Button type="submit" className="mt-3 w-full" disabled={hookPending}>{hookPending ? "Adding…" : "Add webhook"}</Button>
+        <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-severity">Send</label>
+        <select id="hook-severity" name="minSeverity" defaultValue={kind === "webhook" ? "all" : "critical"} key={kind}
+          className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
+          <option value="critical">Critical only — failures, review requests, red discrepancies, free-time alerts</option>
+          <option value="all">Every event</option>
+        </select>
+        <Button type="submit" className="mt-3 w-full" disabled={hookPending}>{hookPending ? "Adding…" : "Add destination"}</Button>
         {hookState.error && <p className="mt-2 text-sm text-destructive">{hookState.error}</p>}
+        {hookState.success && <p className="mt-2 text-sm font-semibold text-success">{hookState.success}</p>}
         {hookState.secret && <Secret value={hookState.secret} label="Signing secret" />}
       </form>
 

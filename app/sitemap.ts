@@ -38,6 +38,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     entry("/templates", 0.8, "weekly"),
     entry("/guides", 0.8, "weekly"),
     entry("/developers", 0.8, "monthly"),
+    // Commercial-intent hub: "CargoWise integration", "TMS integration" and the
+    // per-system queries are evaluation searches, not research ones.
+    entry("/integrations", 0.8, "monthly"),
 
     // Detail pages, ordered by the search intent they serve. Tools and
     // templates attract the highest non-brand volume, so they lead.

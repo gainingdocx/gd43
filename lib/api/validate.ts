@@ -68,6 +68,20 @@ export function requireArray<T = unknown>(
   return value as T[];
 }
 
+/**
+ * Read a path segment counting back from the end of the URL.
+ *
+ * `/v1/shipments/{id}` is `pathSegment(request, 0)`; `/v1/shipments/{id}/export`
+ * is `pathSegment(request, 1)`. Lives here rather than in each route file
+ * because a Next route module may only export handlers and the framework's own
+ * config keys — exporting a shared helper from one fails the build, and the
+ * alternative was the same six lines copied into every dynamic route.
+ */
+export function pathSegment(request: Request, offsetFromEnd = 0): string {
+  const segments = new URL(request.url).pathname.split("/").filter(Boolean);
+  return decodeURIComponent(segments[segments.length - 1 - offsetFromEnd] ?? "");
+}
+
 /** `limit`/`starting_after` style pagination shared by all list endpoints. */
 export function pagination(url: URL, defaultLimit = 25, maxLimit = 100) {
   const raw = url.searchParams.get("limit");

@@ -6,10 +6,12 @@
 
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, KeyRound, ShieldAlert, Terminal, Webhook, Zap } from "lucide-react";
+import { ChevronRight, FileDown, KeyRound, ShieldAlert, Terminal, Webhook, Zap } from "lucide-react";
 
 import { breadcrumbLd, collectionPageLd, faqLd, JsonLd } from "@/lib/seo/jsonld";
 import { BreadcrumbBar } from "@/components/marketing/breadcrumb-bar";
+import { INTEGRATION_EVENTS } from "@/lib/integrations/events";
+import { EXPORT_PROFILES, PROFILE_LABELS } from "@/lib/integrations/profiles";
 
 const TITLE = "GainingDocx API: Freight Document Extraction & Validation";
 const DESCRIPTION =
@@ -421,19 +423,83 @@ curl https://gainingdocx.com/api/v1/me \\
         ))}
       </section>
 
-      {/* Webhooks */}
-      <section className="mt-12">
+      {/* Webhooks. The `id` is the anchor `lib/integrations/catalog.ts` points
+          at from the signed-webhook entry; without it the marketplace links
+          land at the top of this page. */}
+      <section id="webhooks" className="mt-12 scroll-mt-24">
         <h2 className="flex items-center gap-2 text-2xl font-extrabold text-brand-deep sm:text-3xl">
           <Webhook className="size-6 text-signal" aria-hidden /> Webhooks
         </h2>
         <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
           Rather than polling for a parse to finish, register an HTTPS endpoint in{" "}
           <Link href="/app/integrations" className="font-bold text-primary hover:underline">Integrations</Link> and
-          receive <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">document.parsed</code>,{" "}
-          <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">document.failed</code> and{" "}
-          <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">hs.reviewed</code> events. Each delivery is
-          signed with your endpoint&rsquo;s secret so you can verify it came from us — always verify before
-          acting on a payload.
+          receive events as they happen. Delivery is durable: the event is queued before it is sent,
+          retried at roughly 1m, 5m, 15m, 1h and 6h if your endpoint is unreachable, and dead-lettered
+          into a log you can replay by hand rather than being dropped.
+        </p>
+        <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
+          Every attempt carries the same{" "}
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">Idempotency-Key</code> and a byte-identical
+          body, so a receiver that already committed an earlier attempt can discard the repeat. Verify{" "}
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">X-GainingDocx-Signature</code> — an HMAC-SHA256
+          of the raw request body, hex-encoded — before acting on any payload. A{" "}
+          <Link href="/integrations#delivery" className="font-bold text-primary hover:underline">worked verification example</Link>{" "}
+          is on the integrations page.
+        </p>
+
+        <div className="mt-6 overflow-hidden rounded-2xl border border-border">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Published webhook event types and when each fires</caption>
+            <thead className="bg-surface-alt">
+              <tr>
+                <th scope="col" className="px-4 py-3 font-bold text-brand-deep">Event</th>
+                <th scope="col" className="px-4 py-3 font-bold text-brand-deep">Fires</th>
+              </tr>
+            </thead>
+            {/* Rendered from the catalogue so an event cannot ship documented
+                but unsent, or sent but undocumented. */}
+            <tbody className="divide-y divide-border">
+              {INTEGRATION_EVENTS.map((event) => (
+                <tr key={event.type} className="align-top">
+                  <td className="px-4 py-3">
+                    <code className="rounded bg-secondary px-1.5 py-0.5 text-xs font-semibold">{event.type}</code>
+                  </td>
+                  <td className="px-4 py-3 leading-6 text-muted-foreground">{event.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          A destination can subscribe to all of these or only the critical ones. Slack and Microsoft
+          Teams channels are the same mechanism with a rendered message instead of a JSON body — see{" "}
+          <Link href="/integrations" className="font-bold text-primary hover:underline">all integrations</Link>.
+        </p>
+      </section>
+
+      {/* Exports. Anchored for the structured-export catalogue entry. */}
+      <section id="exports" className="mt-12 scroll-mt-24">
+        <h2 className="flex items-center gap-2 text-2xl font-extrabold text-brand-deep sm:text-3xl">
+          <FileDown className="size-6 text-signal" aria-hidden /> Exports
+        </h2>
+        <p className="mt-3 max-w-3xl leading-7 text-muted-foreground">
+          <code className="rounded bg-secondary px-1.5 py-0.5 text-sm">GET /v1/shipments/{"{id}"}/export?profile=…</code>{" "}
+          returns one reviewed shipment shaped for the system that will import it. The canonical profiles
+          are the mapping target every connector goes through; the system-specific ones are that same
+          model rendered into the receiving format.
+        </p>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {EXPORT_PROFILES.map((profile) => (
+            <div key={profile} className="rounded-2xl border border-border bg-card p-4">
+              <code className="text-xs font-semibold text-signal">{profile}</code>
+              <p className="mt-1 font-bold text-brand-deep">{PROFILE_LABELS[profile]}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
+          Field names in CargoWise, Tally and the accounting APIs vary by tenant configuration and chart
+          of accounts, so every export carries a notice saying what a person must check before importing
+          it into a live system. An export is refused while a critical discrepancy is open on the shipment.
         </p>
       </section>
 

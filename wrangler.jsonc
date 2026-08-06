@@ -24,8 +24,11 @@
       "persist": true
     }
   },
+  // Dispatched by expression in custom-worker.ts `scheduled`. The minutely tick
+  // drives the webhook retry sweep — its first backoff step is 60s, so a longer
+  // interval would make the delivery log's "retrying shortly" untrue.
   "triggers": {
-    "crons": ["0 8 * * *"]
+    "crons": ["0 8 * * *", "* * * * *"]
   },
   "vars": {
     "EMAIL_INGEST_DOMAIN": "docs.gainingdocx.com",
