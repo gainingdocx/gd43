@@ -471,8 +471,8 @@ curl https://gainingdocx.com/api/v1/me \\
           </table>
         </div>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          A destination can subscribe to all of these or only the critical ones. Slack and Microsoft
-          Teams channels are the same mechanism with a rendered message instead of a JSON body — see{" "}
+          A destination can subscribe to all of these or only the critical ones. A Slack
+          channel is the same mechanism with a rendered message instead of a JSON body — see{" "}
           <Link href="/integrations" className="font-bold text-primary hover:underline">all integrations</Link>.
         </p>
       </section>

@@ -130,6 +130,14 @@ export const INTEGRATION_CATALOG: readonly ConnectorDeclaration[] = [
   {
     id: "microsoft_teams",
     provider: "Microsoft Teams",
+    // Microsoft disabled Office 365 Connectors in Teams during 18-22 May 2026,
+    // so the setup this entry describes — channel → Connectors → Incoming
+    // Webhook — no longer exists in any tenant. The delivery code and the
+    // MessageCard body still work and are kept: the replacement, a Power
+    // Automate Workflows webhook, accepts the same payload. But the connector
+    // cannot be published until that path is rebuilt and tested against a real
+    // tenant, because today a customer following our instructions fails.
+    visibility: "internal",
     category: "collaboration",
     status: "live",
     access: "outbound_only",

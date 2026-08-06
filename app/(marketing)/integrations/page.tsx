@@ -38,7 +38,7 @@ import { breadcrumbLd, collectionPageLd, faqLd, itemListLd, JsonLd } from "@/lib
 
 const TITLE = "Freight Software Integrations: TMS, Accounting, Slack & API";
 const DESCRIPTION =
-  "Connect GainingDocx to your TMS, accounting system and chat. Signed webhooks with automatic retries and replay, CargoWise and Tally exports, QuickBooks and Xero bill payloads, Slack and Teams alerts, and a documented REST API.";
+  "Connect GainingDocx to your TMS, accounting system and chat. Signed webhooks with automatic retries and replay, CargoWise and Tally exports, QuickBooks and Xero bill payloads, Slack alerts, and a documented REST API.";
 
 export const metadata: Metadata = {
   title: TITLE,

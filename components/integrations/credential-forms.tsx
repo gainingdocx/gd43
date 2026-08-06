@@ -53,7 +53,7 @@ export function CredentialForms() {
         <RadioTower className="size-6 text-signal" aria-hidden />
         <h2 className="mt-3 text-lg font-bold text-primary">Add destination</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          A signed HTTPS webhook, or a Slack or Teams channel. Failed deliveries retry
+          A signed HTTPS webhook or a Slack channel. Failed deliveries retry
           for about seven hours and can be replayed by hand.
         </p>
         <label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-kind">Destination type</label>
@@ -61,7 +61,10 @@ export function CredentialForms() {
           className="mt-1 min-h-11 w-full rounded-xl border border-border bg-background px-3 text-sm">
           <option value="webhook">Signed HTTPS webhook</option>
           <option value="slack">Slack channel</option>
-          <option value="teams">Microsoft Teams channel</option>
+          {/* Microsoft Teams is deliberately absent. Office 365 Connectors were
+              disabled in May 2026, so offering it here would let someone create
+              a destination that can never receive anything. The `teams` kind
+              still works end to end for any row that already exists. */}
         </select>
         <label className="mt-3 block text-xs font-semibold uppercase tracking-wide text-muted-foreground" htmlFor="hook-url">
           {kind === "webhook" ? "Endpoint URL" : "Incoming webhook URL"}
