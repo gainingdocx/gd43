@@ -20,6 +20,7 @@ import {
 import { DEFAULT_REQUIREMENTS } from "@/lib/shipments/completeness";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { emitWebhook } from "@/lib/integrations/webhooks";
+import { announceMatchOutcome, approveDocument, openFindingKeys } from "@/lib/workflow/operations";
 import { TEAM_SEAT_LIMIT } from "@/lib/plans";
 
 export async function runShipmentCheck(formData: FormData) {
@@ -69,6 +70,11 @@ export async function runShipmentCheck(formData: FormData) {
     const page = evidence?.page ?? meta?.page_refs?.[top] ?? null;
     return page ? { page, quote: evidence?.quote ?? null, bbox: evidence?.bbox ?? null, field_path: path } : null;
   };
+
+  // Captured before the replace below, so only genuinely new mismatches are
+  // announced. Re-running a check must not re-notify a channel about findings
+  // the reviewer has already seen.
+  const seenFindings = await openFindingKeys(shipmentId);
 
   // Replace unresolved rows; resolved history stays.
   await supabase
@@ -124,6 +130,10 @@ export async function runShipmentCheck(formData: FormData) {
       policy,
     },
   });
+  // shipment.matched and discrepancy.created are published here rather than
+  // inside the matching engine: the engine is pure, and only the caller knows
+  // what the findings looked like beforehand.
+  await announceMatchOutcome(user.id, shipmentId, seenFindings);
   revalidatePath(`/app/shipments/${shipmentId}`);
 }
 
@@ -201,6 +211,16 @@ export async function resolveDiscrepancy(formData: FormData) {
     owner: user.id,
     type: "discrepancy_resolved",
     payload: { discrepancy_id: id, winner, resolution_note: resolutionNote },
+  });
+  // Emitted directly rather than through lib/workflow/operations: that helper
+  // only publishes when it is the one closing the row, and the update above has
+  // already done so. Routing through it here would silently emit nothing.
+  await emitWebhook(user.id, "discrepancy.resolved", {
+    discrepancy_id: id,
+    shipment_id: disc.shipment_id,
+    resolution_status: winner === "dismiss" ? "dismissed" : "corrected",
+    resolved_by: user.email ?? user.id,
+    note: resolutionNote,
   });
   revalidatePath(`/app/shipments/${disc.shipment_id}`);
 }
@@ -424,4 +444,25 @@ export async function dismissChargeAlert(formData: FormData) {
   await access.supabase.from("charge_alerts").update({ status: "dismissed" })
     .eq("id", String(formData.get("alertId") ?? "")).eq("shipment_id", shipmentId);
   refreshShipment(shipmentId);
+}
+
+/**
+ * Approve a document's extracted values from the workspace.
+ *
+ * Same code path as POST /v1/documents/{id}/approve, so a reviewer clicking
+ * here and an integration calling the API produce the identical state change
+ * and the identical `document.approved` event.
+ */
+export async function approveDocumentAction(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const documentId = String(formData.get("documentId") ?? "");
+  if (!documentId) return;
+
+  const result = await approveDocument(user.id, documentId, { approvedBy: user.email ?? user.id });
+  if ("document" in result && result.document.shipment_id) {
+    revalidatePath(`/app/shipments/${result.document.shipment_id}`);
+  }
+  revalidatePath(`/app/review/${documentId}`);
 }

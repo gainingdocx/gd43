@@ -1,6 +1,7 @@
 import { addressToken, senderAddress } from "@/lib/email-ingestion/address";
 import { attachmentMatchesMime, intakeWindowStart, MAX_EMAILS_PER_TEN_MINUTES } from "@/lib/email-ingestion/security";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { emitWebhook } from "@/lib/integrations/webhooks";
 
 type IncomingAttachment = {
   filename?: unknown;
@@ -100,6 +101,12 @@ export async function POST(request: Request) {
       continue;
     }
     await admin.from("documents").update({ source_file_path: path }).eq("id", document.id);
+    await emitWebhook(profile.id, "document.received", {
+      document_id: document.id,
+      source: "email",
+      source_filename: filename,
+      shipment_id: null,
+    });
     documentIds.push(document.id);
   }
 

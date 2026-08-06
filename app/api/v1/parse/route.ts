@@ -2,6 +2,7 @@ import { addHsSuggestions } from "@/lib/ai/hs-classifier";
 import { MAX_PAGES } from "@/lib/ai/config";
 import { parseDocument } from "@/lib/ai/router";
 import { DETECTED_TYPES } from "@/lib/ai/schemas/extraction-v2";
+import { emitWebhook } from "@/lib/integrations/webhooks";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateDocument } from "@/lib/validators";
 import { persistResult } from "@/app/api/parse/route";
@@ -93,6 +94,21 @@ export const POST = handler(async (request, id) => {
     .select("id, shipment_id, doc_type, status, page_count, source_filename, created_at, updated_at")
     .single();
   if (createError || !document) throw serverError("The document record could not be created.", "document_create_failed");
+
+  // Both published events for the intake half of the pipeline. They fire before
+  // any extraction work so a receiver can show "arrived, working on it" rather
+  // than nothing until the parse finishes, which on a long document is minutes.
+  await emitWebhook(caller.owner, "document.received", {
+    document_id: document.id,
+    source: "api",
+    source_filename: document.source_filename,
+    shipment_id: shipmentId,
+  });
+  await emitWebhook(caller.owner, "document.parsing_started", {
+    document_id: document.id,
+    document_type: hint ?? "other",
+    page_count: pages.length,
+  });
 
   try {
     const result = await parseDocument(imageUrls, hint);

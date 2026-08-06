@@ -11,6 +11,7 @@ import {
 import { decideLink, type DocCandidate } from "@/lib/shipments/link";
 import { billIdentity, normalizeBillNumber } from "@/lib/shipments/hierarchy";
 import { emitWebhook } from "@/lib/integrations/webhooks";
+import { announceShipmentCreated } from "@/lib/workflow/operations";
 import {
   createRequestId,
   logError,
@@ -130,6 +131,7 @@ async function autoLink(
           bill_level: "master",
         }).select("id, bl_number, house_bl_number, bill_level").single();
         master = data ?? undefined;
+        if (master) await announceShipmentCreated(ownerId, master.id, identity.masterBlNumber, "master");
       }
       let house = (allShipments ?? []).find((item) =>
         item.bill_level === "house" &&
@@ -144,6 +146,7 @@ async function autoLink(
           master_shipment_id: master.id,
         }).select("id, bl_number, house_bl_number, bill_level").single();
         house = data ?? undefined;
+        if (house) await announceShipmentCreated(ownerId, house.id, identity.houseBlNumber, "house");
       }
       shipmentId = house?.id ?? null;
     } else {
@@ -161,6 +164,7 @@ async function autoLink(
           bill_level: identity.level,
         }).select("id").single();
         shipmentId = created?.id ?? null;
+        if (shipmentId) await announceShipmentCreated(ownerId, shipmentId, identity.blNumber, identity.level);
       } else if (identity.level === "master") {
         await supabase.from("shipments").update({ bill_level: "master" }).eq("id", shipmentId);
       }
@@ -198,6 +202,7 @@ async function autoLink(
       .select("id")
       .single();
     shipmentId = created?.id ?? null;
+    if (shipmentId) await announceShipmentCreated(ownerId, shipmentId, decision.bl_number, "standalone");
   } else if (decision.action === "create_ref") {
     const { data: created } = await supabase
       .from("shipments")
@@ -205,6 +210,7 @@ async function autoLink(
       .select("id")
       .single();
     shipmentId = created?.id ?? null;
+    if (shipmentId) await announceShipmentCreated(ownerId, shipmentId, decision.ref, "standalone");
   }
   if (shipmentId) {
     await supabase
@@ -501,7 +507,25 @@ export async function POST(request: Request) {
         );
       }
       documentId = doc.id as string;
+      await emitWebhook(user.id, "document.received", {
+        document_id: documentId,
+        source: "upload",
+        source_filename: null,
+        shipment_id: null,
+      });
     }
+  }
+
+  // Fires for both branches above — a re-parse of an existing document is still
+  // a parse starting, and a receiver tracking progress needs to see it.
+  // `user` is only non-null on the persisted path; an anonymous trial parse has
+  // no account to deliver events to.
+  if (documentId && user) {
+    await emitWebhook(user.id, "document.parsing_started", {
+      document_id: documentId,
+      document_type: docTypeHint ?? "other",
+      page_count: pages.length,
+    });
   }
 
   const encoder = new TextEncoder();

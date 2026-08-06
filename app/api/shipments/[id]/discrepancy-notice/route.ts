@@ -1,4 +1,5 @@
 import { discrepancyNoticePdf } from "@/lib/export/discrepancy-pdf";
+import { emitWebhook } from "@/lib/integrations/webhooks";
 import { createClient } from "@/lib/supabase/server";
 
 const TYPE_LABEL: Record<string, string> = {
@@ -60,6 +61,11 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     })),
   });
   await supabase.from("events").insert({ owner: user.id, type: "discrepancy_notice_exported", payload: { shipment_id: id, finding_count: discrepancies.length } });
+  await emitWebhook(user.id, "report.generated", {
+    shipment_id: id,
+    format: "pdf",
+    document_count: (docs ?? []).length,
+  });
   const safe = reference.replace(/[^a-z0-9_-]+/gi, "_");
   return new Response(pdf as unknown as BodyInit, { headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${safe}-discrepancy-notice.pdf"`, "Cache-Control": "private, no-store" } });
 }

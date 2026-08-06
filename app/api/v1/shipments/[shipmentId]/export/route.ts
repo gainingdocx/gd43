@@ -15,6 +15,7 @@ import { pathSegment, requireEnum } from "@/lib/api/validate";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { canonicalShipment, type DiscrepancyInput, type DocumentInput, type ShipmentInput } from "@/lib/integrations/canonical";
 import { EXPORT_PROFILES, renderProfile, type ExportProfile } from "@/lib/integrations/profiles";
+import { emitWebhook } from "@/lib/integrations/webhooks";
 
 export const OPTIONS = preflight;
 
@@ -74,6 +75,11 @@ export const GET = handler(async (request) => {
   }
 
   const output = renderProfile(profile, canonical);
+  await emitWebhook(caller.owner, "report.generated", {
+    shipment_id: shipmentId,
+    format: profile,
+    document_count: (documents ?? []).length,
+  });
   const reference = (shipment.ref ?? shipment.bl_number ?? shipment.id.slice(0, 8)).replace(/[^A-Za-z0-9_-]/g, "-");
 
   return new Response(output.body, {

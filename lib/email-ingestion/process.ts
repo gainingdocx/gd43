@@ -9,6 +9,7 @@ import { validateDocument } from "@/lib/validators";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsageContext } from "@/lib/billing/usage";
 import { runAutomatedShipmentCheck } from "@/lib/shipments/automated-check";
+import { announceMatchOutcome, openFindingKeys } from "@/lib/workflow/operations";
 import { discrepancyNoticePdf, type NoticeDiscrepancy } from "@/lib/export/discrepancy-pdf";
 import { sendCloudflareEmail } from "@/lib/email/cloudflare";
 import { logError, logInfo } from "@/lib/observability/logger";
@@ -133,7 +134,14 @@ export async function processEmailIngestion(ingestionId: string) {
         shipmentIds = [shipment.id];
       }
     }
-    for (const shipmentId of shipmentIds) await runAutomatedShipmentCheck(admin, ingestion.owner, shipmentId);
+    for (const shipmentId of shipmentIds) {
+      // Snapshot then announce, so an emailed batch publishes the same
+      // shipment.matched and discrepancy.created events a workspace check does.
+      // Previously this path ran the engine and told nobody.
+      const seen = await openFindingKeys(shipmentId, admin);
+      await runAutomatedShipmentCheck(admin, ingestion.owner, shipmentId);
+      await announceMatchOutcome(ingestion.owner, shipmentId, seen, { admin });
+    }
     const { reports, totalFindings } = await makeReports(admin, shipmentIds);
     const processed = (emailDocuments ?? []).filter((row) => row.status === "parsed").length;
     const status = processed === 0 ? "failed" : failed.length || skipped.length ? "partial" : "processed";

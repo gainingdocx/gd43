@@ -56,9 +56,15 @@ function partyPair(
 }
 
 /** Pull container-number tokens out of a free-text ref like "MSKU 685662-2". */
-function containerTokens(refs: (string | null)[]): Set<string> {
+// Tolerates a missing list, not just missing entries. The normalizer fills
+// `containers` and `container_refs` with an array, but matching is now
+// reachable from POST /v1/shipments/{id}/match, so it runs against whatever is
+// stored on the row — including documents written by an older schema. A
+// crashing cross-check would fail the whole run with a 500 rather than
+// returning the findings it did compute.
+function containerTokens(refs: (string | null)[] | null | undefined): Set<string> {
   const out = new Set<string>();
-  for (const ref of refs) {
+  for (const ref of refs ?? []) {
     if (!ref) continue;
     const n = normalizeContainerNo(ref);
     const matches = n.match(/[A-Z]{4}\d{7}/g);
@@ -117,7 +123,7 @@ export function crossCheck(docs: ShipmentDoc[]): Discrepancy[] {
 
   // --- Container sets (red) ------------------------------------------------
   for (const bl of bls) {
-    const blSet = containerTokens(bl.f.containers.map((c) => c.container_no));
+    const blSet = containerTokens((bl.f.containers ?? []).map((c) => c.container_no));
     for (const pl of pls) {
       const plSet = containerTokens(pl.f.container_refs);
       if (blSet.size === 0 || plSet.size === 0) continue;

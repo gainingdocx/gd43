@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 import type { ThreeWayMatchResult } from "@/lib/matching";
-import { resolveDiscrepancy, runShipmentCheck } from "./actions";
+import { approveDocumentAction, resolveDiscrepancy, runShipmentCheck } from "./actions";
 import { ShipmentOperationsPanel } from "@/components/shipments/operations-panel";
 import { FlagshipWorkflows } from "@/components/shipments/flagship-workflows";
 import { pushShipmentToConnection } from "@/app/(app)/app/integrations/actions";
@@ -73,7 +73,7 @@ export default async function ShipmentPage({
   const [{ data: docs }, { data: discrepancies }, { data: checks }, { data: matchRuns }, { data: connections }, { data: connectorPushes }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, doc_type, status, created_at, updated_at, fields")
+      .select("id, doc_type, status, created_at, updated_at, fields, approved_at, corrected_fields")
       .eq("shipment_id", id)
       .order("created_at", { ascending: true }),
     supabase
@@ -108,6 +108,7 @@ export default async function ShipmentPage({
   const exportReady = !shipment.export_approval_required ||
     Boolean(currentExportApproval?.decided_at && currentExportApproval.decided_at >= latestDocumentUpdate);
   const open = (discrepancies ?? []).filter((d) => !d.resolved);
+  const openCritical = open.filter((d) => d.severity === "red").length;
   const resolved = (discrepancies ?? []).filter((d) => d.resolved);
   const lastCheck = checks?.[0] as
     | { payload: { findings?: number }; created_at: string }
@@ -265,20 +266,38 @@ export default async function ShipmentPage({
         )}
         <ul className="space-y-2">
           {docList.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} className="rounded-xl border border-border bg-card">
               <Link
                 href={`/app/review/${d.id}`}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent"
+                className="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-accent"
               >
                 <FileText className="size-5 text-signal" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {TYPE_LABEL[d.doc_type] ?? "Document"}
                   </p>
-                  <p className="text-xs capitalize text-muted-foreground">{d.status}</p>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    {d.status}
+                    {d.approved_at && <span className="text-success"> · approved</span>}
+                    {!d.approved_at && (d.corrected_fields?.length ?? 0) > 0 && (
+                      <span className="text-warn"> · {d.corrected_fields.length} field(s) corrected</span>
+                    )}
+                  </p>
                 </div>
                 <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
               </Link>
+              {/* Approval is the signal every write-back path waits for, so it
+                  lives next to the document rather than behind the review
+                  screen. Blocked while anything critical is open — the server
+                  action refuses too, this only avoids offering the click. */}
+              {d.status === "parsed" && !d.approved_at && (
+                <form action={approveDocumentAction} className="border-t border-border px-4 py-2">
+                  <input type="hidden" name="documentId" value={d.id} />
+                  <Button size="sm" variant="outline" disabled={openCritical > 0}>
+                    {openCritical > 0 ? "Resolve critical findings to approve" : "Approve extracted values"}
+                  </Button>
+                </form>
+              )}
             </li>
           ))}
         </ul>

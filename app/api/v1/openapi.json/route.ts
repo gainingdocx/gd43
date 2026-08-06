@@ -312,6 +312,115 @@ const spec = {
         responses: { "200": { description: "Deletion confirmation", content: { "application/json": { schema: { type: "object" } } } }, "404": errorResponse },
       },
     },
+    "/documents/{documentId}/approve": {
+      parameters: [{ name: "documentId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      post: {
+        tags: ["Documents"],
+        summary: "Approve the extracted values",
+        description:
+          "Signs off a parsed document and emits `document.approved` — the event to write back to a TMS or accounting system. " +
+          "Refused with 409 while the document's shipment has an unresolved critical discrepancy: the point of the product is to " +
+          "catch the error before it reaches the downstream system. Approving an already-approved document is a successful no-op, " +
+          "so a client retrying after a timeout is safe.",
+        operationId: "approveDocument",
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: { approved_by: { type: "string", description: "Who approved it, for your own audit trail." } },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "The approved document", content: { "application/json": { schema: { type: "object" } } } },
+          "404": errorResponse,
+          "409": errorResponse,
+        },
+      },
+    },
+    "/documents/{documentId}/correct": {
+      parameters: [{ name: "documentId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      post: {
+        tags: ["Documents"],
+        summary: "Correct extracted field values",
+        description:
+          "Overwrites values the parser misread and emits `document.corrected` with the fields that changed. " +
+          "Only keys already present in the extraction may be written — a correction fixes a misread printed value, it does not " +
+          "invent fields the document never had. `_meta` is not writable, because it carries the source evidence the discrepancy " +
+          "report is built on. Correcting re-runs cross-document matching, since a changed value can resolve or create a mismatch.",
+        operationId: "correctDocument",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["fields"],
+                properties: {
+                  fields: { type: "object", description: "Field name to corrected value.", additionalProperties: true },
+                  corrected_by: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "The document and the fields that changed", content: { "application/json": { schema: { type: "object" } } } },
+          "400": errorResponse,
+          "404": errorResponse,
+        },
+      },
+    },
+    "/discrepancies/{discrepancyId}/resolve": {
+      parameters: [{ name: "discrepancyId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      post: {
+        tags: ["Shipments"],
+        summary: "Close a discrepancy",
+        description:
+          "Marks a finding resolved and emits `discrepancy.resolved`. The counterpart to `discrepancy.created`, so an exception " +
+          "queue built on this API can close its own items instead of sending a person into the browser.",
+        operationId: "resolveDiscrepancy",
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  status: { type: "string", enum: ["resolved", "dismissed", "corrected", "accepted"], default: "resolved" },
+                  note: { type: "string", maxLength: 1000 },
+                  resolved_by: { type: "string" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "The resolved discrepancy", content: { "application/json": { schema: { type: "object" } } } },
+          "404": errorResponse,
+        },
+      },
+    },
+    "/shipments/{shipmentId}/match": {
+      parameters: [{ name: "shipmentId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      post: {
+        tags: ["Shipments"],
+        summary: "Run cross-document matching",
+        description:
+          "Re-checks every parsed document on the shipment against the others and emits `shipment.matched`, plus " +
+          "`discrepancy.created` for each mismatch that was not already open. Matching runs automatically when documents arrive " +
+          "together; call this after uploading a late document. Synchronous — it is deterministic arithmetic over already-extracted " +
+          "fields, not an AI call.",
+        operationId: "matchShipment",
+        responses: {
+          "200": { description: "What the pass found", content: { "application/json": { schema: { type: "object" } } } },
+          "404": errorResponse,
+        },
+      },
+    },
     "/webhooks/{webhookId}/test": {
       parameters: [{ name: "webhookId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
       post: {
