@@ -128,13 +128,25 @@ export async function attemptDelivery(
         attempt: delivery.attempt,
       }),
       body,
-      // A redirect to an attacker-chosen host would replay the signed body
-      // somewhere the customer never authorised.
-      redirect: "error",
+      // Redirects are never followed: a redirect to an attacker-chosen host
+      // would replay the signed body somewhere the customer never authorised.
+      //
+      // `redirect: "error"` is the obvious way to say that and it is the one
+      // thing Workers refuses — it rejects the option outright rather than at
+      // redirect time, so every delivery failed before a request was even made.
+      // Node's fetch accepts it, which is why this only showed up in
+      // production. Ask for the 3xx back instead and refuse it below.
+      redirect: "manual",
       signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),
     });
     status = response.status;
-    if (!response.ok) error = `Endpoint returned HTTP ${response.status}`;
+    if (status >= 300 && status < 400) {
+      error =
+        `Endpoint redirected (HTTP ${status}). Point the destination at its final URL — ` +
+        "redirects are never followed, because that would send your signed payload to a host you did not configure.";
+    } else if (!response.ok) {
+      error = `Endpoint returned HTTP ${response.status}`;
+    }
   } catch (caught) {
     error = caught instanceof Error ? caught.message.slice(0, 300) : "Delivery failed";
   }
@@ -143,8 +155,10 @@ export async function attemptDelivery(
   const delivered = !error;
   // 4xx other than 408/429 is the receiver saying "this request is wrong", and
   // repeating it unchanged for seven hours will not make it right. Those go
-  // straight to dead-letter where the customer can see and fix them.
-  const permanent = status !== null && status >= 400 && status < 500 && status !== 408 && status !== 429;
+  // straight to dead-letter where the customer can see and fix them. A 3xx is
+  // in the same category: we will not follow it now or in six hours, so the
+  // customer has to change the URL.
+  const permanent = status !== null && status >= 300 && status < 500 && status !== 408 && status !== 429;
   const exhausted = delivery.attempt >= delivery.max_attempts;
   const finalState = delivered ? "delivered" : permanent || exhausted ? "dead" : "pending";
 
