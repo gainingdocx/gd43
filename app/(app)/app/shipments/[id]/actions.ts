@@ -332,6 +332,12 @@ export async function updateDocumentWorkflow(formData: FormData) {
   const access = await currentShipmentAccess(shipmentId);
   if (!access?.teamEnabled || !["unassigned", "in_review", "correction_requested", "approved"].includes(status)) return;
   if (assigneeEmail && !["owner", "editor"].includes(access.role ?? "")) return;
+  if (status === "approved") {
+    const approval = await approveDocument(access.shipment.owner, documentId, {
+      approvedBy: access.user.email ?? access.user.id,
+    });
+    if ("error" in approval) return;
+  }
   const { data: assignee } = assigneeEmail ? await access.supabase.from("shipment_members")
     .select("member_id, email").eq("shipment_id", shipmentId).eq("email", assigneeEmail).eq("status", "active").maybeSingle() : { data: null };
   await access.supabase.from("document_workflows").upsert({
@@ -359,6 +365,12 @@ export async function addDocumentComment(formData: FormData) {
   const kind = String(formData.get("kind") ?? "comment");
   const access = await currentShipmentAccess(shipmentId);
   if (!access?.teamEnabled || !body || !["comment", "correction_request", "approval"].includes(kind)) return;
+  if (kind === "approval") {
+    const approval = await approveDocument(access.shipment.owner, documentId, {
+      approvedBy: access.user.email ?? access.user.id,
+    });
+    if ("error" in approval) return;
+  }
   await access.supabase.from("document_comments").insert({
     document_id: documentId, shipment_id: shipmentId, owner: access.shipment.owner,
     author: access.user.id, author_email: access.user.email ?? "team member", body, kind,
@@ -406,6 +418,18 @@ export async function decideExportApproval(formData: FormData) {
   const decision = String(formData.get("decision") ?? "");
   const access = await currentShipmentAccess(shipmentId);
   if (!access?.teamEnabled || !["owner", "approver"].includes(access.role ?? "") || !["approved", "rejected"].includes(decision)) return;
+  if (decision === "approved") {
+    const [{ data: documents }, { count: critical }] = await Promise.all([
+      access.supabase.from("documents").select("validation").eq("shipment_id", shipmentId).eq("status", "parsed"),
+      access.supabase.from("discrepancies").select("id", { count: "exact", head: true })
+        .eq("shipment_id", shipmentId).eq("severity", "red").eq("resolved", false),
+    ]);
+    const validationFailures = (documents ?? []).reduce((sum, document) => sum +
+      (Array.isArray(document.validation)
+        ? (document.validation as Array<{ status?: string }>).filter((item) => item.status === "fail").length
+        : 0), 0);
+    if (validationFailures > 0 || (critical ?? 0) > 0) return;
+  }
   await access.supabase.from("export_approvals").update({
     status: decision, decided_by: access.user.id, decided_at: new Date().toISOString(),
     decision_note: String(formData.get("note") ?? "").trim().slice(0, 500) || null,

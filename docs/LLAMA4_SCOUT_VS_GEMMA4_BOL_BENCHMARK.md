@@ -36,7 +36,7 @@ Scout saved about 3.2 seconds and $0.000198 per document, but lost 59 percentage
 
 Scout returned schema-shaped JSON but hallucinated critical business data. Across the two trials it produced:
 
-- false B/L numbers: `MAERSK SEALAND 64610` and `MAERSKSEALAND 646/0`, instead of `COKA06793`;
+- false B/L numbers: `MAERSK SEALAND 64610` and `MAERSKSEALAND 646/0`, instead of `COKA04793`;
 - false cargo: `Finished Poultry Canned` and `FROZEN PINEAPPLE`, instead of frozen squid;
 - false container IDs: `MAUUSD656591` and `MAUR56656591`, instead of `MAEU5665691`;
 - incorrect package totals, gross weights, volume, seal, routing, and financial/reference fields.

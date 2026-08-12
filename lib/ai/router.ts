@@ -14,6 +14,7 @@ import {
   USE_JSON_SCHEMA,
 } from "./config";
 import { tolerantParse, repairJson } from "./json";
+import { evidenceSupports, rowsMatchOwnTotal } from "./merge-policy";
 import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v3";
 import {
   EXTRACTION_JSON_SCHEMA,
@@ -57,7 +58,10 @@ interface Attempt {
   apiKey: string | undefined;
   model: string;
   stream: boolean;
-  pdfEngine?: "cloudflare-ai" | "mistral-ocr" | "native";
+  /** OpenRouter PDF preprocessing. Cloudflare AI is deliberately unsupported:
+   * browser/API uploads are page images sent straight to Gemma, while an
+   * emailed PDF uses OpenRouter's scan-capable Mistral OCR before Gemma. */
+  pdfEngine?: "mistral-ocr" | "native";
 }
 
 function buildMessages(inputs: DocumentInput[], docTypeHint?: string) {
@@ -179,7 +183,18 @@ function parseToExtraction(rawText: string): NormalizedExtraction {
   return normalizeModelOutput(repairJson(rawText), PROMPT_VERSION);
 }
 
-function mergeComplementaryExtractions(
+function markLowQuality(extraction: NormalizedExtraction, qualityScore: number) {
+  const threshold = extraction.detected_type === "bill_of_lading" || extraction.detected_type === "sea_waybill"
+    ? 82
+    : 60;
+  if (qualityScore >= threshold) return;
+  const flag = `low_quality:${qualityScore}/${threshold}`;
+  if (!extraction.fields._meta.confidence_flags.includes(flag)) {
+    extraction.fields._meta.confidence_flags.push(flag);
+  }
+}
+
+export function mergeComplementaryExtractions(
   primary: NormalizedExtraction,
   secondary: NormalizedExtraction
 ): NormalizedExtraction {
@@ -189,6 +204,10 @@ function mergeComplementaryExtractions(
   const b = secondary as unknown as Record<string, unknown>;
   const isObject = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === "object" && !Array.isArray(value);
+  const primaryFields = isObject(a.fields) ? a.fields : {};
+  const secondaryFields = isObject(b.fields) ? b.fields : {};
+  const primaryMeta = isObject(primaryFields._meta) ? primaryFields._meta : {};
+  const secondaryMeta = isObject(secondaryFields._meta) ? secondaryFields._meta : {};
   const missing = (value: unknown) => value === null || value === "" ||
     (Array.isArray(value) && value.length === 0);
   const richness = (value: unknown): number => {
@@ -202,13 +221,20 @@ function mergeComplementaryExtractions(
     "export_references", "purchase_order_refs", "bl_numbers", "booking_refs",
     "shipment_refs", "delivery_note_refs", "container_refs", "clauses",
   ]);
-  const conflicts: string[] = [];
+  const unresolvedConflicts: string[] = [];
+  const resolvedConflicts: string[] = [];
+  const selectedSecondaryEvidence = new Set<string>();
   const criticalScalars = new Set([
     "bl_number", "booking_no", "vessel_name", "voyage_no", "shipped_on_board_date",
     "issue_date", "total_packages", "total_net_kg", "total_gross_kg", "total_volume_cbm",
     "invoice_no", "po_number", "total_amount", "amount_due",
   ]);
 
+  const evidenceFor = (meta: Record<string, unknown>, path: string) => {
+    const evidence = isObject(meta.source_evidence) ? meta.source_evidence : {};
+    const item = isObject(evidence[path]) ? evidence[path] : null;
+    return typeof item?.quote === "string" ? item.quote : null;
+  };
   const merge = (left: Record<string, unknown>, right: Record<string, unknown>, path = "") => {
     for (const [key, rightValue] of Object.entries(right)) {
       if (key === "_meta") continue;
@@ -219,26 +245,58 @@ function mergeComplementaryExtractions(
       } else if (stringSets.has(key) && Array.isArray(leftValue) && Array.isArray(rightValue)) {
         left[key] = [...new Set([...leftValue, ...rightValue].filter((x): x is string => typeof x === "string"))];
       } else if (repeatedRows.has(key) && Array.isArray(leftValue) && Array.isArray(rightValue)) {
-        if (richness(rightValue) > richness(leftValue)) left[key] = clone(rightValue);
+        const primaryCoherent = rowsMatchOwnTotal(leftValue, primaryFields);
+        const secondaryCoherent = rowsMatchOwnTotal(rightValue, secondaryFields);
+        if (secondaryCoherent && !primaryCoherent) {
+          left[key] = clone(rightValue);
+          selectedSecondaryEvidence.add(fieldPath);
+        } else if (primaryCoherent === secondaryCoherent && richness(rightValue) > richness(leftValue)) {
+          left[key] = clone(rightValue);
+          selectedSecondaryEvidence.add(fieldPath);
+        }
       } else if (isObject(leftValue) && isObject(rightValue)) {
         merge(leftValue, rightValue, fieldPath);
       } else if (criticalScalars.has(key) && !missing(leftValue) && !missing(rightValue) &&
           String(leftValue).toUpperCase().replace(/\W/g, "") !== String(rightValue).toUpperCase().replace(/\W/g, "")) {
-        conflicts.push(fieldPath);
+        const leftSupported = evidenceSupports(evidenceFor(primaryMeta, fieldPath), leftValue);
+        const rightSupported = evidenceSupports(evidenceFor(secondaryMeta, fieldPath), rightValue);
+        if (rightSupported && !leftSupported) {
+          left[key] = clone(rightValue);
+          selectedSecondaryEvidence.add(fieldPath);
+          resolvedConflicts.push(fieldPath);
+        } else if (leftSupported && !rightSupported) {
+          resolvedConflicts.push(fieldPath);
+        } else {
+          left[key] = null;
+          unresolvedConflicts.push(fieldPath);
+        }
       }
     }
   };
   if (isObject(a.fields) && isObject(b.fields)) {
-    const primaryMeta = isObject(a.fields._meta) ? a.fields._meta : {};
-    const secondaryMeta = isObject(b.fields._meta) ? b.fields._meta : {};
     merge(a.fields, b.fields);
     const primaryFlags = Array.isArray(primaryMeta.confidence_flags) ? primaryMeta.confidence_flags : [];
     const secondaryFlags = Array.isArray(secondaryMeta.confidence_flags) ? secondaryMeta.confidence_flags : [];
+    const sourceEvidence: Record<string, unknown> = {
+      ...(isObject(secondaryMeta.source_evidence) ? secondaryMeta.source_evidence : {}),
+      ...(isObject(primaryMeta.source_evidence) ? primaryMeta.source_evidence : {}),
+    };
+    for (const path of selectedSecondaryEvidence) {
+      const secondaryItem = isObject(secondaryMeta.source_evidence)
+        ? secondaryMeta.source_evidence[path]
+        : undefined;
+      if (secondaryItem !== undefined) sourceEvidence[path] = clone(secondaryItem);
+    }
     a.fields._meta = {
       ...primaryMeta,
-      confidence_flags: [...new Set([...primaryFlags, ...secondaryFlags, ...conflicts.map((path) => `cross_model:${path}`)])],
+      confidence_flags: [...new Set([
+        ...primaryFlags,
+        ...secondaryFlags,
+        ...resolvedConflicts.map((path) => `cross_model_resolved:${path}`),
+        ...unresolvedConflicts.map((path) => `cross_model:${path}`),
+      ])],
       page_refs: { ...(isObject(secondaryMeta.page_refs) ? secondaryMeta.page_refs : {}), ...(isObject(primaryMeta.page_refs) ? primaryMeta.page_refs : {}) },
-      source_evidence: { ...(isObject(secondaryMeta.source_evidence) ? secondaryMeta.source_evidence : {}), ...(isObject(primaryMeta.source_evidence) ? primaryMeta.source_evidence : {}) },
+      source_evidence: sourceEvidence,
     };
   }
   return a as unknown as NormalizedExtraction;
@@ -263,7 +321,12 @@ export async function parseDocumentInputs(
 ): Promise<ParseResult> {
   const openrouterKey = process.env.OPENROUTER_API_KEY;
   const hasPdf = inputs.some((input) => input.kind === "pdf");
-  const configuredPdfEngine = (process.env.PDF_OCR_ENGINE || "cloudflare-ai") as Attempt["pdfEngine"];
+  // Gemma 4 accepts image input, not native PDF input. Browser and public API
+  // paths already render PDFs to page images and therefore go directly to
+  // Gemma. Email attachments arrive server-side as PDFs; use OpenRouter's
+  // Mistral OCR preprocessor there and never silently fall back to Cloudflare.
+  const configuredPdfEngine: Attempt["pdfEngine"] =
+    process.env.PDF_OCR_ENGINE === "native" ? "native" : "mistral-ocr";
 
   const ladder: Attempt[] = [
     {
@@ -386,17 +449,22 @@ export async function parseDocumentInputs(
       const merged = extraction === null
         ? escalated
         : mergeComplementaryExtractions(extraction, escalated);
+      const mergedFlags = merged.fields._meta.confidence_flags;
+      const hasCrossModelDecision = mergedFlags.some((flag) => flag.startsWith("cross_model"));
       const keepEscalated =
         extraction === null ||
+        hasCrossModelDecision ||
         extractionQualityScore(merged) > extractionQualityScore(extraction);
       if (keepEscalated) {
+        const qualityScore = extractionQualityScore(merged);
+        markLowQuality(merged, qualityScore);
         return {
           extraction: merged,
           model: escalationAttempt.model,
           provider: escalationAttempt.provider,
           escalated: true,
           promptVersion: PROMPT_VERSION,
-          qualityScore: extractionQualityScore(escalated),
+          qualityScore,
           rawText,
         };
       }
@@ -420,13 +488,16 @@ export async function parseDocumentInputs(
     throw new Error("model returned unrepairable JSON (after escalation)");
   }
 
+  const qualityScore = extractionQualityScore(extraction);
+  markLowQuality(extraction, qualityScore);
+
   return {
     extraction,
     model: winner.attempt.model,
     provider: winner.attempt.provider,
     escalated: false,
     promptVersion: PROMPT_VERSION,
-    qualityScore: extractionQualityScore(extraction),
+    qualityScore,
     rawText: winner.rawText,
   };
 }

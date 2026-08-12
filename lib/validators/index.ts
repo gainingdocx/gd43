@@ -13,6 +13,7 @@ import { weights } from "./weights";
 import { financials } from "./financial";
 import { validateDangerousGoods } from "./dangerous-goods";
 import { validateAirCargoDocument } from "./air-cargo";
+import { extractionSafety } from "./extraction-safety";
 
 export { containerCheckDigit, computeCheckDigit, normalizeContainerNo, validateContainerNo } from "./container";
 export { dates, parsePrintedDate, daysBetween } from "./dates";
@@ -27,6 +28,7 @@ export { financials } from "./financial";
 export { awbCheckDigit, normalizeAwbNumber, validateAwbNumber } from "./air-waybill";
 export { validateAirCargoDocument, validateIataAirportCode } from "./air-cargo";
 export { dangerousGoodsOf, normalizeUnNumber, supportsDangerousGoods, validateDangerousGoods } from "./dangerous-goods";
+export { extractionSafety } from "./extraction-safety";
 
 /**
  * All single-document rules for one parsed extraction.
@@ -102,5 +104,6 @@ export function validateDocument(
   results.push(...dates(extraction, today));
   results.push(...validateDangerousGoods(extraction));
   results.push(...validateAirCargoDocument(extraction));
+  results.push(...extractionSafety(extraction));
   return results;
 }

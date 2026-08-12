@@ -73,7 +73,7 @@ export default async function ShipmentPage({
   const [{ data: docs }, { data: discrepancies }, { data: checks }, { data: matchRuns }, { data: connections }, { data: connectorPushes }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, doc_type, status, created_at, updated_at, fields, approved_at, corrected_fields")
+      .select("id, doc_type, status, created_at, updated_at, fields, validation, approved_at, corrected_fields")
       .eq("shipment_id", id)
       .order("created_at", { ascending: true }),
     supabase
@@ -105,8 +105,12 @@ export default async function ShipmentPage({
         .eq("shipment_id", id).eq("status", "approved").order("decided_at", { ascending: false }).limit(1).maybeSingle()
     : { data: null };
   const latestDocumentUpdate = docList.reduce((latest, document) => document.updated_at > latest ? document.updated_at : latest, "");
-  const exportReady = !shipment.export_approval_required ||
-    Boolean(currentExportApproval?.decided_at && currentExportApproval.decided_at >= latestDocumentUpdate);
+  const validationFailures = docList.reduce((sum, document) => sum +
+    (Array.isArray(document.validation)
+      ? (document.validation as Array<{ status?: string }>).filter((item) => item.status === "fail").length
+      : 0), 0);
+  const exportReady = validationFailures === 0 && (!shipment.export_approval_required ||
+    Boolean(currentExportApproval?.decided_at && currentExportApproval.decided_at >= latestDocumentUpdate));
   const open = (discrepancies ?? []).filter((d) => !d.resolved);
   const openCritical = open.filter((d) => d.severity === "red").length;
   const resolved = (discrepancies ?? []).filter((d) => d.resolved);
@@ -182,7 +186,7 @@ export default async function ShipmentPage({
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
         <div><h2 className="font-bold text-primary">Complete shipment export</h2><p className="mt-1 text-xs text-muted-foreground">{shipment.bill_level === "master" ? "Includes this master record and every linked house shipment." : "Includes every parsed document and line item in this shipment."}</p></div>
-        {exportReady ? <div className="flex flex-wrap gap-2"><Button render={<a href={`/api/shipments/${shipment.id}/export?format=json`} />} variant="outline">JSON</Button><Button render={<a href={`/api/shipments/${shipment.id}/export?format=pdf`} />} variant="outline">PDF summary</Button><Button render={<a href={`/api/shipments/${shipment.id}/export?format=xlsx`} />}><FileDown aria-hidden/> Excel workbook</Button></div> : <span className="rounded-full bg-warn/10 px-3 py-1.5 text-xs font-semibold text-warn">Locked pending approval</span>}
+        {exportReady ? <div className="flex flex-wrap gap-2"><Button render={<a href={`/api/shipments/${shipment.id}/export?format=json`} />} variant="outline">JSON</Button><Button render={<a href={`/api/shipments/${shipment.id}/export?format=pdf`} />} variant="outline">PDF summary</Button><Button render={<a href={`/api/shipments/${shipment.id}/export?format=xlsx`} />}><FileDown aria-hidden/> Excel workbook</Button></div> : <span className="rounded-full bg-warn/10 px-3 py-1.5 text-xs font-semibold text-warn">{validationFailures > 0 ? `Locked · ${validationFailures} validation failure${validationFailures === 1 ? "" : "s"}` : "Locked pending approval"}</span>}
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold text-primary">Push reviewed shipment to TMS/ERP</h2><p className="mt-1 text-xs text-muted-foreground">Direct authenticated delivery is blocked while critical discrepancies remain open. Test the tenant connection before production use.</p></div>{(connections ?? []).length > 0 ? <form action={pushShipmentToConnection} className="flex flex-wrap gap-2"><input type="hidden" name="shipmentId" value={shipment.id}/><select name="connectionId" required className="min-h-10 rounded-lg border border-border bg-background px-3 text-sm">{(connections ?? []).map((connection) => <option key={connection.id} value={connection.id}>{connection.name} Â· {connection.profile.replace(/_/g, " ")}{connection.last_test_status >= 200 && connection.last_test_status < 300 ? " Â· tested" : " Â· test required"}</option>)}</select><Button type="submit" disabled={open.some((item) => item.severity === "red")}>Push shipment</Button></form> : <Button render={<Link href="/app/integrations" />} variant="outline">Configure connection</Button>}</div>{(connectorPushes ?? []).length > 0 && <ul className="mt-3 divide-y rounded-lg border border-border">{(connectorPushes ?? []).map((push) => <li key={push.id} className="flex justify-between gap-3 px-3 py-2 text-xs"><span className={push.status === "delivered" ? "font-bold text-success" : "font-bold text-destructive"}>{push.status}</span><span className="text-muted-foreground">{push.response_status || push.error || "network error"} Â· {new Date(push.attempted_at).toLocaleString()}</span></li>)}</ul>}</section>

@@ -28,7 +28,7 @@ export interface DocumentSummary {
   corrected_fields: string[];
 }
 
-const DOCUMENT_SELECT = "id, owner, shipment_id, doc_type, status, fields, approved_at, approved_by, corrected_fields, corrected_at";
+const DOCUMENT_SELECT = "id, owner, shipment_id, doc_type, status, fields, validation, approved_at, approved_by, corrected_fields, corrected_at";
 
 /**
  * Approve a parsed document's extracted values.
@@ -52,6 +52,15 @@ export async function approveDocument(
     .maybeSingle();
   if (!document) return { error: "not_found" };
   if (document.status !== "parsed") return { error: "not_parsed" };
+  const validationFailures = Array.isArray(document.validation)
+    ? (document.validation as Array<{ status?: string }>).filter((item) => item.status === "fail").length
+    : 0;
+  if (validationFailures > 0) {
+    return {
+      error: "blocked",
+      detail: `${validationFailures} blocking extraction or document validation failure${validationFailures === 1 ? "" : "s"} must be resolved before approval.`,
+    };
+  }
 
   if (document.shipment_id) {
     const { count } = await admin

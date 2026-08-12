@@ -22,6 +22,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     .select("id, shipment_id, doc_type, status, source_filename, fields, validation, created_at, updated_at")
     .in("shipment_id", shipmentIds)
     .order("created_at");
+  const validationFailures = (documents ?? []).reduce((sum, document) => sum +
+    (Array.isArray(document.validation)
+      ? (document.validation as Array<{ status?: string }>).filter((item) => item.status === "fail").length
+      : 0), 0);
+  if (validationFailures > 0) {
+    return Response.json({
+      error: `Shipment export is locked until ${validationFailures} blocking validation failure${validationFailures === 1 ? " is" : "s are"} resolved.`,
+    }, { status: 423 });
+  }
   if (shipment.export_approval_required) {
     const { data: approval } = await supabase.from("export_approvals")
       .select("status, decided_at").eq("shipment_id", id).eq("status", "approved")

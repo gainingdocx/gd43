@@ -1,6 +1,6 @@
 export const SAMPLE_SHIPMENT = {
   reference: "SEA-2026-041",
-  route: "Shanghai (CNSHA) to Rotterdam (NLRTM)",
+  route: "Shanghai (CNSGH) to Rotterdam (NLRTM)",
   status: "Review required",
   score: 76,
   documents: [
@@ -69,7 +69,7 @@ export const SAMPLE_SHIPMENT = {
       id: "port-codes",
       severity: "information" as const,
       field: "Port normalization",
-      expected: "CNSHA to NLRTM",
+      expected: "CNSGH to NLRTM",
       observed: "Shanghai to Rotterdam",
       reason: "Printed port names were normalized to UN/LOCODE values for comparison. No route conflict was found.",
       sources: [

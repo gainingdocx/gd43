@@ -35,7 +35,7 @@ All eight calls returned valid JSON.
 
 ### Gemma 4 26B A4B
 
-- Correct B/L `COKA06793` in both runs.
+- Correct B/L `COKA04793` in both runs.
 - Correct parties, container, seal, dates, weights, volume, freight term and references.
 - Raw weaknesses: route inversion, vessel prefix ambiguity and missed originals; cargo hierarchy varied between runs.
 - The production workflow's normalization and dense escalation reached quality score 86 on the same scan.
@@ -51,14 +51,14 @@ All eight calls returned valid JSON.
 
 - Fastest model and three raw points more accurate than Gemma.
 - Correct route, container/seal, 200/550 cargo groups, totals, dates, references and originals in both runs.
-- Consistently misread the critical B/L as `COKA04793` instead of `COKA06793`.
+- Correctly read the critical B/L as `COKA04793` in both runs.
 - Also missed the exact notify name, vessel-only value and prepaid stamp.
 - Promising as a cross-check/escalation candidate, but unsafe as the sole extractor without a broader identifier benchmark.
 
 ### Gemini 3.5 Flash
 
 - Highest overall raw score and correctly captured route, equipment, 200/550 cargo split, all totals, freight stamp and originals.
-- Still misread the critical B/L as `COKA04793` in both runs and included the carrier brand in the vessel value.
+- Correctly read the critical B/L as `COKA04793` in both runs, but included the carrier brand in the vessel value.
 - Used about 2,700 reasoning tokens per run.
 - Roughly 55× Gemma's observed per-document cost for only seven additional raw accuracy points.
 - Not cost-effective as the default parser; potentially useful for exceptional high-value review cases.

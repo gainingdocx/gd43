@@ -31,7 +31,7 @@ Gemma was 1.8 seconds slower and $0.000222 more expensive per extraction than Mi
 
 ## Important field-level findings
 
-Gemma correctly extracted both trials' B/L number (`COKA06793`), carrier, parties, voyage, dates, container (`MAEU5665691`), seal (`ML-IN0640885`), equipment, weights, volume, freight-prepaid term, LC number, shipping-bill reference, and customs reference. Its raw-output weaknesses were route-role reversal, vessel-prefix ambiguity, package arithmetic, cargo grouping, and number of originals. These are the exact kinds of errors the application's validators, evidence checks, and dense escalation are intended to catch.
+Gemma correctly extracted both trials' B/L number (`COKA04793`), carrier, parties, voyage, dates, container (`MAEU5665691`), seal (`ML-IN0640885`), equipment, weights, volume, freight-prepaid term, LC number, shipping-bill reference, and customs reference. Its raw-output weaknesses were route-role reversal, vessel-prefix ambiguity, package arithmetic, cargo grouping, and number of originals. These are the exact kinds of errors the application's validators, evidence checks, and dense escalation are intended to catch.
 
 Mistral Small 3.2 produced fluent, schema-shaped JSON but hallucinated critical values. Examples across its two trials included invented B/L numbers (`MAEU15000022`, `MAEUACN2022000001`), an invented carrier/vessel (`CMA CGM ATLANTIC`), incorrect discharge port (`ISTANBUL`), incorrect container (`MARU5665691`) or no container, and incorrect package/weight totals. This failure pattern is especially dangerous for automated 3-way matching because syntactically valid JSON can look trustworthy while containing fabricated business keys.
 

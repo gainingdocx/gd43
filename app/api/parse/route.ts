@@ -324,6 +324,27 @@ export async function persistResult(
     validation_fail_count: validation.filter((v) => v.status === "fail").length,
   });
 
+  const blocking = validation.filter((item) => item.status === "fail");
+  if (blocking.length > 0) {
+    logWarn("parse_requires_review", {
+      documentId,
+      ownerId,
+      documentType: extraction.detected_type,
+      model: result.model,
+      provider: result.provider,
+      qualityScore: result.qualityScore,
+      blockingRules: blocking.map((item) => item.rule),
+      blockingFields: blocking.map((item) => item.field),
+    });
+    await emitWebhook(ownerId, "document.review_required", {
+      document_id: documentId,
+      shipment_id: null,
+      reason: "Extraction or single-document validation found a blocking contradiction.",
+      validation_fail_count: blocking.length,
+      fields: [...new Set(blocking.map((item) => item.field))],
+    });
+  }
+
   return validation;
 }
 

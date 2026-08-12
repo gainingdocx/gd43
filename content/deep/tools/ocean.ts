@@ -631,7 +631,7 @@ export const OCEAN_TOOL_DEEP: DeepContentMap = {
     quickAnswer: {
       heading: "What a UN/LOCODE is",
       body:
-        "A UN/LOCODE is a five-character code that identifies a trade and transport location: two letters for the country under ISO 3166-1, then three characters for the place. Shanghai is CNSHA, Rotterdam is NLRTM, Los Angeles is USLAX. The code is maintained by the United Nations Economic Commission for Europe and is the standard reference for ports of loading and discharge on shipping documents.",
+        "A UN/LOCODE is a five-character code that identifies a trade and transport location: two letters for the country under ISO 3166-1, then three characters for the place. The current UNECE list includes CNSGH for Shanghai and the port-specific CNSHG entry; CNSHA identifies Shanghai Hongqiao International Airport. Rotterdam is NLRTM and Los Angeles is USLAX. The code list is maintained by the United Nations Economic Commission for Europe.",
       bullets: [
         "Characters 1–2: ISO country code",
         "Characters 3–5: location, using A–Z and 2–9",
@@ -650,7 +650,7 @@ export const OCEAN_TOOL_DEEP: DeepContentMap = {
           caption: "Reading familiar port codes",
           columns: ["Code", "Country", "Location", "Notes"],
           rows: [
-            ["CNSHA", "CN — China", "Shanghai", "The world's busiest container port; frequently confused with CNSGH, which is not the correct code"],
+            ["CNSGH", "CN — China", "Shanghai", "Current Shanghai location with port function; the list also contains the port-specific CNSHG entry"],
             ["SGSIN", "SG — Singapore", "Singapore", "Country and city coincide, so the code looks redundant but follows the same rule"],
             ["NLRTM", "NL — Netherlands", "Rotterdam", "Europe's largest container port"],
             ["USLAX", "US — United States", "Los Angeles", "The three-character part matches the IATA airport code here by coincidence, not by rule"],
@@ -716,7 +716,7 @@ export const OCEAN_TOOL_DEEP: DeepContentMap = {
             bullets: [
               "Mumbai: INBOM for the city port and INNSA for Jawaharlal Nehru Port at Nhava Sheva, which handles the container volume",
               "Dubai: AEDXB for Dubai and AEJEA for Jebel Ali, where nearly all container traffic moves",
-              "Shanghai: CNSHA covers the port complex; Ningbo, a genuinely separate port often quoted as an alternative, is CNNGB",
+              "Shanghai: use the current UNECE entry required by the counterparty or filing system—CNSGH is the Shanghai location with port function and CNSHG is the port-specific entry; CNSHA is Hongqiao airport",
               "New York and New Jersey: USNYC covers the port district that spans both states",
               "Ho Chi Minh City: VNSGN, still coded from the former name Saigon",
             ],
@@ -776,8 +776,8 @@ export const OCEAN_TOOL_DEEP: DeepContentMap = {
         a: "Five characters with no separator in electronic data, though it is often printed with a space: two letters for the country from ISO 3166-1 alpha-2, then three characters identifying the location. The location part uses letters A–Z and digits 2–9 only — 0 and 1 are excluded because they are too easily confused with O and I.",
       },
       {
-        q: "Why is Shanghai CNSHA and not CNSGH?",
-        a: "Because CNSHA is the assigned code. The three-character portion is allocated by UNECE and is not an abbreviation you can derive yourself — it often but not always follows the first letters of the place name. CNSGH appears frequently in real documents and legacy master data, which is why a good validator warns on an unrecognised code rather than silently correcting it.",
+        q: "Which current UN/LOCODE should I use for Shanghai port?",
+        a: "Check the current UNECE directory and the code required by the carrier or filing system. The current list contains CNSGH for Shanghai with a port function and CNSHG for Shanghai Port; CNSHA is Shanghai Hongqiao International Airport. Never derive or silently substitute a code from the city name alone.",
       },
       {
         q: "Is a UN/LOCODE the same as a port code used by a carrier?",

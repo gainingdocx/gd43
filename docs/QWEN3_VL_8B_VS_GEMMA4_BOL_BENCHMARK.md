@@ -24,7 +24,7 @@ The Thinking model's completed run consumed 17,175 completion tokens, including 
 
 ### Gemma 4 26B A4B
 
-- Correct: `COKA06793`, shipper/consignee/notify parties, voyage `0213`, container `MAEU5665691`, seal `ML-IN0640885`, reefer equipment, dates, 15,000 kg net, 15,750 kg gross, 20 CBM, prepaid stamp, LC and export/customs references.
+- Correct: `COKA04793`, shipper/consignee/notify parties, voyage `0213`, container `MAEU5665691`, seal `ML-IN0640885`, reefer equipment, dates, 15,000 kg net, 15,750 kg gross, 20 CBM, prepaid stamp, LC and export/customs references.
 - Raw weaknesses: vessel prefix ambiguity, route inversion, noisy package hierarchy, and missed originals in these fast-only runs.
 - Production result: the existing validators and dense 31B escalation produced quality score 86 and a reconciled 750-package total on the same image.
 

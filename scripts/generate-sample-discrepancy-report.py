@@ -90,7 +90,7 @@ FINDINGS = [
     {
         "severity": "INFORMATION",
         "field": "Port normalization",
-        "expected": "CNSHA to NLRTM",
+        "expected": "CNSGH to NLRTM",
         "observed": "Shanghai to Rotterdam",
         "reason": "Printed port names were normalized to UN/LOCODE values for comparison. No route conflict was found.",
         "evidence": [("Booking confirmation - page 1", "POL SHANGHAI / POD ROTTERDAM"), ("Draft Bill of Lading - page 1", "Port of Loading: Shanghai; Port of Discharge: Rotterdam")],
@@ -216,7 +216,7 @@ def build():
     story.append(Spacer(1, 7 * mm))
     story.append(KeepTogether([
         Paragraph("Route and control basis", styles["H1Navy"]),
-        Paragraph("Shanghai (CNSHA) to Rotterdam (NLRTM). Container values use an ISO 6346 check-digit calculation. Port values are normalized to UN/LOCODE for comparison. Weight tolerance in this fictional sample is 25 kg or 0.5 percent, whichever is greater. Contract terms and carrier acceptance still require human confirmation.", styles["BodySmall"]),
+        Paragraph("Shanghai (CNSGH) to Rotterdam (NLRTM). Container values use an ISO 6346 check-digit calculation. Port values are normalized to the current UN/LOCODE dataset for comparison. Weight tolerance in this fictional sample is 25 kg or 0.5 percent, whichever is greater. Contract terms and carrier acceptance still require human confirmation.", styles["BodySmall"]),
     ]))
     story.append(Spacer(1, 6 * mm))
     story.append(KeepTogether([Paragraph("Detailed findings", styles["H1Navy"]), finding_block(FINDINGS[0])]))

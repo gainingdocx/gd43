@@ -45,13 +45,13 @@ function score(raw) {
   const cargoText = textOf({ raw: f.cargo_raw_text, lines: f.line_items ?? f.cargo });
   const checks = {
     json_and_type: raw?.detected_type === "bill_of_lading",
-    bl_number: norm(f.bl_number) === "COKA06793",
+    bl_number: norm(f.bl_number) === "COKA04793",
     carrier: norm(f.carrier_name).includes("MAERSKSEALAND"),
     shipper_name: partyName(f.shipper).includes("UPSANAEXPORTS"),
     shipper_zip: textOf(f.shipper).includes("682006"),
     consignee: partyName(f.consignee).includes("YAPIVEKREDIBANKASI"),
     notify: partyName(f.notify).includes("OSMANAKSIYIK"),
-    vessel: norm(f.vessel_name) === "RSKATLANTIC",
+    vessel: norm(f.vessel_name) === "MAERSKATLANTIC",
     voyage: norm(f.voyage_no) === "0213",
     port_load: portName(f.port_of_load).startsWith("COCHIN"),
     port_discharge: portName(f.port_of_discharge) === "IZMIR",

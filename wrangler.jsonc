@@ -34,7 +34,7 @@
     "EMAIL_INGEST_DOMAIN": "docs.gainingdocx.com",
     "EMAIL_INGEST_FROM": "reports@docs.gainingdocx.com",
     "NEXT_PUBLIC_APP_URL": "https://gainingdocx.com",
-    "PDF_OCR_ENGINE": "cloudflare-ai"
+    "PDF_OCR_ENGINE": "mistral-ocr"
   },
   "send_email": [
     {

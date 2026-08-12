@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import "regenerator-runtime/runtime";
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Download, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { TemplateDefinition, TemplateLineKey } from "@/content/templates";
+import { pdfFontRuns, shapePdfText } from "@/lib/export/pdf-text";
 
 type Line = Record<TemplateLineKey, string>;
 
@@ -94,10 +96,31 @@ export function TemplateBuilder({ template, sectionHeadings }: { template: Templ
     setPdfReady(false);
     if (errors.length > 0) return;
 
-    const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+    const [{ PDFDocument, StandardFonts, rgb }, fontkit] = await Promise.all([
+      import("pdf-lib"),
+      import("@pdf-lib/fontkit"),
+    ]);
     const pdf = await PDFDocument.create();
-    const regular = await pdf.embedFont(StandardFonts.Helvetica);
-    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    pdf.registerFontkit(fontkit.default);
+    const usesUnicode = [...Object.values(values), ...lines.flatMap((line) => Object.values(line))]
+      .some((value) => /[^\u0000-\u00ff]/.test(value));
+    const usesDevanagari = [...Object.values(values), ...lines.flatMap((line) => Object.values(line))]
+      .some((value) => /[\u0900-\u097f]/.test(value));
+    let regular = await pdf.embedFont(StandardFonts.Helvetica);
+    let bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    let devanagari = regular;
+    if (usesUnicode) {
+      const response = await fetch("/fonts/unifont.ttf");
+      if (!response.ok) throw new Error("The Unicode PDF font could not be loaded.");
+      const bytes = await response.arrayBuffer();
+      regular = await pdf.embedFont(bytes, { subset: true });
+      bold = regular;
+    }
+    if (usesDevanagari) {
+      const response = await fetch("/fonts/noto-sans-devanagari.woff");
+      if (!response.ok) throw new Error("The Devanagari PDF font could not be loaded.");
+      devanagari = await pdf.embedFont(await response.arrayBuffer(), { subset: true });
+    }
     const navy = rgb(0.004, 0.231, 0.702);
     const red = rgb(0.831, 0.02, 0.02);
     const ink = rgb(0.08, 0.13, 0.22);
@@ -117,12 +140,28 @@ export function TemplateBuilder({ template, sectionHeadings }: { template: Templ
         let row = "";
         for (const word of words) {
           const candidate = row ? `${row} ${word}` : word;
-          if (font.widthOfTextAtSize(candidate, size) <= maxWidth) row = candidate;
+          const width = font === regular
+            ? pdfFontRuns(shapePdfText(candidate)).reduce((sum, run) =>
+                sum + (run.script === "devanagari" ? devanagari : regular).widthOfTextAtSize(run.text, size), 0)
+            : font.widthOfTextAtSize(shapePdfText(candidate), size);
+          if (width <= maxWidth) row = candidate;
           else { if (row) rows.push(row); row = word; }
         }
         if (row) rows.push(row);
       }
-      return rows;
+      return rows.map(shapePdfText);
+    };
+
+    const drawUserText = (
+      value: string,
+      options: NonNullable<Parameters<typeof page.drawText>[1]>
+    ) => {
+      let x = options.x ?? 0;
+      for (const run of pdfFontRuns(value)) {
+        const runFont = run.script === "devanagari" ? devanagari : regular;
+        page.drawText(run.text, { ...options, x, font: runFont });
+        x += runFont.widthOfTextAtSize(run.text, options.size ?? 12);
+      }
     };
 
     const startPage = (continuation = false) => {
@@ -162,7 +201,7 @@ export function TemplateBuilder({ template, sectionHeadings }: { template: Templ
           const x = margin + col * 386;
           page.drawRectangle({ x, y: y - height + 5, width: 374, height, color: pale });
           page.drawText(box.field.label.toUpperCase(), { x: x + 8, y: y - 8, size: 6.5, font: bold, color: gray });
-          box.rows.forEach((row, rowIndex) => page.drawText(row, { x: x + 8, y: y - 21 - rowIndex * 10, size: 8.5, font: regular, color: ink }));
+          box.rows.forEach((row, rowIndex) => drawUserText(row, { x: x + 8, y: y - 21 - rowIndex * 10, size: 8.5, color: ink }));
         });
         y -= height + 5;
       }
@@ -199,7 +238,7 @@ export function TemplateBuilder({ template, sectionHeadings }: { template: Templ
         if (rowIndex % 2 === 1) page.drawRectangle({ x: margin, y: y - rowHeight + 3, width: 770, height: rowHeight, color: pale });
         let x = margin + 3;
         cellRows.forEach((rows, colIndex) => {
-          (rows.length ? rows : [""]).forEach((row, textIndex) => page.drawText(row, { x, y: y - 8 - textIndex * 9, size: 6.8, font: regular, color: ink }));
+          (rows.length ? rows : [""]).forEach((row, textIndex) => drawUserText(row, { x, y: y - 8 - textIndex * 9, size: 6.8, color: ink }));
           x += widths[colIndex];
         });
         y -= rowHeight;
