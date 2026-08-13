@@ -9,6 +9,7 @@ import {
   RED,
   drawFooter,
   drawHeader,
+  drawPdfText,
   newDoc,
   truncate,
 } from "@/lib/export/pdf";
@@ -75,18 +76,18 @@ export async function discrepancyNoticePdf(opts: {
     }
     const color = item.severity === "red" ? RED : item.severity === "info" ? NAVY : rgb(0.72, 0.42, 0.02);
     page.drawRectangle({ x: MARGIN, y: y - rowHeight + 8, width: 3, height: rowHeight - 4, color });
-    page.drawText(truncate(fonts.bold, `${index + 1}. ${item.field}`, 8.5, 154), { x: MARGIN + 9, y, size: 8.5, font: fonts.bold, color });
-    page.drawText(truncate(fonts.regular, item.message, 7.5, 154), { x: MARGIN + 9, y: y - 12, size: 7.5, font: fonts.regular, color: GRAY });
-    page.drawText(truncate(fonts.bold, item.documentA, 7.5, 160), { x: 218, y, size: 7.5, font: fonts.bold, color: NAVY });
-    page.drawText(truncate(fonts.regular, item.valueA ?? "Not stated", 8.5, 160), { x: 218, y: y - 13, size: 8.5, font: fonts.regular, color: NAVY });
+    drawPdfText(page, fonts, truncate(fonts.bold, `${index + 1}. ${item.field}`, 8.5, 154), { x: MARGIN + 9, y, size: 8.5, font: fonts.bold, color });
+    drawPdfText(page, fonts, truncate(fonts.regular, item.message, 7.5, 154), { x: MARGIN + 9, y: y - 12, size: 7.5, font: fonts.regular, color: GRAY });
+    drawPdfText(page, fonts, truncate(fonts.bold, item.documentA, 7.5, 160), { x: 218, y, size: 7.5, font: fonts.bold, color: NAVY });
+    drawPdfText(page, fonts, truncate(fonts.regular, item.valueA ?? "Not stated", 8.5, 160), { x: 218, y: y - 13, size: 8.5, font: fonts.regular, color: NAVY });
     if (item.sourceA?.page) page.drawText(`Source p.${item.sourceA.page}`, { x: 218, y: y - 24, size: 6.8, font: fonts.regular, color: GRAY });
-    page.drawText(truncate(fonts.bold, item.documentB, 7.5, 150), { x: 394, y, size: 7.5, font: fonts.bold, color: NAVY });
-    page.drawText(truncate(fonts.regular, item.valueB ?? "Not stated", 8.5, 150), { x: 394, y: y - 13, size: 8.5, font: fonts.regular, color: NAVY });
+    drawPdfText(page, fonts, truncate(fonts.bold, item.documentB, 7.5, 150), { x: 394, y, size: 7.5, font: fonts.bold, color: NAVY });
+    drawPdfText(page, fonts, truncate(fonts.regular, item.valueB ?? "Not stated", 8.5, 150), { x: 394, y: y - 13, size: 8.5, font: fonts.regular, color: NAVY });
     if (item.sourceB?.page) page.drawText(`Source p.${item.sourceB.page}`, { x: 394, y: y - 24, size: 6.8, font: fonts.regular, color: GRAY });
     let detailY = y - 34;
     if (item.questionedAmount && item.questionedAmount > 0) { page.drawText(`Amount questioned: ${item.questionedCurrency ?? ""} ${item.questionedAmount.toFixed(2)}`, { x: MARGIN + 9, y: detailY, size: 7.2, font: fonts.bold, color }); detailY -= 11; }
-    if (evidence) { page.drawText(truncate(fonts.regular, `Evidence: ${evidence}`, 6.8, width - 2 * MARGIN - 18), { x: MARGIN + 9, y: detailY, size: 6.8, font: fonts.regular, color: GRAY }); detailY -= 11; }
-    if (detail) page.drawText(truncate(fonts.regular, `Rule: ${detail}`, 6.8, width - 2 * MARGIN - 18), { x: MARGIN + 9, y: detailY, size: 6.8, font: fonts.regular, color: GRAY });
+    if (evidence) { drawPdfText(page, fonts, truncate(fonts.regular, `Evidence: ${evidence}`, 6.8, width - 2 * MARGIN - 18), { x: MARGIN + 9, y: detailY, size: 6.8, font: fonts.regular, color: GRAY }); detailY -= 11; }
+    if (detail) drawPdfText(page, fonts, truncate(fonts.regular, `Rule: ${detail}`, 6.8, width - 2 * MARGIN - 18), { x: MARGIN + 9, y: detailY, size: 6.8, font: fonts.regular, color: GRAY });
     y -= rowHeight;
   }
 

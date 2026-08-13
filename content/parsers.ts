@@ -64,7 +64,7 @@ export const PARSER_PAGES: ParserPage[] = [
     checks: [
       "ISO 6346 container check digits recomputed character by character",
       "IMO number checksum",
-      "Ports matched to the current bundled UN/LOCODE 2025-1 maritime dataset",
+      "Ports matched to the current bundled UNECE UN/LOCODE maritime dataset",
       "Container gross weights summed against the printed total (±0.5%)",
       "Shipped-on-board vs issue-date window",
     ],

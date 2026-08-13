@@ -36,7 +36,7 @@ describe("unlocode lookup", () => {
     assert.equal(unlocode("Hamburg")?.code, "DEHAM");
   });
 
-  it("resolves Shanghai to the 2024-2 port code CNSGH", () => {
+  it("resolves Shanghai to the current bundled port code CNSGH", () => {
     assert.equal(unlocode("Shanghai")?.code, "CNSGH");
   });
 

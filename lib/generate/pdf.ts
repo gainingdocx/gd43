@@ -9,6 +9,7 @@ import {
   MARGIN,
   NAVY,
   drawFooter,
+  drawPdfText,
   drawWatermark,
   newDoc,
   truncate,
@@ -90,7 +91,7 @@ export async function generatedDocPdf(
     const x = MARGIN + Math.floor(i / factRows) * colW;
     const yy = y - (i % factRows) * 26;
     page.drawText(f.label.toUpperCase(), { x, y: yy, size: 7, font: fonts.regular, color: GRAY });
-    page.drawText(truncate(fonts.bold, f.value, 10, colW - 16), {
+    drawPdfText(page, fonts, truncate(fonts.bold, f.value, 10, colW - 16), {
       x, y: yy - 10, size: 10, font: fonts.bold, color: NAVY,
     });
   });
@@ -107,7 +108,7 @@ export async function generatedDocPdf(
       const lines = p.value.split("\n").slice(0, 5);
       maxLines = Math.max(maxLines, lines.length);
       lines.forEach((line, li) => {
-        page.drawText(truncate(fonts.regular, line, 9, pw - 8), {
+        drawPdfText(page, fonts, truncate(fonts.regular, line, 9, pw - 8), {
           x, y: y - 12 - li * 12, size: 9, font: fonts.regular, color: NAVY,
         });
       });
@@ -136,7 +137,7 @@ export async function generatedDocPdf(
       if (y < 90) { continuation(); tableHeader(); }
       let lx = MARGIN + 3;
       for (const c of active) {
-        page.drawText(truncate(fonts.regular, line[c.key], 8.5, c.width * scale - 6), {
+        drawPdfText(page, fonts, truncate(fonts.regular, line[c.key], 8.5, c.width * scale - 6), {
           x: lx, y, size: 8.5, font: fonts.regular, color: NAVY,
         });
         lx += c.width * scale;
@@ -160,7 +161,7 @@ export async function generatedDocPdf(
       font: fonts.regular,
       color: GRAY,
     });
-    page.drawText(truncate(fonts.bold, t.value, 10, 100), {
+    drawPdfText(page, fonts, truncate(fonts.bold, t.value, 10, 100), {
       x: w - MARGIN - vw, y, size: 10, font: fonts.bold, color: NAVY,
     });
     y -= 15;
@@ -174,7 +175,7 @@ export async function generatedDocPdf(
     y -= 12;
     for (const line of wrap(gen.notes, w - 2 * MARGIN, 8.5)) {
       if (y < 55) { continuation(); page.drawText("NOTES — CONTINUED", { x: MARGIN, y, size: 7, font: fonts.regular, color: GRAY }); y -= 12; }
-      page.drawText(line, {
+      drawPdfText(page, fonts, line, {
         x: MARGIN, y, size: 8.5, font: fonts.regular, color: NAVY,
       });
       y -= 12;

@@ -1,12 +1,13 @@
 // PDF primitives + the branded Summary Report one-pager (BUILD_SPEC §M7).
-// pdf-lib only (works on Workers, no font embedding needed for Helvetica).
+// Fonts are embedded so exporter, consignee and cargo text survives every
+// supported script instead of being silently replaced with question marks.
 
+import fontkit from "@pdf-lib/fontkit";
 import {
   PDFDocument,
   PDFFont,
   PDFImage,
   PDFPage,
-  StandardFonts,
   degrees,
   rgb,
   type RGB,
@@ -15,6 +16,7 @@ import {
 import { LOGO_PNG_BASE64 } from "@/lib/brand/logo-data";
 import type { ValidationResult } from "@/lib/validators";
 import { containerRows, docRef, summaryPairs } from "./rows";
+import { pdfFontRuns, shapePdfText } from "./pdf-text";
 
 export const NAVY = rgb(0.004, 0.231, 0.702); // logo blue #013BB3
 export const ORANGE = rgb(0.831, 0.02, 0.02); // logo red #D40505
@@ -30,6 +32,25 @@ export const MARGIN = 48;
 export interface Fonts {
   regular: PDFFont;
   bold: PDFFont;
+  devanagari: PDFFont;
+}
+
+let fontBytesPromise: Promise<{ unicode: ArrayBuffer; devanagari: ArrayBuffer }> | null = null;
+
+async function pdfFontBytes() {
+  if (!fontBytesPromise) {
+    const origin = typeof window === "undefined"
+      ? (process.env.NEXT_PUBLIC_APP_URL || "https://gainingdocx.com")
+      : window.location.origin;
+    const read = async (path: string) => {
+      const response = await fetch(`${origin.replace(/\/$/, "")}${path}`);
+      if (!response.ok) throw new Error(`PDF font could not be loaded (${response.status})`);
+      return response.arrayBuffer();
+    };
+    fontBytesPromise = Promise.all([read("/fonts/unifont.ttf"), read("/fonts/noto-sans-devanagari.woff")])
+      .then(([unicode, devanagari]) => ({ unicode, devanagari }));
+  }
+  return fontBytesPromise;
 }
 
 export async function newDoc(): Promise<{
@@ -39,23 +60,20 @@ export async function newDoc(): Promise<{
 }> {
   const pdf = await PDFDocument.create();
   pdf.setProducer("GainingDocx");
-  const regular = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  pdf.registerFontkit(fontkit);
+  const bytes = await pdfFontBytes();
+  const regular = await pdf.embedFont(bytes.unicode, { subset: true });
+  // Unifont is used for both weights: complete script coverage is more
+  // important than synthetic bolding in operational exports.
+  const bold = regular;
+  const devanagari = await pdf.embedFont(bytes.devanagari, { subset: true });
   const logo = await pdf.embedPng(Uint8Array.from(atob(LOGO_PNG_BASE64), (c) => c.charCodeAt(0)));
-  return { pdf, fonts: { regular, bold }, logo };
+  return { pdf, fonts: { regular, bold, devanagari }, logo };
 }
 
-/** Helvetica is WinAnsi-only — replace unencodable characters. */
+/** NFC normalization retained for callers; Unicode is never discarded. */
 export function enc(text: string): string {
-  let out = "";
-  for (const ch of text.normalize("NFC")) {
-    const c = ch.codePointAt(0)!;
-    out +=
-      (c >= 0x20 && c <= 0xff) || c === 0x2026 || c === 0x2014 || c === 0x2022
-        ? ch
-        : "?";
-  }
-  return out;
+  return shapePdfText(text.normalize("NFC"));
 }
 
 export function truncate(font: PDFFont, text: string, size: number, maxWidth: number): string {
@@ -65,6 +83,17 @@ export function truncate(font: PDFFont, text: string, size: number, maxWidth: nu
     t = t.slice(0, -1);
   }
   return t + "…";
+}
+
+export function drawPdfText(page: PDFPage, fonts: Fonts, text: string, options: NonNullable<Parameters<PDFPage["drawText"]>[1]> & { font?: PDFFont }) {
+  let x = options.x ?? 0;
+  const baseFont = options.font ?? fonts.regular;
+  const shaped = enc(text);
+  for (const run of pdfFontRuns(shaped)) {
+    const font = run.script === "devanagari" ? fonts.devanagari : baseFont;
+    page.drawText(run.text, { ...options, x, font });
+    x += font.widthOfTextAtSize(run.text, options.size ?? 12);
+  }
 }
 
 /** Navy brand band with logo, product name, doc title and reference. */
@@ -93,7 +122,7 @@ export function drawHeader(
     const size = 14;
     const safe = enc(ref);
     const width = fonts.bold.widthOfTextAtSize(safe, size);
-    page.drawText(safe, {
+    drawPdfText(page, fonts, safe, {
       x: w - MARGIN - width, y: h - 46, size, font: fonts.bold, color: rgb(1, 1, 1),
     });
   }
@@ -191,7 +220,7 @@ export async function summaryReportPdf(opts: {
 
   // Flagged messages (up to 4).
   for (const v of opts.validation.filter((x) => x.status !== "pass").slice(0, 4)) {
-    page.drawText(truncate(fonts.regular, `• [${v.status.toUpperCase()}] ${v.message}`, 8.5, w - 2 * MARGIN), {
+    drawPdfText(page, fonts, truncate(fonts.regular, `• [${v.status.toUpperCase()}] ${v.message}`, 8.5, w - 2 * MARGIN), {
       x: MARGIN, y, size: 8.5, font: fonts.regular,
       color: v.status === "fail" ? RED : AMBER,
     });
@@ -210,7 +239,7 @@ export async function summaryReportPdf(opts: {
     page.drawText(pairs[i].label.toUpperCase(), {
       x, y: yy, size: 7, font: fonts.regular, color: GRAY,
     });
-    page.drawText(truncate(fonts.bold, pairs[i].value, 10, colW - 16), {
+    drawPdfText(page, fonts, truncate(fonts.bold, pairs[i].value, 10, colW - 16), {
       x, y: yy - 11, size: 10, font: fonts.bold, color: NAVY,
     });
   }
@@ -234,7 +263,7 @@ export async function summaryReportPdf(opts: {
     for (const row of containers.slice(1, 9)) {
       let x = MARGIN + 4;
       cols.forEach((c, ci) => {
-        page.drawText(truncate(fonts.regular, String(row[c] ?? ""), 8.5, widths[ci] - 8), {
+        drawPdfText(page, fonts, truncate(fonts.regular, String(row[c] ?? ""), 8.5, widths[ci] - 8), {
           x, y, size: 8.5, font: fonts.regular, color: NAVY,
         });
         x += widths[ci];

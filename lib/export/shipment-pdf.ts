@@ -1,5 +1,5 @@
 import { rgb } from "pdf-lib";
-import { A4, GRAY, LIGHT, MARGIN, NAVY, drawFooter, drawHeader, newDoc, truncate } from "./pdf";
+import { A4, GRAY, LIGHT, MARGIN, NAVY, drawFooter, drawHeader, drawPdfText, newDoc, truncate } from "./pdf";
 import { summaryPairs } from "./rows";
 import type { RequirementResult } from "@/lib/shipments/completeness";
 
@@ -55,7 +55,7 @@ export async function buildShipmentSummaryPdf(opts: {
       for (const pair of pairs.slice(0, 34)) {
         if (py < 62) break;
         page.drawText(truncate(fonts.regular, pair.label.toUpperCase(), 7, 145), { x: MARGIN, y: py, size: 7, font: fonts.regular, color: GRAY });
-        page.drawText(truncate(fonts.bold, pair.value, 9, page.getWidth() - 2 * MARGIN - 155), { x: MARGIN + 155, y: py, size: 9, font: fonts.bold, color: NAVY });
+        drawPdfText(page, fonts, truncate(fonts.bold, pair.value, 9, page.getWidth() - 2 * MARGIN - 155), { x: MARGIN + 155, y: py, size: 9, font: fonts.bold, color: NAVY });
         py -= 18;
       }
     }

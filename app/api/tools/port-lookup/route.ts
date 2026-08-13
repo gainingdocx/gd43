@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import data from "@/data/unlocode.json";
+import { UNLOCODE_DATASET, UNLOCODE_PROVENANCE, UNLOCODE_RELEASE, UNLOCODE_SOURCE_URL } from "@/lib/standards/unlocode";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +10,10 @@ function normalized(value: string) {
 export function GET(request: NextRequest) {
   const raw = (request.nextUrl.searchParams.get("q") ?? "").trim();
   const q = normalized(raw);
-  if (q.length < 2) return NextResponse.json({ results: [], source: data.source });
+  if (q.length < 2) return NextResponse.json({ results: [], source: UNLOCODE_PROVENANCE, release: UNLOCODE_RELEASE, sourceUrl: UNLOCODE_SOURCE_URL });
 
   const ranked: { code: string; name: string; score: number }[] = [];
-  for (const [code, name] of data.ports as [string, string][]) {
+  for (const [code, name] of UNLOCODE_DATASET.ports) {
     const c = code.toLowerCase();
     const n = normalized(name);
     let score = 0;
@@ -27,7 +27,7 @@ export function GET(request: NextRequest) {
   }
   ranked.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
   return NextResponse.json(
-    { results: ranked.slice(0, 20).map(({ code, name }) => ({ code, name })), source: data.source },
+    { results: ranked.slice(0, 20).map(({ code, name }) => ({ code, name })), source: UNLOCODE_PROVENANCE, release: UNLOCODE_RELEASE, sourceUrl: UNLOCODE_SOURCE_URL },
     { headers: { "Cache-Control": "public, max-age=3600" } }
   );
 }

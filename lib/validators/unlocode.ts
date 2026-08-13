@@ -8,8 +8,8 @@
 // the Port of Shanghai is CNSGH) while real-world B/Ls still print the old
 // codes. Only a name↔code contradiction we can prove is a fail.
 
-import dataset from "@/data/unlocode.json";
 import type { PortRef } from "@/lib/ai/schemas/shared";
+import { UNLOCODE_DATASET, UNLOCODE_PROVENANCE, UNLOCODE_RELEASE } from "@/lib/standards/unlocode";
 import { levenshtein, normalizeText } from "./normalize";
 import type { ValidationResult } from "./types";
 
@@ -20,7 +20,7 @@ export interface PortMatch {
   score: number;
 }
 
-const PORTS = dataset.ports as [string, string][];
+const PORTS = UNLOCODE_DATASET.ports;
 
 /**
  * UNECE's 2020-2 release reassigned several major Chinese port codes to
@@ -204,7 +204,7 @@ export function validatePort(
         field: `${field}.unlocode`,
         rule: "unlocode",
         status: "warn",
-        message: `${code} is not in our UN/LOCODE seaport list (2025-1) — it may be an airport/city code or newer than our dataset${suggested ? `; the port name matches ${suggested.code} (${suggested.name})` : ""}`,
+        message: `${code} is not in our UN/LOCODE seaport list (${UNLOCODE_RELEASE}) — it may be an airport/city code or newer than our dataset${suggested ? `; the port name matches ${suggested.code} (${suggested.name})` : ""}`,
         expected: suggested?.code,
         actual: code,
       });
@@ -223,7 +223,7 @@ export function validatePort(
               field: `${field}.unlocode`,
               rule: "unlocode",
               status: "pass",
-              message: `${resolved.code} = ${resolved.name} (UN/LOCODE 2025-1)`,
+              message: `${resolved.code} = ${resolved.name} (${UNLOCODE_PROVENANCE})`,
               actual: resolved.code,
             }
       );
