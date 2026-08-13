@@ -13,14 +13,18 @@ import { ApiError, badRequest, notFound, serverError } from "@/lib/api/errors";
 import { handler, json, preflight, readJson } from "@/lib/api/respond";
 import { assertDocumentQuota, quotaHeaders } from "@/lib/api/quota";
 import { serializeDocument } from "@/lib/api/serialize";
+import { createRequestId } from "@/lib/observability/logger";
+import { recordParseMetric } from "@/lib/observability/parse-metrics";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 type Page = { url?: unknown; data_url?: unknown };
 
 export const OPTIONS = preflight;
 
 export const POST = handler(async (request, id) => {
+  const startedAt = Date.now();
+  const metricRequestId = createRequestId();
   const caller = await authenticate(request);
   // Documents parsed through the API draw on the same monthly allowance as the
   // web app. Checked before any AI work so a blocked request costs nothing.
@@ -123,6 +127,13 @@ export const POST = handler(async (request, id) => {
       result,
       validateDocument(result.extraction)
     );
+    void recordParseMetric({
+      requestId: metricRequestId, owner: caller.owner, channel: "api", outcome: "success",
+      documentType: result.extraction.detected_type, provider: result.provider, model: result.model,
+      pageCount: pages.length, durationMs: Date.now() - startedAt,
+      qualityScore: result.qualityScore, escalated: result.escalated,
+      blockingFailures: validation.filter((item) => item.status === "fail").length,
+    });
 
     return json(
       {
@@ -147,6 +158,11 @@ export const POST = handler(async (request, id) => {
     // Leave a durable record of the failure so the document does not sit in
     // `parsing` forever, then surface a retryable error.
     await admin.from("documents").update({ status: "failed" }).eq("id", document.id);
+    void recordParseMetric({
+      requestId: metricRequestId, owner: caller.owner, channel: "api", outcome: "failed",
+      documentType: hint, pageCount: pages.length, durationMs: Date.now() - startedAt,
+      failureCode: error instanceof ApiError ? error.code : error instanceof Error ? error.name : "unknown",
+    });
     if (error instanceof ApiError) throw error;
     throw new ApiError({
       type: "api_error",

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import {
+  Activity,
+  AlertTriangle,
   BarChart3,
   CheckCircle2,
   Eye,
@@ -10,6 +12,7 @@ import {
   MonitorSmartphone,
   MousePointerClick,
   Ship,
+  Timer,
   Users,
 } from "lucide-react";
 
@@ -52,6 +55,18 @@ type BehaviorEvent = {
   occurred_at: string;
 };
 
+type ParseHealth = {
+  totals: { requests: number; successes: number; failures: number; rejected: number; review_required: number; average_quality: number | null; average_duration_ms: number | null; p95_duration_ms: number | null };
+  by_model: Array<{ model: string; provider: string; requests: number; failures: number; average_duration_ms: number | null; average_quality: number | null }>;
+  by_document_type: Array<{ document_type: string; requests: number; failures: number; review_required: number; average_quality: number | null }>;
+  failures: Array<{ failure_code: string; count: number }>;
+};
+
+type ServiceIncident = {
+  id: string; severity: "warning" | "critical"; status: "open" | "resolved"; title: string;
+  details: { value?: number; threshold?: number; window_minutes?: number }; first_seen_at: string; last_seen_at: string; resolved_at: string | null;
+};
+
 const EMPTY_ANALYTICS: AnalyticsPayload = {
   totals: { page_views: 0, feature_uses: 0, visitors: 0, sessions: 0 },
   daily: [],
@@ -60,6 +75,11 @@ const EMPTY_ANALYTICS: AnalyticsPayload = {
   countries: [],
   referrers: [],
   devices: [],
+};
+
+const EMPTY_PARSE_HEALTH: ParseHealth = {
+  totals: { requests: 0, successes: 0, failures: 0, rejected: 0, review_required: 0, average_quality: null, average_duration_ms: null, p95_duration_ms: null },
+  by_model: [], by_document_type: [], failures: [],
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -93,6 +113,27 @@ function normalizeAnalytics(value: unknown): AnalyticsPayload {
     referrers: Array.isArray(raw.referrers) ? raw.referrers : [],
     devices: Array.isArray(raw.devices) ? raw.devices : [],
   };
+}
+
+function normalizeParseHealth(value: unknown): ParseHealth {
+  if (!value || typeof value !== "object") return EMPTY_PARSE_HEALTH;
+  const raw = value as Partial<ParseHealth>;
+  return {
+    totals: {
+      requests: integer(raw.totals?.requests), successes: integer(raw.totals?.successes), failures: integer(raw.totals?.failures),
+      rejected: integer(raw.totals?.rejected), review_required: integer(raw.totals?.review_required),
+      average_quality: raw.totals?.average_quality == null ? null : integer(raw.totals.average_quality),
+      average_duration_ms: raw.totals?.average_duration_ms == null ? null : integer(raw.totals.average_duration_ms),
+      p95_duration_ms: raw.totals?.p95_duration_ms == null ? null : integer(raw.totals.p95_duration_ms),
+    },
+    by_model: Array.isArray(raw.by_model) ? raw.by_model : [],
+    by_document_type: Array.isArray(raw.by_document_type) ? raw.by_document_type : [],
+    failures: Array.isArray(raw.failures) ? raw.failures : [],
+  };
+}
+
+function seconds(value: number | null) {
+  return value == null ? "—" : `${Math.round(value / 1000)}s`;
 }
 
 function StatCard({
@@ -184,7 +225,7 @@ export default async function AdminDashboard({
 }) {
   await requireAdminUser();
   const params = await searchParams;
-  const view = params.view === "feedback" ? "feedback" : params.view === "behavior" ? "behavior" : "overview";
+  const view = params.view === "feedback" ? "feedback" : params.view === "behavior" ? "behavior" : params.view === "operations" ? "operations" : "overview";
   const period = [7, 30, 90].includes(Number(params.period)) ? Number(params.period) : 30;
   const feedbackStatus = ["unread", "read", "resolved"].includes(params.status || "")
     ? params.status!
@@ -208,6 +249,8 @@ export default async function AdminDashboard({
     profilesResult,
     documentsResult,
     shipmentsResult,
+    parseHealthResult,
+    incidentsResult,
   ] = await Promise.all([
     admin.rpc("admin_analytics_dashboard", { p_since: since }),
     admin.from("analytics_events").select("event_type, feature, path, visitor_id, session_id, referrer_host, occurred_at").gte("occurred_at", since).order("occurred_at", { ascending: true }).limit(5000),
@@ -217,6 +260,8 @@ export default async function AdminDashboard({
     admin.from("profiles").select("id", { count: "exact", head: true }),
     admin.from("documents").select("id", { count: "exact", head: true }).gte("created_at", since),
     admin.from("shipments").select("id", { count: "exact", head: true }).gte("created_at", since),
+    admin.rpc("parse_health_dashboard", { p_since: since }),
+    admin.from("service_incidents").select("id, severity, status, title, details, first_seen_at, last_seen_at, resolved_at").eq("service", "document_parsing").order("last_seen_at", { ascending: false }).limit(20),
   ]);
 
   const analytics = analyticsResult.error
@@ -224,6 +269,8 @@ export default async function AdminDashboard({
     : normalizeAnalytics(analyticsResult.data);
   const feedback = (feedbackResult.data || []) as FeedbackRow[];
   const behaviorEvents = (behaviorResult.data || []) as BehaviorEvent[];
+  const parseHealth = parseHealthResult.error ? EMPTY_PARSE_HEALTH : normalizeParseHealth(parseHealthResult.data);
+  const incidents = (incidentsResult.data || []) as ServiceIncident[];
   const maxDaily = Math.max(1, ...analytics.daily.map((day) => integer(day.page_views)));
   const sessionMap = new Map<string, BehaviorEvent[]>();
   for (const event of behaviorEvents) {
@@ -280,7 +327,7 @@ export default async function AdminDashboard({
         </div>
       </header>
 
-      <nav aria-label="Admin dashboard" className="grid grid-cols-3 gap-2 rounded-2xl bg-secondary p-1.5">
+      <nav aria-label="Admin dashboard" className="grid grid-cols-2 gap-2 rounded-2xl bg-secondary p-1.5 lg:grid-cols-4">
         <Link
           href={`/app/admin?view=overview&period=${period}`}
           className={cn(
@@ -298,6 +345,15 @@ export default async function AdminDashboard({
           )}
         >
           <MousePointerClick className="size-4" aria-hidden /> User behavior
+        </Link>
+        <Link
+          href={`/app/admin?view=operations&period=${period}`}
+          className={cn(
+            "flex min-h-12 items-center justify-center gap-2 rounded-xl px-2 text-center text-sm font-bold",
+            view === "operations" ? "bg-white text-primary shadow-sm" : "text-muted-foreground",
+          )}
+        >
+          <Activity className="size-4 shrink-0" aria-hidden /> Operations health
         </Link>
         <Link
           href={`/app/admin?view=feedback&period=${period}`}
@@ -393,6 +449,51 @@ export default async function AdminDashboard({
               </p>
             </section>
           </div>
+        </>
+      ) : view === "operations" ? (
+        <>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Parse requests" value={parseHealth.totals.requests} note={`Last ${period} days · all intake channels`} icon={FileText} />
+            <StatCard label="Failed parses" value={parseHealth.totals.failures} note={`${parseHealth.totals.rejected.toLocaleString()} requests rejected before parsing`} icon={AlertTriangle} />
+            <StatCard label="Review required" value={parseHealth.totals.review_required} note="Blocked from approval by deterministic checks" icon={CheckCircle2} />
+            <StatCard label="Average quality" value={parseHealth.totals.average_quality ?? 0} note={parseHealth.totals.average_quality == null ? "No successful parses in this period" : `P95 latency ${seconds(parseHealth.totals.p95_duration_ms)}`} icon={Activity} />
+          </section>
+
+          <section className="rounded-2xl border border-border bg-white p-5">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+              <div>
+                <h2 className="flex items-center gap-2 font-black text-primary"><Activity className="size-5 text-signal" aria-hidden /> Parsing service status</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Content-free reliability telemetry. Thresholds run every 15 minutes over the latest 60-minute window.</p>
+              </div>
+              <span className={cn("w-fit rounded-full px-3 py-1.5 text-xs font-bold", incidents.some((item) => item.status === "open") ? "bg-red-50 text-destructive" : "bg-green-50 text-green-700")}>
+                {incidents.some((item) => item.status === "open") ? "Attention required" : "No open incidents"}
+              </span>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl bg-secondary p-4"><Timer className="size-4 text-primary" aria-hidden /><strong className="mt-2 block text-xl text-primary">{seconds(parseHealth.totals.average_duration_ms)}</strong><span className="text-xs text-muted-foreground">Average successful parse</span></div>
+              <div className="rounded-xl bg-secondary p-4"><Timer className="size-4 text-primary" aria-hidden /><strong className="mt-2 block text-xl text-primary">{seconds(parseHealth.totals.p95_duration_ms)}</strong><span className="text-xs text-muted-foreground">95th-percentile latency</span></div>
+              <div className="rounded-xl bg-secondary p-4"><CheckCircle2 className="size-4 text-primary" aria-hidden /><strong className="mt-2 block text-xl text-primary">{parseHealth.totals.successes.toLocaleString()}</strong><span className="text-xs text-muted-foreground">Successful parses</span></div>
+            </div>
+          </section>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="overflow-hidden rounded-2xl border border-border bg-white">
+              <div className="border-b border-border p-5"><h2 className="font-black text-primary">Performance by model</h2><p className="text-xs text-muted-foreground">Provider, quality, latency and failures</p></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-secondary text-xs uppercase text-muted-foreground"><tr><th className="p-3">Model</th><th className="p-3">Requests</th><th className="p-3">Failures</th><th className="p-3">Quality</th><th className="p-3">Avg.</th></tr></thead><tbody>{parseHealth.by_model.map((row) => <tr key={`${row.provider}:${row.model}`} className="border-t border-border"><td className="p-3"><strong className="block text-primary">{row.model}</strong><span className="text-xs text-muted-foreground">{row.provider}</span></td><td className="p-3">{integer(row.requests)}</td><td className="p-3">{integer(row.failures)}</td><td className="p-3">{row.average_quality == null ? "—" : Math.round(row.average_quality)}</td><td className="p-3">{seconds(row.average_duration_ms)}</td></tr>)}</tbody></table></div>
+              {!parseHealth.by_model.length && <p className="p-5 text-sm text-muted-foreground">Model performance will appear after production parses.</p>}
+            </section>
+            <section className="overflow-hidden rounded-2xl border border-border bg-white">
+              <div className="border-b border-border p-5"><h2 className="font-black text-primary">Quality by document type</h2><p className="text-xs text-muted-foreground">Failures and approval-blocking review counts</p></div>
+              <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-left text-sm"><thead className="bg-secondary text-xs uppercase text-muted-foreground"><tr><th className="p-3">Document</th><th className="p-3">Requests</th><th className="p-3">Failures</th><th className="p-3">Review</th><th className="p-3">Quality</th></tr></thead><tbody>{parseHealth.by_document_type.map((row) => <tr key={row.document_type} className="border-t border-border"><td className="p-3 font-semibold capitalize text-primary">{row.document_type.replace(/_/g, " ")}</td><td className="p-3">{integer(row.requests)}</td><td className="p-3">{integer(row.failures)}</td><td className="p-3">{integer(row.review_required)}</td><td className="p-3">{row.average_quality == null ? "—" : Math.round(row.average_quality)}</td></tr>)}</tbody></table></div>
+              {!parseHealth.by_document_type.length && <p className="p-5 text-sm text-muted-foreground">Document-type quality will appear after production parses.</p>}
+            </section>
+          </div>
+
+          <section className="rounded-2xl border border-border bg-white p-5">
+            <h2 className="font-black text-primary">Recent incidents</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Open incidents resolve automatically after the monitored window returns within threshold.</p>
+            {!incidents.length ? <p className="mt-5 rounded-xl bg-background p-5 text-sm text-muted-foreground">No parsing incidents have been recorded.</p> : <ol className="mt-4 space-y-3">{incidents.map((incident) => <li key={incident.id} className="flex flex-col justify-between gap-3 rounded-xl border border-border p-4 sm:flex-row sm:items-center"><div><p className="font-bold text-primary">{incident.title}</p><p className="mt-1 text-xs text-muted-foreground">Last observed {new Date(incident.last_seen_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</p></div><span className={cn("w-fit rounded-full px-2.5 py-1 text-xs font-bold capitalize", incident.status === "resolved" ? "bg-green-50 text-green-700" : incident.severity === "critical" ? "bg-red-50 text-destructive" : "bg-amber-50 text-amber-800")}>{incident.status} · {incident.severity}</span></li>)}</ol>}
+          </section>
         </>
       ) : view === "behavior" ? (
         <>

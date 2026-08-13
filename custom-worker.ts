@@ -28,10 +28,12 @@ interface GainingDocxEnv {
 // job, so the two lists are meant to be read side by side.
 const DAILY_CRON = "0 8 * * *";
 const MINUTELY_CRON = "* * * * *";
+const HEALTH_CRON = "*/15 * * * *";
 
 const CRON_ROUTES: Record<string, string> = {
   [DAILY_CRON]: "/api/cron/charge-alerts",
   [MINUTELY_CRON]: "/api/cron/deliveries",
+  [HEALTH_CRON]: "/api/cron/parse-health",
 };
 
 function isPrivateIntakeAddress(value: string, domain: string) {

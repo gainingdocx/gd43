@@ -29,6 +29,7 @@ import { isTranslationLanguage } from "@/lib/ai/languages";
 import { translateExtraction } from "@/lib/ai/translate";
 import { classifyPageGroups, type LogicalPageGroup } from "@/lib/ai/page-groups";
 import type { DetectedType } from "@/lib/ai/schemas/shared";
+import { recordParseMetric } from "@/lib/observability/parse-metrics";
 
 // Parse a document from already-uploaded page images (SSE response).
 // Heavy bytes never touch this Worker (spec §1.5): the browser uploads pages
@@ -360,6 +361,14 @@ export async function POST(request: Request) {
       status,
       durationMs: Date.now() - requestStartedAt,
     });
+    void recordParseMetric({
+      requestId,
+      channel: "web",
+      outcome: "rejected",
+      pageCount: 0,
+      durationMs: Date.now() - requestStartedAt,
+      failureCode: reason,
+    });
     return Response.json(
       { error: message, reference },
       { status, headers: { "X-Request-ID": requestId } }
@@ -658,6 +667,14 @@ export async function POST(request: Request) {
           qualityScore: result.qualityScore,
           durationMs: Date.now() - requestStartedAt,
         });
+        void recordParseMetric({
+          requestId, owner: user?.id, channel: "web", outcome: "success",
+          documentType: result.extraction.detected_type, provider: result.provider,
+          model: result.model, pageCount: pages.length,
+          durationMs: Date.now() - requestStartedAt, qualityScore: result.qualityScore,
+          escalated: result.escalated,
+          blockingFailures: validation.filter((item) => item.status === "fail").length,
+        });
       } catch (error) {
         logError("parse_request_failed", error, {
           requestId,
@@ -666,6 +683,12 @@ export async function POST(request: Request) {
           signedIn: Boolean(user),
           pageCount: pages.length,
           durationMs: Date.now() - requestStartedAt,
+        });
+        void recordParseMetric({
+          requestId, owner: user?.id, channel: "web", outcome: "failed",
+          documentType: docTypeHint, pageCount: pages.length,
+          durationMs: Date.now() - requestStartedAt,
+          failureCode: error instanceof Error ? error.name.slice(0, 80) : "unknown",
         });
         if (user && documentId) {
           await supabase

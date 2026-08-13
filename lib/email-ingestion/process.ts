@@ -12,7 +12,8 @@ import { runAutomatedShipmentCheck } from "@/lib/shipments/automated-check";
 import { announceMatchOutcome, openFindingKeys } from "@/lib/workflow/operations";
 import { discrepancyNoticePdf, type NoticeDiscrepancy } from "@/lib/export/discrepancy-pdf";
 import { sendCloudflareEmail } from "@/lib/email/cloudflare";
-import { logError, logInfo } from "@/lib/observability/logger";
+import { createRequestId, logError, logInfo } from "@/lib/observability/logger";
+import { recordParseMetric } from "@/lib/observability/parse-metrics";
 
 function cleanFilename(value: string) {
   return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 120) || "shipment-document";
@@ -100,6 +101,8 @@ export async function processEmailIngestion(ingestionId: string) {
       if (!document.source_file_path || !document.source_mime_type) { failed.push(filename); continue; }
       const usage = await getUsageContext(ingestion.owner);
       if (usage.used >= usage.limit) { skipped.push(`${filename} (monthly allowance reached)`); continue; }
+      const metricRequestId = createRequestId();
+      const parseStartedAt = Date.now();
       try {
         const { data: signed, error: signError } = await admin.storage.from("docs").createSignedUrl(document.source_file_path, 3600);
         if (signError || !signed?.signedUrl) throw signError ?? new Error("could not sign attachment");
@@ -112,7 +115,18 @@ export async function processEmailIngestion(ingestionId: string) {
         if (translation) await translateExtraction(result.extraction, translation);
         await addHsSuggestions(result.extraction);
         await persistResult(admin, ingestion.owner, document.id, result, validateDocument(result.extraction));
+        void recordParseMetric({
+          requestId: metricRequestId, owner: ingestion.owner, channel: "email", outcome: "success",
+          documentType: result.extraction.detected_type, provider: result.provider, model: result.model,
+          pageCount: 1, durationMs: Date.now() - parseStartedAt,
+          qualityScore: result.qualityScore, escalated: result.escalated,
+        });
       } catch (error) {
+        void recordParseMetric({
+          requestId: metricRequestId, owner: ingestion.owner, channel: "email", outcome: "failed",
+          pageCount: 1, durationMs: Date.now() - parseStartedAt,
+          failureCode: error instanceof Error ? error.name.slice(0, 80) : "unknown",
+        });
         failed.push(filename);
         await admin.from("documents").update({ status: "failed" }).eq("id", document.id);
         logError("email_ingestion_attachment_failed", error, { ingestionId, documentId: document.id, filename });
