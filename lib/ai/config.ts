@@ -29,4 +29,8 @@ export const USE_JSON_SCHEMA = process.env.AI_JSON_SCHEMA === "on";
 
 export const MAX_PAGES = 15;
 export const REQUEST_TIMEOUT_MS = 120_000;
+// Dense quality retries can take longer to begin producing a complete answer
+// than the fast path. They stream and receive a bounded extra minute before
+// the router falls back to an independent fast-model verification pass.
+export const QUALITY_RETRY_TIMEOUT_MS = 180_000;
 export const MAX_OUTPUT_TOKENS = 8192;

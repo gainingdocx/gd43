@@ -11,6 +11,8 @@
     "check": "npm run lint && tsc --noEmit",
     "test": "tsx --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\"",
     "verify:samples": "node --conditions=react-server --import tsx --env-file=.env.local scripts/verify-gemma-samples.ts",
+    "verify:regression": "tsx scripts/verify-regression-corpus.ts",
+    "verify:regression:live": "node --conditions=react-server --import tsx --env-file=.env.local scripts/verify-regression-corpus.ts --live",
     "verify:unicode-pdf": "tsx scripts/verify-unicode-pdf.ts",
     "start": "next start",
     "lint": "eslint",

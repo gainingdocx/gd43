@@ -10,7 +10,10 @@ export const INLINE_IMAGE_TARGET_BYTES = 6 * 1024 * 1024;
 export const INLINE_IMAGE_HARD_BYTES = 7 * 1024 * 1024;
 const INLINE_QUALITIES = [0.96, 0.93, 0.9, 0.86] as const;
 const INLINE_SCALE_STEPS = [1, 0.9, 0.8, 0.7] as const;
-const PASSTHROUGH_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+// JPEG and PNG can be wrapped losslessly into the transient OCR-evidence PDF.
+// WebP is decoded by the browser and re-encoded as high-quality JPEG so the
+// OpenRouter Mistral OCR quality retry receives the same page Gemma sees.
+const PASSTHROUGH_TYPES = new Set(["image/jpeg", "image/png"]);
 
 export function shouldPreserveRaster(type: string, width: number, height: number) {
   return Math.max(width, height) <= MAX_LONG_EDGE && PASSTHROUGH_TYPES.has(type);

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { extname, join } from "node:path";
+import { join } from "node:path";
+import sharp from "sharp";
 
 import { parseDocument } from "../lib/ai/router";
 import { validateDocument } from "../lib/validators";
@@ -85,9 +86,16 @@ const samples: Sample[] = [
 ];
 
 async function run(sample: Sample) {
-  const path = join(process.cwd(), "Sample", "Bill_Lading", sample.file);
-  const mime = extname(path).toLowerCase() === ".png" ? "image/png" : "image/webp";
-  const dataUrl = `data:${mime};base64,${(await readFile(path)).toString("base64")}`;
+  const sampleRoot = process.env.SAMPLE_ROOT ?? join(process.cwd(), "Sample", "Bill_Lading");
+  const path = join(sampleRoot, sample.file);
+  const source = await readFile(path);
+  const metadata = await sharp(source).metadata();
+  const isSupportedOcrPdfImage = metadata.format === "png" || metadata.format === "jpeg";
+  const prepared = isSupportedOcrPdfImage
+    ? source
+    : await sharp(source).flatten({ background: "#ffffff" }).jpeg({ quality: 92 }).toBuffer();
+  const mime = metadata.format === "png" ? "image/png" : "image/jpeg";
+  const dataUrl = `data:${mime};base64,${prepared.toString("base64")}`;
   const started = Date.now();
   const result = await parseDocument([dataUrl], "bill_of_lading");
   const extraction = result.extraction;
@@ -116,10 +124,19 @@ async function run(sample: Sample) {
 }
 
 async function main() {
-  const settled = await Promise.allSettled(samples.map(run));
+  const selectedSamples = process.env.SAMPLE_FILTER
+    ? samples.filter((sample) => sample.file === process.env.SAMPLE_FILTER)
+    : samples;
+  // Run sequentially so a five-document benchmark measures extraction quality
+  // rather than saturating OpenRouter and manufacturing timeout failures.
+  const settled: PromiseSettledResult<Awaited<ReturnType<typeof run>>>[] = [];
+  for (const sample of selectedSamples) settled.push(await Promise.resolve(run(sample)).then(
+    (value) => ({ status: "fulfilled", value } as const),
+    (reason) => ({ status: "rejected", reason } as const)
+  ));
   const results = settled.map((item, index) => item.status === "fulfilled"
     ? item.value
-    : { file: samples[index].file, error: String(item.reason) });
+    : { file: selectedSamples[index].file, error: String(item.reason) });
   console.log(JSON.stringify(results, null, 2));
   if (settled.some((item) => item.status === "rejected")) process.exitCode = 1;
 }

@@ -11,12 +11,13 @@ import {
 test("preserves supported source rasters within the OCR size ceiling", () => {
   assert.equal(shouldPreserveRaster("image/png", 384, 512), true);
   assert.equal(shouldPreserveRaster("image/jpeg", MAX_LONG_EDGE, 1000), true);
-  assert.equal(shouldPreserveRaster("image/webp", 1200, 1800), true);
+  assert.equal(shouldPreserveRaster("image/webp", 1200, 1800), false);
 });
 
 test("converts unsupported or oversized raster inputs", () => {
   assert.equal(shouldPreserveRaster("image/bmp", 384, 512), false);
   assert.equal(shouldPreserveRaster("image/heic", 384, 512), false);
+  assert.equal(shouldPreserveRaster("image/webp", 384, 512), false);
   assert.equal(shouldPreserveRaster("image/png", MAX_LONG_EDGE + 1, 1000), false);
 });
 

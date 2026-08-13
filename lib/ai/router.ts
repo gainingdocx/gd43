@@ -10,10 +10,12 @@ import {
   MODEL_PRIMARY,
   OPENROUTER_BASE_URL,
   PROVIDER_PREFS,
+  QUALITY_RETRY_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS,
   USE_JSON_SCHEMA,
 } from "./config";
 import { tolerantParse, repairJson } from "./json";
+import { pageImagesAsOcrPdf } from "./image-pdf";
 import { evidenceSupports, rowsMatchOwnTotal } from "./merge-policy";
 import { buildUserText, PROMPT_VERSION, SYSTEM_PROMPT } from "./prompts/extract-v3";
 import {
@@ -58,6 +60,7 @@ interface Attempt {
   apiKey: string | undefined;
   model: string;
   stream: boolean;
+  timeoutMs?: number;
   /** OpenRouter PDF preprocessing. Cloudflare AI is deliberately unsupported:
    * browser/API uploads are page images sent straight to Gemma, while an
    * emailed PDF uses OpenRouter's scan-capable Mistral OCR before Gemma. */
@@ -121,7 +124,7 @@ async function callModel(
         : {}),
     },
     body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    signal: AbortSignal.timeout(attempt.timeoutMs ?? REQUEST_TIMEOUT_MS),
   });
 
   if (!res.ok) {
@@ -414,7 +417,8 @@ export async function parseDocumentInputs(
   }
 
   // Content-quality gate: invalid JSON or ≥3 empty critical fields →
-  // one escalation retry (non-stream). Keep the better result.
+  // one streamed dense retry, followed by an independent fast verification
+  // only if the dense request fails. Keep the better evidence-backed result.
   let extraction: NormalizedExtraction | null = null;
   try {
     extraction = parseToExtraction(winner.rawText);
@@ -426,16 +430,44 @@ export async function parseDocumentInputs(
 
   if (needsEscalation) {
     callbacks?.onStatus?.("quality_retry");
+    const ocrPdf = await pageImagesAsOcrPdf(inputs);
+    const qualityInputs = ocrPdf ? [...inputs, ocrPdf] : inputs;
     const escalationAttempt: Attempt = {
       ...winner.attempt,
       model: MODEL_ESCALATION,
-      stream: false,
+      stream: true,
+      timeoutMs: QUALITY_RETRY_TIMEOUT_MS,
+      pdfEngine: ocrPdf ? "mistral-ocr" : winner.attempt.pdfEngine,
+    };
+    const selectQualityResult = (rawText: string, attempt: Attempt): ParseResult | null => {
+      const candidate = parseToExtraction(rawText);
+      const merged = extraction === null
+        ? candidate
+        : mergeComplementaryExtractions(extraction, candidate);
+      const mergedFlags = merged.fields._meta.confidence_flags;
+      const hasCrossModelDecision = mergedFlags.some((flag) => flag.startsWith("cross_model"));
+      const keepCandidate =
+        extraction === null ||
+        hasCrossModelDecision ||
+        extractionQualityScore(merged) > extractionQualityScore(extraction);
+      if (!keepCandidate) return null;
+      const qualityScore = extractionQualityScore(merged);
+      markLowQuality(merged, qualityScore);
+      return {
+        extraction: merged,
+        model: attempt.model,
+        provider: attempt.provider,
+        escalated: true,
+        promptVersion: PROMPT_VERSION,
+        qualityScore,
+        rawText,
+      };
     };
     const escalationStartedAt = Date.now();
     try {
       const rawText = await callModel(
         escalationAttempt,
-        inputs,
+        qualityInputs,
         docTypeHint,
         useJsonSchema
       );
@@ -443,31 +475,11 @@ export async function parseDocumentInputs(
         requestId: callbacks?.requestId,
         provider: escalationAttempt.provider,
         model: escalationAttempt.model,
+        ocrAugmented: Boolean(ocrPdf),
         durationMs: Date.now() - escalationStartedAt,
       });
-      const escalated = parseToExtraction(rawText);
-      const merged = extraction === null
-        ? escalated
-        : mergeComplementaryExtractions(extraction, escalated);
-      const mergedFlags = merged.fields._meta.confidence_flags;
-      const hasCrossModelDecision = mergedFlags.some((flag) => flag.startsWith("cross_model"));
-      const keepEscalated =
-        extraction === null ||
-        hasCrossModelDecision ||
-        extractionQualityScore(merged) > extractionQualityScore(extraction);
-      if (keepEscalated) {
-        const qualityScore = extractionQualityScore(merged);
-        markLowQuality(merged, qualityScore);
-        return {
-          extraction: merged,
-          model: escalationAttempt.model,
-          provider: escalationAttempt.provider,
-          escalated: true,
-          promptVersion: PROMPT_VERSION,
-          qualityScore,
-          rawText,
-        };
-      }
+      const selected = selectQualityResult(rawText, escalationAttempt);
+      if (selected) return selected;
     } catch (error) {
       logWarn("ocr_quality_retry_failed", {
         requestId: callbacks?.requestId,
@@ -480,6 +492,42 @@ export async function parseDocumentInputs(
             ? error.message.slice(0, 1000)
             : String(error).slice(0, 1000),
       });
+      const verificationAttempt: Attempt = {
+        ...winner.attempt,
+        model: MODEL_PRIMARY,
+        stream: false,
+        timeoutMs: REQUEST_TIMEOUT_MS,
+        pdfEngine: ocrPdf ? "mistral-ocr" : winner.attempt.pdfEngine,
+      };
+      const verificationStartedAt = Date.now();
+      try {
+        const rawText = await callModel(
+          verificationAttempt,
+          qualityInputs,
+          docTypeHint,
+          false
+        );
+        logInfo("ocr_quality_verification_succeeded", {
+          requestId: callbacks?.requestId,
+          provider: verificationAttempt.provider,
+          model: verificationAttempt.model,
+          ocrAugmented: Boolean(ocrPdf),
+          durationMs: Date.now() - verificationStartedAt,
+        });
+        const selected = selectQualityResult(rawText, verificationAttempt);
+        if (selected) return selected;
+      } catch (verificationError) {
+        logWarn("ocr_quality_verification_failed", {
+          requestId: callbacks?.requestId,
+          provider: verificationAttempt.provider,
+          model: verificationAttempt.model,
+          durationMs: Date.now() - verificationStartedAt,
+          errorName: verificationError instanceof Error ? verificationError.name : undefined,
+          errorMessage: verificationError instanceof Error
+            ? verificationError.message.slice(0, 1000)
+            : String(verificationError).slice(0, 1000),
+        });
+      }
       // Escalation failed — fall through to the original result if usable.
     }
   }
