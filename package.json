@@ -13,6 +13,7 @@
     "verify:samples": "node --conditions=react-server --import tsx --env-file=.env.local scripts/verify-gemma-samples.ts",
     "verify:regression": "tsx scripts/verify-regression-corpus.ts",
     "verify:regression:live": "node --conditions=react-server --import tsx --env-file=.env.local scripts/verify-regression-corpus.ts --live",
+    "verify:e2e": "node --conditions=react-server --import tsx scripts/verify-production-e2e.ts",
     "verify:unicode-pdf": "tsx scripts/verify-unicode-pdf.ts",
     "start": "next start",
     "lint": "eslint",
@@ -57,6 +58,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.6",
+    "@playwright/test": "1.55.1",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "20.19.43",
     "@types/papaparse": "5.5.2",
