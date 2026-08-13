@@ -44,8 +44,8 @@ export default function SecurityPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {[
-              ["Cloudflare", "Application hosting, document OCR, email intake, background queues", "Document page images during OCR; all request traffic; inbound intake email"],
-              ["OpenRouter", "Runs the vision models that read the documents", "Document page images and the text extracted from them"],
+              ["Cloudflare", "Application hosting, email intake and background queues", "Request metadata and inbound intake email. Cloudflare does not parse document contents."],
+              ["OpenRouter", "Runs Gemma vision extraction and the configured OCR quality retry", "Document page images or PDFs and the text extracted from them"],
               ["Supabase", "Database, file storage and authentication", "Original files, extracted values, shipments, discrepancies, account records"],
               ["Paddle", "Subscription billing and tax", "Billing name, email and payment details. No document data."],
               ["Resend", "Transactional and result email", "Recipient address and message content. No document data unless a report is attached at your request."],
